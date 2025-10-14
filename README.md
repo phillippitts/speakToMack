@@ -108,6 +108,24 @@ WHISPER_SHA256=<official_sha256_for_bin> \
 
 If upstream files are legitimately updated, either update the env vars or delete `models/checksums.sha256` to re-lock values after verifying the source.
 
+## Verify Structured Logs
+
+After starting the app, you can verify that structured Log4j 2 logs (with MDC values) are emitted.
+
+1. Start the app:
+   ```bash
+   ./gradlew bootRun
+   ```
+2. In another terminal, call the ping endpoint with headers to populate MDC:
+   ```bash
+   curl -H 'X-Request-ID: abc123' -H 'X-User-ID: demo' http://localhost:8080/ping
+   ```
+3. Observe console logs. You should see a line similar to:
+   ```
+   2025-10-14 16:45:12.345 [http-nio-8080-exec-1] [abc123] [demo] INFO  c.p.s.presentation.controller.PingController - Ping received — structured logging verification
+   ```
+   Note the requestId and userId appearing in square brackets.
+
 ## Architecture
 
 - **3-Tier Spring Boot Application** (Presentation → Service → Repository)
@@ -167,13 +185,29 @@ stt:
 
 ### Run Tests
 
+Where are the tests?
+- src/test/java/com/phillippitts/speaktomack/SpeakToMackApplicationTests.java (Spring context load test)
+- src/test/java/com/phillippitts/speaktomack/TestSpeakToMackApplication.java (test bootstrap example)
+- src/test/java/com/phillippitts/speaktomack/TestcontainersConfiguration.java (test-only configuration)
+
+How to run:
 ```bash
 # All tests
 ./gradlew test
 
-# Specific test
+# Single class (simple name)
 ./gradlew test --tests SpeakToMackApplicationTests
+
+# Single class (fully-qualified)
+./gradlew test --tests com.phillippitts.speaktomack.SpeakToMackApplicationTests
+
+# Single test method
+./gradlew test --tests com.phillippitts.speaktomack.SpeakToMackApplicationTests.contextLoads
 ```
+
+Notes:
+- Gradle is already configured with useJUnitPlatform() (JUnit 5).
+- You may see a Java 21 + Mockito warning during tests; it is harmless. A mitigation flag is already set in build.gradle: `tasks.test.jvmArgs('-XX:+EnableDynamicAgentLoading')`. 
 
 ### Project Structure
 
