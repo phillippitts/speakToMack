@@ -1,0 +1,89 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'  // Clean code enforcement
+}
+
+group = 'com.phillippitts'
+version = '0.0.1-SNAPSHOT'
+description = 'speakToMack'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springModulithVersion', "1.4.3")
+}
+
+configurations {
+    all {
+        // Exclude default Logback in favor of Log4j 2
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+
+dependencies {
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.modulith:spring-modulith-starter-core'
+    
+    // Logging with Log4j 2 (replaces Logback)
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'com.lmax:disruptor:3.4.4'  // For async logging performance
+    
+    // STT engines
+    implementation 'net.java.dev.jna:jna:5.13.0'           // Required by Vosk
+    implementation 'org.vosk:vosk:0.3.45'                  // Vosk STT
+    
+    // Hotkey support
+    implementation 'com.github.kwhat:jnativehook:2.2.2'    // Global hotkeys
+    
+    // Database
+    implementation 'org.flywaydb:flyway-core'              // Migrations
+    runtimeOnly 'org.postgresql:postgresql'                // Production DB
+    runtimeOnly 'com.h2database:h2'                        // Development DB
+    
+    // Security
+    implementation 'com.bucket4j:bucket4j-core:8.7.0'      // Rate limiting
+    
+    // Utilities
+    implementation 'org.json:json:20231013'                // JSON parsing for Vosk
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.awaitility:awaitility:4.2.0'   // Async testing
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.modulith:spring-modulith-bom:${springModulithVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    // Address Mockito warning on Java 21
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+}
+
+checkstyle {
+    toolVersion = '10.12.0'
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    // Fail build on violations
+    maxWarnings = 0
+}
