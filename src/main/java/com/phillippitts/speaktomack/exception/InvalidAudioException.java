@@ -4,7 +4,7 @@ package com.phillippitts.speaktomack.exception;
  * Thrown when audio data is invalid or does not match the required format
  * (16kHz, 16-bit signed PCM, mono, little-endian) or violates duration bounds.
  */
-public class InvalidAudioException extends RuntimeException {
+public class InvalidAudioException extends SpeakToMackException {
 
     private final int audioSize;
     private final String reason;
