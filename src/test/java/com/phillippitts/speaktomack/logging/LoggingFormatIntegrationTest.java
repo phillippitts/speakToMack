@@ -108,7 +108,8 @@ class LoggingFormatIntegrationTest {
         assertEquals(userId, contextData.getValue("userId"));
 
         // Sanity: logger name should be the PingController
-        assertThat(event.getLoggerName()).isEqualTo("com.phillippitts.speaktomack.presentation.controller.PingController");
+        assertThat(event.getLoggerName())
+                .isEqualTo("com.phillippitts.speaktomack.presentation.controller.PingController");
     }
 
     /**

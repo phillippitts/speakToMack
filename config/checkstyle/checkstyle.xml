@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    Checkstyle configuration for speakToMack
+    Enforces Clean Code principles (Robert C. Martin)
+    See: .junie/guidelines.md for detailed standards
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="error"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- Enforce line length limit -->
+    <module name="LineLength">
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+    </module>
+
+    <!-- TreeWalker: applies to Java source files -->
+    <module name="TreeWalker">
+
+        <!-- Naming Conventions (CRITICAL - see guidelines.md) -->
+        <module name="TypeName">
+            <property name="format" value="^[A-Z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern"
+                     value="Type name ''{0}'' must match pattern ''{1}''. Use descriptive nouns (e.g., TranscriptionResult, AudioCaptureService)."/>
+        </module>
+
+        <module name="MethodName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern"
+                     value="Method name ''{0}'' must match pattern ''{1}''. Use verb phrases (e.g., transcribe, captureAudio)."/>
+        </module>
+
+        <module name="ParameterName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern"
+                     value="Parameter name ''{0}'' must match pattern ''{1}''. Use descriptive nouns, no abbreviations."/>
+        </module>
+
+        <module name="LocalVariableName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern"
+                     value="Local variable ''{0}'' must match pattern ''{1}''. Use descriptive nouns, no abbreviations."/>
+        </module>
+
+        <module name="MemberName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern"
+                     value="Member variable ''{0}'' must match pattern ''{1}''. Use descriptive nouns."/>
+        </module>
+
+        <module name="ConstantName">
+            <property name="format" value="^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+            <message key="name.invalidPattern"
+                     value="Constant ''{0}'' must match pattern ''{1}''. Use UPPER_SNAKE_CASE with full words."/>
+        </module>
+
+        <!-- Method Length (Clean Code: methods should be small) -->
+        <module name="MethodLength">
+            <property name="max" value="50"/>
+            <property name="countEmpty" value="false"/>
+            <message key="maxLen.method"
+                     value="Method length is {0,number,integer} lines (max allowed is {1,number,integer}). Refactor into smaller methods."/>
+        </module>
+
+        <!-- Parameter Count (Clean Code: max 3 parameters) -->
+        <module name="ParameterNumber">
+            <property name="max" value="3"/>
+            <property name="ignoreOverriddenMethods" value="true"/>
+            <message key="maxParam"
+                     value="Method has {0,number,integer} parameters (max allowed is {1,number,integer}). Use parameter object or builder pattern."/>
+        </module>
+
+        <!-- Imports -->
+        <module name="AvoidStarImport"/>
+        <module name="UnusedImports"/>
+        <module name="RedundantImport"/>
+
+        <!-- Whitespace -->
+        <module name="WhitespaceAround">
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyMethods" value="true"/>
+            <property name="allowEmptyTypes" value="true"/>
+        </module>
+
+        <!-- Block Checks -->
+        <module name="EmptyBlock">
+            <property name="option" value="text"/>
+        </module>
+        <module name="LeftCurly"/>
+        <module name="RightCurly"/>
+        <module name="NeedBraces"/>
+
+        <!-- Modifier Order -->
+        <module name="ModifierOrder"/>
+
+        <!-- Coding Standards -->
+        <module name="EmptyStatement"/>
+        <module name="EqualsHashCode"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+
+        <!-- Dependency Injection: Constructor injection enforced -->
+        <module name="MissingDeprecated"/>
+
+    </module>
+
+    <!-- File-level checks -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <!-- Suppress warnings for generated code -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/suppressions.xml" default="${configDirectory}/suppressions.xml"/>
+        <property name="optional" value="true"/>
+    </module>
+
+</module>

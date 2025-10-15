@@ -16,12 +16,12 @@ import java.util.Map;
 @RestController
 class PingController {
 
-    private static final Logger log = LogManager.getLogger(PingController.class);
+    private static final Logger LOG = LogManager.getLogger(PingController.class);
 
     @GetMapping("/ping")
     ResponseEntity<Map<String, Object>> ping() {
         // Log an informational message; MDC values (requestId, userId) will be added by MdcFilter
-        log.info("Ping received — structured logging verification");
+        LOG.info("Ping received — structured logging verification");
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
                 "timestamp", Instant.now().toString()

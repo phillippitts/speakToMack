@@ -12,3 +12,4 @@ logs/
 # Build outputs
 /build/
 /out/
+/.gradle/

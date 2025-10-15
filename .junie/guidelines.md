@@ -2306,3 +2306,102 @@ logger.atDebug()
 	.addArgument(() -> computeExpensiveDetails())
     .log();
 ```
+
+
+---
+
+## Checkstyle Enforcement (Mandatory)
+
+This project enforces Clean Code and naming standards via Checkstyle. All generated and committed code MUST pass Checkstyle locally and in CI. The build is configured to fail on any violations (maxWarnings = 0).
+
+### Why we enforce Checkstyle
+- Prevents style drift and naming inconsistencies as the codebase grows
+- Encodes Clean Code rules (SRP, small methods, consistent naming) as guardrails
+- Produces readable and maintainable diffs and code reviews
+
+### How it’s configured
+- Gradle plugin already applied in `build.gradle`:
+  ```gradle
+  plugins {
+      id 'checkstyle'
+  }
+  
+  checkstyle {
+      toolVersion = '10.12.0'
+      configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+      maxWarnings = 0 // Fail build on any violations
+  }
+  ```
+- Rule set: `config/checkstyle/checkstyle.xml`
+  - References these guidelines for naming, size limits, and structure
+  - You may extend rules here if the team agrees (via PR & ADR if substantial)
+
+### Running Checkstyle
+- All checks (as part of full verification):
+  ```bash
+  ./gradlew clean check
+  ```
+- Only Checkstyle tasks:
+  ```bash
+  ./gradlew checkstyleMain checkstyleTest
+  ```
+- Single source set (for faster feedback):
+  ```bash
+  ./gradlew checkstyleMain
+  ```
+
+### What the rules enforce (high level)
+- Naming conventions:
+  - Classes & Interfaces: PascalCase (nouns that reveal intent; avoid Manager/Helper)
+  - Methods: lowerCamelCase (verbs that reveal action)
+  - Constants: UPPER_SNAKE_CASE
+  - Packages: lower.case.feature.or.layer (e.g., `presentation.controller`)
+- Structure & complexity:
+  - Small methods (extract when exceeding acceptable size/complexity)
+  - No wildcard imports; explicit imports only
+  - No unused imports
+  - Javadoc for public APIs (especially interfaces and public classes)
+- Formatting essentials:
+  - Indentation, whitespace, and newline rules
+  - Braces on control structures and class/method declarations
+
+See `config/checkstyle/checkstyle.xml` for authoritative rules.
+
+### Fixing violations quickly
+- Run Checkstyle as above to see exact file/line and rule id
+- Most formatting/import issues can be auto-fixed by your IDE or by running code cleanup
+- For naming/structure issues, prefer refactoring (rename, extract method/class)
+- If you disagree with a rule for a specific case, raise a PR with:
+  - The justification
+  - Proposed rule adjustment or suppression (see below)
+  - Impact analysis (files affected)
+
+### Suppressions (use sparingly)
+- Prefer fixing code. When a legitimate exception is justified (e.g., 3rd-party generated code), add a narrow suppression in a dedicated suppressions file and reference it from Checkstyle config.
+- Avoid broad disables or package‑wide suppressions.
+
+### IDE Integration
+- IntelliJ IDEA: Settings → Tools → Checkstyle
+  - Use the project’s `config/checkstyle/checkstyle.xml`
+  - Enable “Scan with Checkstyle” on changes
+- Consider enabling “Reformat on Save” & “Optimize Imports on Save”
+
+### CI Enforcement
+- The GitHub Actions workflow runs `./gradlew clean build`/`test`; Checkstyle executes during `check` phase
+- Any Checkstyle violation will fail the CI job and block merges to `main`
+
+### Authoring guidance (applies to code generators too)
+- Generators should:
+  - Produce files with correct header/package/import ordering
+  - Follow naming conventions from these guidelines
+  - Keep methods small and cohesive
+- If generating code programmatically, run `checkstyleMain` as part of the generation pipeline (locally or in a pre-commit hook) to catch issues early
+
+### Quick checklist before pushing
+- [ ] `./gradlew checkstyleMain` passes
+- [ ] No unused/wildcard imports
+- [ ] Public APIs have Javadoc (where applicable)
+- [ ] Names reveal intent (no Manager/Helper/Impl without strong reason)
+- [ ] Methods are small and single-purpose
+
+> Reminder: Checkstyle is here to help us keep the codebase healthy and scalable. Passing it locally saves time in CI and in code reviews.
