@@ -25,6 +25,8 @@ jobs:
             java: '21'
           - os: macos-13
             java: '21'
+          - os: ubuntu-latest
+            java: '21'
 
     steps:
       - name: Checkout
@@ -55,11 +57,12 @@ jobs:
       - name: Test
         run: ./gradlew --no-daemon test
 
-      - name: Upload test reports on failure
+      - name: Upload test and style reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-${{ matrix.os }}
+          name: reports-${{ matrix.os }}
           path: |
             build/reports/tests/test
             build/test-results/test
+            build/reports/checkstyle
