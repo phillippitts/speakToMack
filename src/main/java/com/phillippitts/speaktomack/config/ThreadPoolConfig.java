@@ -72,8 +72,9 @@ public class ThreadPoolConfig {
                     if (previous != null && !previous.isEmpty()) {
                         ThreadContext.putAll(previous);
                     }
-                };
+                }
             };
+
         });
 
         executor.initialize();

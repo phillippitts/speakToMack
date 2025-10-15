@@ -8,9 +8,20 @@ speakToMack lets you dictate text into any macOS application using a configurabl
 
 ## Status: 🚧 In Development
 
-Current phase: Environment Setup (Phase 0)  
-Timeline: ~5 days to MVP  
-See: [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+**Current phase:** Phase 1 Complete ✅ (Core Abstractions)
+**Next:** Phase 2 - STT Engine Integration (Vosk + Whisper)
+**Timeline:** ~4 days remaining to MVP
+**See:** [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+
+**Phase 0-1 Deliverables:**
+- ✅ Log4j2 structured logging with MDC propagation
+- ✅ Audio format validation (16kHz, 16-bit PCM, mono)
+- ✅ Domain models (TranscriptionResult)
+- ✅ Exception hierarchy (4 exceptions with base class)
+- ✅ SttEngine interface (Adapter pattern for Vosk/Whisper)
+- ✅ Configuration records (VoskConfig, WhisperConfig)
+- ✅ Thread pool configuration (parallel STT processing)
+- ✅ 50 tests, 100% passing, 0 Checkstyle violations
 
 ## Key Features (Planned)
 
