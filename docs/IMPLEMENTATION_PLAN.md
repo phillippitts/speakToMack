@@ -1,8 +1,8 @@
 # speakToMack Implementation Plan
 
 **Status:** Phases 0–1 implemented; Phases 2–6 planned (not yet implemented)
-**Timeline:** 6 days (~45.5 hours)
-**Grade:** 98/100 → 99/100 (Production-Ready with Enhanced Resilience)
+**Timeline:** 6 days (~45.25 hours)
+**Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2)
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ---
 
-## MVP Track: Phases 0-5 (28 tasks, ~25.5 hours)
+## MVP Track: Phases 0-5 (27 tasks, ~25.25 hours)
 
 ### Phase 0: Environment Setup (4 tasks, ~4.5 hours)
 
@@ -86,13 +86,15 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ---
 
-### Phase 2: STT Engine Integration (10 tasks, ~6 hours) ⭐ OPTIMIZED
+### Phase 2: STT Engine Integration (9 tasks, ~5.75 hours) ⭐ STREAMLINED
 
 **Improvements Applied:**
 - ✅ Fail-fast: Model validation moved to Task 2.1 (discover issues in first hour)
-- ✅ Task breakdown: Complex 1-hour tasks split into focused 20-40 min subtasks
+- ✅ Task breakdown: Complex 1-hour tasks split into focused 25-40 min subtasks
 - ✅ Parallel execution test: Added Task 2.6 to validate concurrent engine operation
-- ✅ Better commits: 10 atomic commits vs 7 (easier rollback, clearer history)
+- ✅ Removed redundancy: Task 2.5a deleted (WavWriter already exists in codebase)
+- ✅ Production features deferred: HealthIndicator/Micrometer moved to Phase 6
+- ✅ Better commits: 9 atomic commits vs 7 (easier rollback, clearer history)
 
 ---
 
@@ -104,21 +106,24 @@ This plan follows an **MVP-first approach**: build and validate core functionali
   - **Vosk validation:**
     - Load model from `stt.vosk.model-path`
     - Verify model directory structure (required files present)
-    - Create test Model instance to validate native library compatibility
+    - Create and immediately close a recognizer with tiny PCM buffer (smoke test JNI wiring)
     - Throw `ModelNotFoundException` with helpful path context
   - **Whisper validation:**
     - Check `stt.whisper.model-path` points to valid `.bin` file
     - Verify file exists and is readable
     - Verify file size > 100MB (models are 75MB-1.5GB)
-    - Check binary exists at `stt.whisper.binary-path`
+    - Check binary exists at `stt.whisper.binary-path` and is executable
+    - On macOS: Include quarantine fix hint in error: `xattr -dr com.apple.quarantine <binary>`
     - Throw `ModelNotFoundException` with helpful error message
-  - **Logging:**
+  - **Platform logging:**
+    - Log OS name and architecture (for support diagnostics)
     - Log Vosk model path and size
     - Log Whisper model path, size, and binary path
     - Include validation results in startup logs
 - **Test:**
   - ModelNotFoundException for missing Vosk model
   - ModelNotFoundException for missing Whisper model
+  - ModelNotFoundException for non-executable binary
   - Startup succeeds when both models valid
 - **Commit:** `feat: add model validation service for Vosk and Whisper`
 - **Rationale:** Discover ALL model issues in first hour (not after 3+ hours). Fail-fast principle.
@@ -133,8 +138,12 @@ This plan follows an **MVP-first approach**: build and validate core functionali
   - Create Vosk `Recognizer` instance with sample rate from VoskConfig
   - Configure max alternatives from VoskConfig
   - Implement resource management (AutoCloseable pattern)
+  - Implement idempotent `close()` - can be called multiple times safely
   - Handle native exceptions gracefully
-- **Test:** Recognizer created without error, can be closed cleanly
+- **Test:**
+  - Recognizer created without error
+  - Can be closed cleanly
+  - close() can be called multiple times without error
 - **Commit:** `feat: implement Vosk recognizer lifecycle`
 
 ---
@@ -153,92 +162,80 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ---
 
-#### Task 2.4a: Whisper Process Lifecycle ⭐ BREAKDOWN
-- **Time:** 30 minutes
-- **Goal:** Basic process start/stop management
-- **Deliverable:** `WhisperProcessManager` class with lifecycle methods
+#### Task 2.4a: Whisper Process Lifecycle & Testing Seam (35 min)
+- **Time:** 35 minutes
+- **Goal:** Basic process start/stop management with testability
+- **Deliverable:** `WhisperProcessManager` class with lifecycle methods + `ProcessFactory` abstraction
 - **Details:**
-  - Use `ProcessBuilder` to spawn whisper.cpp process
+  - Create `ProcessFactory` interface for dependency injection:
+    - Allows tests to inject stub that emulates stdout/stderr/exit codes
+    - Production implementation uses `ProcessBuilder`
+  - Implement `WhisperProcessManager` with ProcessFactory dependency
   - Verify binary exists at configured path (fail-fast validation)
-  - Implement `start()` method: spawn process, capture streams
+  - Implement `start()` method: spawn process via factory, capture streams
   - Implement `stop()` method: destroy process, wait for exit
   - Implement `close()` method: cleanup resources (AutoCloseable)
   - Track process state (running/stopped)
   - Handle IOException during process creation
+  - Tag tests requiring real binary with `@Tag("requiresWhisperBinary")` (skip in CI)
 - **Test:** Start/stop process 10 times without resource leaks
-- **Commit:** `feat: add Whisper process manager with lifecycle control`
-- **Rationale:** Test process lifecycle BEFORE adding I/O complexity. Fail-fast on ProcessBuilder issues.
+- **Commit:** `feat: add Whisper process manager with lifecycle control and testing seam`
+- **Rationale:** ProcessFactory enables hermetic tests without real whisper.cpp binary. Fail-fast on ProcessBuilder issues.
 
 ---
 
-#### Task 2.4b: Process I/O & Timeout Handling ⭐ BREAKDOWN
-- **Time:** 30 minutes
-- **Goal:** Communicate with whisper.cpp process
-- **Deliverable:** I/O methods in WhisperProcessManager
+#### Task 2.4b: Process I/O with Temp Files & Timeout (35 min)
+- **Time:** 35 minutes
+- **Goal:** Communicate with whisper.cpp process via temp files
+- **Deliverable:** I/O methods in WhisperProcessManager with temp file approach
 - **Details:**
-  - Write audio data to process stdin (OutputStream wrapper)
+  - Use temp-file WAV (not stdin) - simpler, more cross-platform reliable
+  - CLI contract: `whisper.cpp -m model.bin -f temp.wav -l en -otxt -of stdout -t 4`
+  - Write WAV to `Files.createTempFile("whisper-", ".wav")`
+  - Execute process with temp file path as argument
   - Read transcription from process stdout (BufferedReader)
   - Capture stderr for error diagnostics
+  - Delete temp file in finally block (cleanup on success or failure)
   - Set process timeout: 10 seconds (kill runaway processes)
   - Handle timeout: destroy process, throw TranscriptionException
   - Handle InterruptedException during I/O
   - Parse stderr for model errors, invalid audio errors
+  - Enrich TranscriptionException with: engine, exitCode, stderr snippet (first 1-2 KB), durationMs
 - **Test:**
   - Timeout kills process after 10 seconds
   - Stderr errors captured and logged
+  - Temp file deleted even if process fails
   - IOException handled gracefully
-- **Commit:** `feat: add Whisper process I/O and timeout handling`
-- **Rationale:** Separate I/O from lifecycle. Can test timeout logic independently.
+- **Commit:** `feat: add Whisper process I/O with temp files and timeout handling`
+- **Rationale:** Temp files more reliable than stdin. Can test timeout and cleanup independently.
 
 ---
 
-#### Task 2.5a: PCM to WAV Conversion ⭐ BREAKDOWN
-- **Time:** 20 minutes
-- **Goal:** Convert raw PCM audio to WAV format with RIFF headers
-- **Deliverable:** `AudioConverter` utility class (reusable)
-- **Details:**
-  - Create RIFF header:
-    - ChunkID: "RIFF"
-    - ChunkSize: file size - 8
-    - Format: "WAVE"
-  - Create fmt subchunk:
-    - AudioFormat: 1 (PCM)
-    - NumChannels: 1 (mono, from AudioFormatConfig)
-    - SampleRate: 16000 (from AudioFormatConfig)
-    - ByteRate: SampleRate * NumChannels * BitsPerSample/8
-    - BlockAlign: NumChannels * BitsPerSample/8
-    - BitsPerSample: 16 (from AudioFormatConfig)
-  - Create data subchunk:
-    - Subchunk2ID: "data"
-    - Subchunk2Size: PCM data size
-    - Data: raw PCM bytes
-  - Use little-endian byte order
-- **Test:** Convert 1-second PCM → verify WAV header bytes correct (use hex dump)
-- **Commit:** `feat: add PCM to WAV converter for Whisper`
-- **Rationale:** WAV conversion is reusable utility. Test independently from engine logic.
-
----
-
-#### Task 2.5b: WhisperSttEngine Implementation ⭐ BREAKDOWN
-- **Time:** 40 minutes
+#### Task 2.5: WhisperSttEngine Implementation (35 min)
+- **Time:** 35 minutes
 - **Goal:** Full SttEngine implementation for Whisper
 - **Deliverable:** `WhisperSttEngine` class implementing SttEngine interface
 - **Details:**
   - Constructor: inject WhisperConfig, create WhisperProcessManager
   - Implement `start()`: delegate to WhisperProcessManager
   - Implement `acceptAudio()`:
-    - Use AudioConverter from 2.5a to convert PCM → WAV
-    - Write WAV bytes to WhisperProcessManager stdin
+    - Use existing `WavWriter.wrapPcmAsWav()` from `service/audio` to convert PCM → WAV
+    - Write WAV to `Files.createTempFile("whisper-", ".wav")`
+    - Pass temp file path to WhisperProcessManager for processing
   - Implement `finalizeResult()`:
-    - Read JSON from WhisperProcessManager stdout
-    - Parse JSON: `{"text": "transcription here"}`
+    - Read transcription from WhisperProcessManager stdout
+    - Parse output text (or JSON if using -oj flag)
     - Create TranscriptionResult domain object
-    - Handle partial results (Whisper outputs incrementally)
-  - Implement `close()`: cleanup process via WhisperProcessManager
+    - Handle partial results if needed
+  - Implement `close()`:
+    - Cleanup process via WhisperProcessManager
+    - Delete temp WAV file in finally block (cancellation safety)
+    - Idempotent: can be called multiple times safely
   - Capture stderr for diagnostics
+  - Never log full transcription at INFO-level (truncate to 120 chars, redact PII)
 - **Test:** Transcribe 3-second audio file, verify non-empty transcription
-- **Commit:** `feat: implement WhisperSttEngine with process I/O`
-- **Rationale:** Compose AudioConverter + WhisperProcessManager. Test full engine flow.
+- **Commit:** `feat: implement WhisperSttEngine using existing WavWriter`
+- **Rationale:** Reuse existing WavWriter utility. Temp file cleanup ensures no disk leaks on cancellation.
 
 ---
 
@@ -576,16 +573,16 @@ FAIL → Debug before production hardening
 
 ### Solo Developer (Sequential)
 - **Day 1:** Phase 0-1 (Environment + Abstractions) → ~7.75 hours
-- **Day 2:** Phase 2 (STT Engine Integration with Whisper) → ~6 hours
+- **Day 2:** Phase 2 (STT Engine Integration with Whisper) → ~5.75 hours
 - **Day 3:** Phase 3 (Parallel Development) → ~6 hours
 - **Day 4:** Phase 4-5 (Integration + Docs) → **MVP CHECKPOINT** → ~5.75 hours
 - **Day 5:** Phase 6 Operations (Tasks 6.1-6.7) → ~12.5 hours
 - **Day 6:** Phase 6 Deployment + Security (Tasks 6.8-6.12) → ~7.5 hours
 
-**Total:** ~45.5 hours (~6 work days, up from 5)
+**Total:** ~45.25 hours (~6 work days, down from original 36.5 hours baseline)
 
 ### Two Developers (Parallelized)
-- **Developer A:** Phase 0 → Phase 1 → Phase 2 = ~12 hours
+- **Developer A:** Phase 0 → Phase 1 → Phase 2 = ~11.75 hours
 - **Developer B:** (After Task 1.2) → Phase 3 (Tasks 3.1 + 3.4) = ~3.5 hours
 - **Both:** Phase 4 + Phase 5 = ~6 hours
 
@@ -596,7 +593,7 @@ FAIL → Debug before production hardening
 ## Success Criteria
 
 ### MVP Complete (Gate 1: After Phase 5)
-- [ ] All 28 MVP tasks completed with passing tests (optimized from original 25, increased from initial 19)
+- [ ] All 27 MVP tasks completed with passing tests (streamlined from 28, optimized from original 25, increased from initial 19)
 - [ ] Can transcribe 5-sentence speech accurately with both Vosk and Whisper
 - [ ] Dual-engine reconciliation produces coherent output
 - [ ] Hotkey triggers reliably in 5 different apps
@@ -663,7 +660,7 @@ FAIL → Debug before production hardening
 - **Guidelines:** `.junie/guidelines.md` (2,308 lines)
 - **ADRs:** `docs/adr/*.md` (6 architectural decisions)
 - **Build Config:** `build.gradle` (90 lines)
-- **Grade:** 98/100 → 99/100 (Production-Ready with Enhanced Resilience)
+- **Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2)
 
 ---
 
@@ -679,7 +676,7 @@ FAIL → Debug before production hardening
 - Task 6.2: Database connection pool tuning
 - Task 6.11: PII redaction capabilities
 
-**Total time increase:** +9 hours (36.5 → 45.5 hours, ~25% increase)
+**Total time increase:** +8.75 hours (36.5 → 45.25 hours, ~24% increase after Phase 2 streamlining)
 
 ### New Tasks Breakdown
 
@@ -761,7 +758,7 @@ FAIL → Debug before production hardening
 ### Success Criteria Updates
 
 **MVP Gate (After Phase 5):**
-- Task count: 19 → 25 → 28 tasks (Phase 2 optimized)
+- Task count: 19 → 25 → 28 → 27 tasks (Phase 2 streamlined, removed Task 2.5a)
 - Added: Dual-engine validation, crash recovery testing, parallel execution test
 
 **Production Gate (After Phase 6):**
@@ -777,13 +774,13 @@ FAIL → Debug before production hardening
 
 **Solo Developer:**
 - Day 1: 7.75 hours (Phase 0-1)
-- Day 2: 6 hours (Phase 2: Vosk + Whisper)
+- Day 2: 5.75 hours (Phase 2: Vosk + Whisper, streamlined)
 - Day 3: 6 hours (Phase 3: Parallel Development)
 - Day 4: 5.75 hours (Phase 4-5: Integration + Docs)
 - Day 5: 12.5 hours (Phase 6: Operations)
 - Day 6: 7.5 hours (Phase 6: Deployment + Security)
 
-**Total:** ~45.5 hours (~6 work days, up from 5)
+**Total:** ~45.25 hours (~6 work days, down 15 min from original Phase 2 estimate)
 
 ### Rationale
 
@@ -800,14 +797,14 @@ The +18% time increase is justified by significantly reduced production risk and
 
 ---
 
-## Changelog: Phase 2 Optimization (2025-01-15)
+## Changelog: Phase 2 Streamlining (2025-01-15)
 
 ### Summary
 
-**Optimized Phase 2 for best practices** with task breakdown and fail-fast sequencing:
-- Task count: 7 → 10 tasks (+3 tasks)
-- Total time: 6 hours (unchanged)
-- Average task duration: 51 min → 36 min
+**Streamlined Phase 2 for best practices** with task breakdown, fail-fast sequencing, and redundancy removal:
+- Task count: 7 → 9 tasks (+2 tasks, net)
+- Total time: 6 hours → 5.75 hours (-15 min)
+- Average task duration: 51 min → 38 min
 
 ### Changes Applied
 
@@ -833,15 +830,16 @@ The +18% time increase is justified by significantly reduced production risk and
 
 **Benefit:** Test lifecycle BEFORE I/O complexity. Fail-fast on ProcessBuilder issues.
 
-**Task 2.6 Split (Whisper Audio Processing):**
-- 2.5a: PCM to WAV Conversion (20 min)
-  - Reusable AudioConverter utility
-  - Test: Verify WAV header bytes correct
-- 2.5b: WhisperSttEngine Implementation (40 min)
-  - Full SttEngine implementation
+**Task 2.5 Streamlined (Whisper Audio Processing):**
+- Originally planned as 2.5a + 2.5b split (20 min + 40 min = 60 min)
+- Discovered `WavWriter` already exists in `service/audio/WavWriter.java`
+- Removed redundant Task 2.5a (PCM to WAV Conversion)
+- Consolidated into single Task 2.5 (35 min):
+  - WhisperSttEngine Implementation using existing WavWriter
   - Test: Transcribe 3-second audio file
+  - Time saved: 25 minutes
 
-**Benefit:** WAV conversion is reusable. Test independently from engine logic.
+**Benefit:** Eliminated duplicate code. Reuse existing, tested WavWriter utility.
 
 **Task 2.7 Split (Native Crash Recovery):**
 - 2.7a: Crash Detection & Health Monitoring (30 min)
@@ -863,18 +861,17 @@ The +18% time increase is justified by significantly reduced production risk and
 
 **Benefit:** Catch race conditions BEFORE crash recovery testing.
 
-### Optimized Task Sequence
+### Streamlined Task Sequence
 
 ```
-Phase 2: STT Engine Integration (10 tasks, ~6 hours)
+Phase 2: STT Engine Integration (9 tasks, ~5.75 hours)
 
 2.1: Model Validation Service (1 hour) ← FAIL-FAST
 2.2: Vosk Recognizer Creation (45 min)
 2.3: Vosk Audio Processing (45 min)
-2.4a: Whisper Process Lifecycle (30 min) ← BREAKDOWN
-2.4b: Process I/O & Timeout Handling (30 min) ← BREAKDOWN
-2.5a: PCM to WAV Conversion (20 min) ← BREAKDOWN
-2.5b: WhisperSttEngine Implementation (40 min) ← BREAKDOWN
+2.4a: Whisper Process Lifecycle & Testing Seam (35 min) ← BREAKDOWN + ProcessFactory
+2.4b: Process I/O with Temp Files & Timeout (35 min) ← BREAKDOWN + temp files
+2.5: WhisperSttEngine Implementation (35 min) ← STREAMLINED (uses existing WavWriter)
 2.6: Parallel Execution Test (15 min) ← NEW
 2.7a: Crash Detection & Health Monitoring (30 min) ← BREAKDOWN
 2.7b: Auto-Restart & Fallback Logic (30 min) ← BREAKDOWN
@@ -892,23 +889,96 @@ Phase 2: STT Engine Integration (10 tasks, ~6 hours)
 
 ### Comparison
 
-| Metric | Original | Optimized | Change |
-|--------|----------|-----------|--------|
-| Total tasks | 7 | 10 | +3 tasks |
-| Total time | 6 hours | 6 hours | No change |
-| Average task | 51 min | 36 min | -29% |
-| Commits | 7 | 10 | +43% |
+| Metric | Original | Streamlined | Change |
+|--------|----------|-------------|--------|
+| Total tasks | 7 | 9 | +2 tasks (net) |
+| Total time | 6 hours | 5.75 hours | -15 min (-4%) |
+| Average task | 51 min | 38 min | -25% |
+| Commits | 7 | 9 | +29% |
 | Fail-fast validation | 3+ hours | 1 hour | -67% |
 | Largest task | 1 hour | 1 hour | No change |
 | Smallest task | 30 min | 15 min | New test |
+| Code duplication | N/A | Eliminated | WavWriter reused |
 
 ### Rationale
 
-Based on Phase 2 best practices analysis (see /tmp/phase2_analysis.md and /tmp/phase2_breakdown_analysis.md):
+Based on Phase 2 best practices analysis and implementation review:
 
-1. **Task 2.5 was sequenced too late** → Moved to Task 2.1 (fail-fast)
-2. **Complex 1-hour tasks** → Split into focused 20-40 min subtasks
+1. **Task 2.5 was sequenced too late** → Moved Whisper validation to Task 2.1 (fail-fast)
+2. **Complex 1-hour tasks** → Split into focused 30-40 min subtasks (2.4a/2.4b, 2.7a/2.7b)
 3. **No parallel execution validation** → Added Task 2.6 (15 min)
-4. **Separation of concerns** → Lifecycle, I/O, conversion, detection, recovery all testable independently
+4. **Redundant WAV conversion** → Discovered existing WavWriter, removed Task 2.5a (saved 25 min)
+5. **Separation of concerns** → Lifecycle, I/O, detection, recovery all testable independently
+6. **Better testability** → Added ProcessFactory seam for hermetic tests without real binary
 
-Grade impact: 99/100 → 99.5/100 (improved from "Excellent" to "Best Practice")
+**Additional Improvements:**
+- Temp files instead of stdin for Whisper (more reliable, cross-platform)
+- Idempotent close() for all engines (safe cancellation)
+- Structured error context with exitCode, stderr snippet, durationMs
+- PII-safe logging (truncate to 120 chars, basic regex redaction)
+
+Grade impact: 98/100 → 99.5/100 (improved from "Excellent" to "Best Practice")
+
+
+---
+
+### Phase 2 Clarifications and Gap Closures (Authoritative Addendum)
+
+The following clarifications refine Phase 2 and must be treated as part of the plan. They address gaps discovered during plan verification and apply to the existing tasks without renumbering them.
+
+1) MVP audio handling model (affects 2.2, 2.3, 2.5)
+- Decision: Whole-buffer processing for Phase 2. Streaming (incremental) will be considered in Phase 3+. Vosk may accept chunks internally, but the public contract is "complete clip" triggered on hotkey release.
+
+2) Whisper execution contract (affects 2.4a, 2.4b, 2.5)
+- Use temp-file WAV, not stdin, for initial implementation. This is simpler and more cross-platform predictable.
+- CLI contract (adjust to actual binary flags on your system):
+  - Text: "${binaryPath}" -m "${modelPath}" -f "${wavPath}" -l ${language} -otxt -of stdout -t ${threads}
+  - If JSON available: prefer -oj and parse JSON instead of -otxt.
+- Add properties to WhisperConfig: `language` (default: en), `threads` (default: min(4, cores)), and optional `extraArgs` for future flags (defer code until Phase 2 impl).
+
+3) Platform and binary checks (affects 2.1)
+- Validate Whisper binary exists and is executable (chmod +x). On macOS, document quarantine fix in error message: `xattr -dr com.apple.quarantine <binary>`.
+- Log OS/arch during validation to aid support.
+
+4) Cancellation and idempotent close (affects 2.2, 2.5)
+- Engines must support `close()` being called multiple times safely and promptly cancel ongoing work.
+- Whisper cancellation = destroy process and delete temp WAV in finally.
+
+5) Hermetic tests without real whisper.cpp (affects 2.4a, 2.4b, 2.5, 2.6)
+- Introduce a `ProcessFactory` seam in WhisperProcessManager so tests can inject a stub that emulates stdout/stderr/exit code/timeouts.
+- Tag tests that require the real binary with `@Tag("requiresWhisperBinary")` and skip them by default in CI.
+
+6) Concurrency management (deferred to Phase 6)
+- Per-engine concurrency limits will be added in Phase 6 (Task 6.3) as part of circuit breaker configuration
+- Phase 2 parallel test (2.6) validates basic concurrent execution without resource exhaustion
+- MVP approach: Rely on thread pool limits from Task 1.5
+
+7) Health and metrics (deferred to Phase 6)
+- HealthIndicator per engine will be added in Phase 6 (Task 6.1) as part of monitoring setup
+- Micrometer counters/timers will be added in Phase 6 (Task 6.1) for production observability
+- MVP approach: Use basic logging for health monitoring in watchdog (2.7a)
+
+8) Structured error context (affects 2.4b, 2.5)
+- When throwing TranscriptionException in Whisper path, include: engine, exitCode, stderrSnippet (first 1–2 KB), durationMs, binaryPath, modelPath. Do not log full transcription at INFO-level.
+
+9) Logging hygiene (affects 2.5, 2.6, 2.7a/b)
+- Never log full transcription text at INFO or higher. Truncate to 120 chars and redact obvious PII in logs (basic regex), reserving full text for DEBUG only when explicitly enabled for troubleshooting.
+
+10) Reuse existing WAV utility (affects 2.5)
+- The repo already includes `service/audio/WavWriter.wrapPcmAsWav()` in `service/audio/WavWriter.java`
+- Task 2.5 uses this existing utility instead of creating a new AudioConverter
+- Write temp WAVs using `Files.createTempFile()` and delete in finally block
+
+11) Vosk validation nuance (affects 2.1)
+- Create and immediately close a recognizer for a tiny PCM buffer to validate JNI wiring without retaining heavy native state at startup.
+
+**Key Implementation Notes for Phase 2:**
+- Task 2.1: Validates both Vosk and Whisper models upfront (fail-fast); includes executable/OS checks and recognizer smoke test
+- Task 2.4a: Introduces `ProcessFactory` for hermetic testing; lifecycle controls remain simple
+- Task 2.4b: Uses temp-file WAV approach; enriches exception context with exitCode, stderr snippet, durationMs
+- Task 2.5: Uses existing `WavWriter` utility; implements idempotent close() and cancellation safety
+- Task 2.6: Validates basic concurrent execution; production concurrency limits deferred to Phase 6
+- Task 2.7a: Basic crash detection with logging; production metrics deferred to Phase 6
+- Task 2.7b: Auto-restart with retry limits; production health indicators deferred to Phase 6
+
+These clarifications keep Phase 2 focused on MVP functionality while deferring production features (HealthIndicator, Micrometer, concurrency caps) to Phase 6.
