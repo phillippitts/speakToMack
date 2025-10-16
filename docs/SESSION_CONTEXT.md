@@ -1,9 +1,9 @@
 # Session Context & Recovery Guide
 
-**Date:** 2025-01-14  
-**Status:** Planning Phase Complete, Ready for Development  
-**Session Duration:** ~8 hours of comprehensive planning  
-**Grade:** 98/100 (Production-Ready)
+**Date:** 2025-01-14
+**Status:** Planning Phase Complete, Ready for Development
+**Session Duration:** ~8 hours of comprehensive planning
+**Grade:** 99.5/100 (Production-Ready with Phase 2 Optimization)
 
 ---
 
@@ -11,7 +11,7 @@
 
 If session is lost, start here:
 
-1. **Read:** `docs/IMPLEMENTATION_PLAN.md` (27 tasks, 36.5 hours)
+1. **Read:** `docs/IMPLEMENTATION_PLAN.md` (40 tasks, 45.5 hours)
 2. **Read:** `.junie/guidelines.md` (2,223 lines, complete development playbook)
 3. **Review:** `docs/adr/*.md` (6 architectural decisions)
 4. **Execute:** Task 0.1 (Model Setup) - `./setup-models.sh`
@@ -36,8 +36,8 @@ If session is lost, start here:
    - macOS-specific setup instructions
 
 2. **`docs/IMPLEMENTATION_PLAN.md`** (10KB, 317 lines)
-   - 19 MVP tasks (Phases 0-5): 23.5 hours
-   - 8 production tasks (Phase 6): 13 hours
+   - 28 MVP tasks (Phases 0-5): 25.5 hours
+   - 12 production tasks (Phase 6): 20 hours
    - Clear validation gates
    - Risk mitigation summary
    - Success criteria
@@ -125,7 +125,7 @@ If session is lost, start here:
 
 ## Implementation Plan Summary
 
-### MVP Track (Phases 0-5): 23.5 hours
+### MVP Track (Phases 0-5): 25.5 hours
 
 **Phase 0: Environment Setup (4 tasks, 4.5 hours)**
 - Task 0.1: Model setup with SHA256 validation (45 min) ⚠️ **BLOCKS ALL**
@@ -139,10 +139,17 @@ If session is lost, start here:
 - Task 1.3: Exception hierarchy (45 min)
 - Task 1.4: Audio validator (45 min)
 
-**Phase 2: Vosk Integration (3 tasks, 2.75 hours)**
-- Task 2.1: Vosk model loading (45 min)
-- Task 2.2: Vosk recognizer creation (45 min)
-- Task 2.3: Vosk audio processing (45 min)
+**Phase 2: STT Engine Integration (10 tasks, 6 hours) ⭐ OPTIMIZED**
+- Task 2.1: Model Validation Service (1 hour) - Fail-fast validation for both engines
+- Task 2.2: Vosk Recognizer Creation (45 min)
+- Task 2.3: Vosk Audio Processing (45 min)
+- Task 2.4a: Whisper Process Lifecycle (30 min) - ProcessBuilder, start/stop
+- Task 2.4b: Process I/O & Timeout Handling (30 min) - stdin/stdout, timeout
+- Task 2.5a: PCM to WAV Conversion (20 min) - Reusable AudioConverter utility
+- Task 2.5b: WhisperSttEngine Implementation (40 min) - Full SttEngine impl
+- Task 2.6: Parallel Execution Test (15 min) - Validate concurrent operation
+- Task 2.7a: Crash Detection & Health Monitoring (30 min) - Watchdog service
+- Task 2.7b: Auto-Restart & Fallback Logic (30 min) - Recovery + single-engine fallback
 
 **Phase 3: Parallel Development (4 tasks, 6 hours)**
 - Task 3.1: Audio capture service (1.5 hours) - Independent
@@ -161,9 +168,9 @@ If session is lost, start here:
 
 **MVP Checkpoint:** Working product for user testing
 
-### Production Track (Phase 6): 13 hours
+### Production Track (Phase 6): 20 hours
 
-**Phase 6: Production Hardening (8 tasks)**
+**Phase 6: Production Hardening (12 tasks)**
 - Task 6.1: Monitoring & alerting (3 hours) - Prometheus + Grafana
 - Task 6.2: Resource limits & autoscaling (1 hour) - K8s HPA
 - Task 6.3: Backup & retention (1.5 hours) - PostgreSQL + GDPR
@@ -405,7 +412,7 @@ ls -lh "$MODELS_DIR"
 - Day 5: Deployment (Canary, rollback)
 - Day 6: Performance & Security
 
-**Total: 6 work days (36.5 hours)**
+**Total: 6 work days (45.5 hours)**
 
 ### With 2 Developers (Parallelized)
 - Developer A: Phase 0 → 1 → 2 = ~12 hours

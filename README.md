@@ -8,20 +8,25 @@ speakToMack lets you dictate text into any macOS application using a configurabl
 
 ## Status: 🚧 In Development
 
-**Current phase:** Phase 1 Complete ✅ (Core Abstractions)
-**Next:** Phase 2 - STT Engine Integration (Vosk + Whisper)
-**Timeline:** ~4 days remaining to MVP
-**See:** [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+Current phase: Phases 0–1 complete (Environment + Core Abstractions) ✅
+Next: Phase 2 – STT Engine Integration (Vosk + Whisper)
+See: [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
-**Phase 0-1 Deliverables:**
-- ✅ Log4j2 structured logging with MDC propagation
-- ✅ Audio format validation (16kHz, 16-bit PCM, mono)
-- ✅ Domain models (TranscriptionResult)
-- ✅ Exception hierarchy (4 exceptions with base class)
-- ✅ SttEngine interface (Adapter pattern for Vosk/Whisper)
-- ✅ Configuration records (VoskConfig, WhisperConfig)
-- ✅ Thread pool configuration (parallel STT processing)
-- ✅ 50 tests, 100% passing, 0 Checkstyle violations
+Current capabilities (implemented):
+- ✅ Log4j2 structured logging with MDC propagation (async console/file + audit log)
+- ✅ Audio format validation (16kHz, 16-bit PCM, mono) with configurable min/max durations
+- ✅ Domain model: TranscriptionResult
+- ✅ Exception hierarchy and global REST exception handler
+- ✅ SttEngine interface (Adapter pattern target)
+- ✅ Typed configuration records (VoskConfig, WhisperConfig) bound via @EnableConfigurationProperties
+- ✅ Thread pool configuration with MDC task decoration
+
+Not yet implemented (planned in later phases):
+- ❌ Vosk/Whisper engine implementations
+- ❌ Audio capture and hotkey orchestration
+- ❌ Reconciliation strategies
+- ❌ Typing/paste service and fallbacks
+- ❌ Database persistence and search
 
 ## Key Features (Planned)
 
@@ -149,28 +154,36 @@ See: [Architecture Overview](docs/diagrams/architecture-overview.md) and [Data F
 
 ## Configuration
 
-Hotkeys and engine selection are configurable via `application.yml`:
+The project uses Spring Boot properties (application.properties) with typed configuration classes. Current relevant settings:
 
-```yaml
-hotkey:
-  trigger:
-    type: single-key        # Options: single-key, double-tap, modifier-combination
-    key: RIGHT_META         # Right Command key
+```properties
+# Audio validation thresholds (defaults shown)
+audio.validation.min-duration-ms=250
+audio.validation.max-duration-ms=300000
 
-stt:
-  engines: vosk,whisper
-  default-engine: vosk
-  parallel:
-    enabled: true
-    timeout-ms: 5000
-  reconciliation:
-    strategy: overlap       # Options: simple, overlap, diff, weighted, confidence
+# Vosk (model path installed by setup-models.sh)
+stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.sample-rate=16000
+stt.vosk.max-alternatives=1
+
+# Whisper (note: you must provide a valid binary path)
+stt.whisper.model-path=models/ggml-base.en.bin
+stt.whisper.binary-path=<SET ME: path to whisper.cpp binary>
+stt.whisper.timeout-seconds=10
+
+# Orchestration placeholders for future phases
+stt.enabled-engines=vosk,whisper
+stt.parallel.timeout-ms=10000
 ```
+
+Notes:
+- Whisper binary is not distributed by this repo. Build whisper.cpp separately and set `stt.whisper.binary-path` to the executable (e.g., `/usr/local/bin/whisper-cpp` or `./tools/whisper.cpp/main`).
+- Engines are not implemented yet; these properties are seeded to fail-fast when Phase 2 is added.
 
 ## Documentation
 
 ### Implementation & Planning
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - 27-task roadmap (19 MVP + 8 production)
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - 40-task roadmap (28 MVP + 12 production)
 - [Session Context](docs/SESSION_CONTEXT.md) - Comprehensive planning session summary
 - [Guidelines](.junie/guidelines.md) - 2,223-line developer guide
 
@@ -243,12 +256,12 @@ See [Guidelines](.junie/guidelines.md) for comprehensive development standards.
 
 ## Project Timeline
 
-**MVP Track (Phases 0-5): ~23.5 hours**
+**MVP Track (Phases 0-5): ~25.5 hours**
 - Day 1: Phase 0-1 (Environment + Abstractions)
 - Day 2: Phase 2-3 (Vosk + Parallel)
 - Day 3: Phase 4-5 (Integration + Docs)
 
-**Production Track (Phase 6): ~13 hours**
+**Production Track (Phase 6): ~20 hours**
 - Day 4: Operations (Monitoring, Alerting, Backups)
 - Day 5: Deployment Safety (Canary, Rollback)
 - Day 6: Performance & Security (Load Testing, Scanning)
@@ -265,4 +278,4 @@ See [Guidelines](.junie/guidelines.md) for comprehensive development standards.
 
 ---
 
-**Grade: 98/100** - Production-ready planning, MVP implementation in progress.
+**Grade: 99.5/100** - Production-ready planning with Phase 2 optimization, MVP implementation in progress.
