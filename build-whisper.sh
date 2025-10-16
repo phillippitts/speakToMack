@@ -41,7 +41,8 @@ CHECKSUMS_FILE="${CHECKSUMS_FILE:-"${MODELS_DIR}/checksums.sha256"}"
 INSTALL_DIR=${INSTALL_DIR:-"${REPO_ROOT}/tools"}
 REPO_URL=${REPO_URL:-"https://github.com/ggerganov/whisper.cpp.git"}
 REPO_DIR="${REPO_DIR:-"${INSTALL_DIR}/whisper.cpp"}"
-GIT_REF=${GIT_REF:-"main"}
+# Pin to known stable version for reproducibility (override with GIT_REF=main for latest)
+GIT_REF=${GIT_REF:-"v1.7.2"}
 
 # Determine parallel jobs
 if command -v nproc >/dev/null 2>&1; then
@@ -74,12 +75,12 @@ else
   warn "Checksums file not found at ${CHECKSUMS_FILE}. Continuing (models assumed already verified)."
 fi
 
-# 2) Prereq hints (non-fatal)
+# 2) Prerequisites (fail-fast)
 if ! command -v git >/dev/null 2>&1; then
-  warn "git not found. Please install git and re-run."
+  err "git not found. Please install git and re-run."; exit 1
 fi
 if ! command -v make >/dev/null 2>&1; then
-  warn "make not found. Please install build tools and re-run."
+  err "make not found. Install build tools and re-run. On macOS: xcode-select --install. On Debian/Ubuntu: sudo apt-get install -y build-essential"; exit 1
 fi
 case "$OS_NAME" in
   Linux)
@@ -106,9 +107,45 @@ info "Checking out ${GIT_REF}"
 
 # 4) Build
 bold "Running make"
-( cd "$REPO_DIR" && make -j"$MAKE_JOBS" )
+( cd "$REPO_DIR" && make -j"$MAKE_JOBS" || { err "make failed. Try running 'make clean' or ensure toolchain is installed."; exit 1; } )
 
-BINARY_PATH="${REPO_DIR}/main"
+# 4b) Locate built binary (whisper.cpp has changed names/locations across versions)
+BINARY_PATH=""
+detect_binary() {
+  local candidates=( \
+    "$REPO_DIR/main" \
+    "$REPO_DIR/bin/whisper" \
+    "$REPO_DIR/build/bin/whisper" \
+    "$REPO_DIR/examples/cli/whisper" \
+  )
+  for p in "${candidates[@]}"; do
+    if [ -f "$p" ]; then
+      echo "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+BINARY_PATH="$(detect_binary || true)"
+
+# If not found, try building specific targets then re-check
+if [ -z "${BINARY_PATH}" ]; then
+  info "Primary build did not produce an expected binary; trying 'make main' target"
+  ( cd "$REPO_DIR" && make -j"$MAKE_JOBS" main ) || true
+  BINARY_PATH="$(detect_binary || true)"
+fi
+
+if [ -z "${BINARY_PATH}" ]; then
+  info "Trying to build CLI whisper example"
+  ( cd "$REPO_DIR/examples/cli" && make -j"$MAKE_JOBS" ) || true
+  BINARY_PATH="$(detect_binary || true)"
+fi
+
+if [ -z "${BINARY_PATH}" ]; then
+  err "Could not locate built whisper binary after 'make'. Expected at one of: ./main, ./bin/whisper, ./build/bin/whisper, ./examples/cli/whisper.\nIf your environment prefers CMake, try:\n  cd \"$REPO_DIR\" && mkdir -p build && cd build && cmake .. && cmake --build . --config Release\nThen re-run this script."
+  exit 1
+fi
 
 # 5) macOS quarantine and permissions
 if [ "$OS_NAME" = "Darwin" ]; then
@@ -123,7 +160,7 @@ chmod +x "$BINARY_PATH" || true
 if "$BINARY_PATH" -h >/dev/null 2>&1; then
   ok "whisper.cpp binary built: $BINARY_PATH"
 else
-  warn "Binary built but 'main -h' returned non-zero. You may still proceed, but verify locally."
+  warn "Binary exists at '$BINARY_PATH' but '-h' returned non-zero. Verify by running it manually."
 fi
 
 # 7) Optional: update application.properties

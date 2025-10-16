@@ -94,35 +94,163 @@ Not yet implemented (planned in later phases):
 - Accessibility permission (for keystroke injection)
 - ~200 MB disk space for STT models
 
-## Quick Start
+## Quick Start (New Developers)
+
+This project includes **automated setup scripts** to simplify onboarding:
 
 ```bash
-# 1. Download STT models (~200 MB)
+# 1. Download STT models (~200 MB, includes checksum verification)
 chmod +x ./setup-models.sh
 ./setup-models.sh
 
-# 2. Build and run
+# 2. Build whisper.cpp binary (~5 min, auto-updates application.properties)
+chmod +x ./build-whisper.sh
+WRITE_APP_PROPS=true ./build-whisper.sh
+
+# 3. Verify everything compiles
+./gradlew clean build
+
+# 4. Run the application
 ./gradlew bootRun
 
-# 3. Grant permissions when prompted
+# 5. Grant macOS permissions when prompted
 # System Settings → Privacy & Security → Accessibility
 # System Settings → Privacy & Security → Microphone
 ```
 
-### Checksum verification
+**Expected output after step 2:**
+```
+✅ whisper.cpp binary built: /Users/.../speakToMack/tools/whisper.cpp/main
+✅ Updated: stt.whisper.binary-path=/Users/.../speakToMack/tools/whisper.cpp/main
+```
 
-The setup script verifies model integrity with SHA-256 checksums.
-- On first run, if no expected checksums are provided, it computes and locks them to `models/checksums.sha256`.
-- On subsequent runs, it verifies downloaded files against the locked checksums.
-- To enforce official checksums, set env vars before running the script:
+---
 
+## Setup Scripts Reference
+
+### `./setup-models.sh` - Download STT Models
+
+**What it does:**
+- Downloads Vosk model (vosk-model-small-en-us-0.15, ~40 MB)
+- Downloads Whisper model (ggml-base.en.bin, ~147 MB)
+- Verifies integrity with SHA-256 checksums
+- Locks checksums to `models/checksums.sha256` for reproducibility
+
+**Checksum verification:**
+- **First run:** Computes and locks checksums
+- **Subsequent runs:** Verifies against locked checksums (fails if files changed)
+- **Enforce official checksums:** Set env vars before running:
+  ```bash
+  VOSK_SHA256=<official_sha256_for_zip> \
+  WHISPER_SHA256=<official_sha256_for_bin> \
+  ./setup-models.sh
+  ```
+
+**If checksums change legitimately:** Delete `models/checksums.sha256` and re-run (after verifying upstream source)
+
+---
+
+### `./build-whisper.sh` - Build whisper.cpp Binary
+
+**What it does:**
+- Clones `ggerganov/whisper.cpp` to `tools/whisper.cpp/`
+- Checks out **v1.7.2** (pinned for reproducibility)
+- Builds the `main` binary with parallel make
+- Clears macOS quarantine and sets executable permissions
+- Optionally auto-updates `application.properties` with binary path
+
+**Usage:**
 ```bash
-VOSK_SHA256=<official_sha256_for_zip> \
-WHISPER_SHA256=<official_sha256_for_bin> \
+# Build with auto-update (recommended for onboarding)
+WRITE_APP_PROPS=true ./build-whisper.sh
+
+# Build without modifying properties (manual config)
+./build-whisper.sh
+
+# Use different version (testing upgrades)
+GIT_REF=v1.8.0 ./build-whisper.sh
+
+# Use latest main branch (not recommended for production)
+GIT_REF=main ./build-whisper.sh
+```
+
+**Environment variables:**
+- `WRITE_APP_PROPS=true` - Auto-update `application.properties` with binary path
+- `GIT_REF=v1.7.2` - Pin to specific whisper.cpp version (default: v1.7.2)
+- `INSTALL_DIR=./tools` - Where to clone/build whisper.cpp (default: `./tools`)
+- `MAKE_JOBS=<N>` - Parallel make jobs (default: auto-detected CPU cores)
+
+**Why v1.7.2 is pinned:**
+- **Reproducibility:** Everyone gets the same binary across all environments
+- **Stability:** v1.7.2 is a known stable release (Dec 2024)
+- **Testability:** Phase 2 tests validated against this exact version
+- **Security:** Enables vulnerability tracking and audit compliance
+
+**Output:**
+```
+Building whisper.cpp (models already present)
+OS: Darwin, Arch: arm64
+Git ref: v1.7.2
+✅ Found Whisper model: /Users/.../models/ggml-base.en.bin
+✅ whisper.cpp binary built: /Users/.../tools/whisper.cpp/main
+
+Next steps:
+1) Configure Spring Boot properties to use the built binary:
+   stt.whisper.binary-path=/Users/.../tools/whisper.cpp/main
+```
+
+---
+
+## Troubleshooting
+
+### `./build-whisper.sh` fails with "make not found"
+
+**macOS:**
+```bash
+# Install Xcode Command Line Tools
+xcode-select --install
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt-get install -y build-essential git
+```
+
+### Whisper binary fails with "Operation not permitted" on macOS
+
+The binary is quarantined. The script should clear this automatically, but if not:
+```bash
+xattr -dr com.apple.quarantine tools/whisper.cpp/main
+chmod +x tools/whisper.cpp/main
+```
+
+### `./setup-models.sh` checksum mismatch
+
+This means the downloaded file doesn't match the locked checksum:
+```bash
+# Option 1: Verify upstream source is legitimate, then re-lock
+rm models/checksums.sha256
+./setup-models.sh
+
+# Option 2: Clean and re-download
+rm -rf models/
 ./setup-models.sh
 ```
 
-If upstream files are legitimately updated, either update the env vars or delete `models/checksums.sha256` to re-lock values after verifying the source.
+### Build fails with "whisper.cpp binary not found"
+
+Different whisper.cpp versions put the binary in different locations. The script tries 4 locations:
+- `tools/whisper.cpp/main` (older versions)
+- `tools/whisper.cpp/bin/whisper` (newer versions)
+- `tools/whisper.cpp/build/bin/whisper` (CMake builds)
+- `tools/whisper.cpp/examples/cli/whisper` (example builds)
+
+If all fail, try building manually:
+```bash
+cd tools/whisper.cpp
+make clean
+make -j$(nproc)  # or: make -j$(sysctl -n hw.ncpu) on macOS
+```
 
 ## Verify Structured Logs
 
@@ -154,31 +282,105 @@ See: [Architecture Overview](docs/diagrams/architecture-overview.md) and [Data F
 
 ## Configuration
 
-The project uses Spring Boot properties (application.properties) with typed configuration classes. Current relevant settings:
+The project uses Spring Boot properties (`src/main/resources/application.properties`) with typed configuration classes.
+
+### Automated Configuration
+
+If you ran `WRITE_APP_PROPS=true ./build-whisper.sh`, your configuration is already set correctly:
 
 ```properties
-# Audio validation thresholds (defaults shown)
+# Audio validation thresholds
 audio.validation.min-duration-ms=250
 audio.validation.max-duration-ms=300000
 
-# Vosk (model path installed by setup-models.sh)
+# Vosk (model path set by ./setup-models.sh)
 stt.vosk.model-path=models/vosk-model-small-en-us-0.15
 stt.vosk.sample-rate=16000
 stt.vosk.max-alternatives=1
 
-# Whisper (note: you must provide a valid binary path)
+# Whisper (binary path set by ./build-whisper.sh with WRITE_APP_PROPS=true)
+stt.whisper.binary-path=/Users/.../speakToMack/tools/whisper.cpp/main
 stt.whisper.model-path=models/ggml-base.en.bin
-stt.whisper.binary-path=<SET ME: path to whisper.cpp binary>
 stt.whisper.timeout-seconds=10
+stt.whisper.language=en
+stt.whisper.threads=4
 
-# Orchestration placeholders for future phases
+# Orchestration (placeholders for Phase 3)
 stt.enabled-engines=vosk,whisper
 stt.parallel.timeout-ms=10000
 ```
 
-Notes:
-- Whisper binary is not distributed by this repo. Build whisper.cpp separately and set `stt.whisper.binary-path` to the executable (e.g., `/usr/local/bin/whisper-cpp` or `./tools/whisper.cpp/main`).
-- Engines are not implemented yet; these properties are seeded to fail-fast when Phase 2 is added.
+### Manual Configuration
+
+If you didn't use `WRITE_APP_PROPS=true`, update `stt.whisper.binary-path` manually:
+
+```properties
+# Set to the output from ./build-whisper.sh
+stt.whisper.binary-path=/absolute/path/to/tools/whisper.cpp/main
+```
+
+**Verify binary path:**
+```bash
+# After ./build-whisper.sh, the script outputs:
+# ✅ whisper.cpp binary built: /full/path/to/binary
+# Copy that path to application.properties
+```
+
+### Configuration Classes
+
+Properties are bound to typed records for compile-time safety:
+- `VoskConfig` → `stt.vosk.*`
+- `WhisperConfig` → `stt.whisper.*`
+- `AudioValidationProperties` → `audio.validation.*`
+
+See: `src/main/java/com/phillippitts/speaktomack/config/stt/`
+
+---
+
+## External Dependencies
+
+### whisper.cpp (Required for Whisper Engine)
+
+- **Version:** v1.7.2 (pinned for reproducibility)
+- **Repository:** https://github.com/ggerganov/whisper.cpp
+- **Build Method:** `./build-whisper.sh` (automated)
+- **Install Location:** `tools/whisper.cpp/`
+- **Binary Location:** `tools/whisper.cpp/main`
+
+**Why pinned to v1.7.2?**
+- Guarantees reproducible builds across all environments (dev, CI, production)
+- Prevents breaking changes from upstream `main` branch
+- Enables security audits and CVE tracking
+- Tested and validated against Phase 2 test suite
+
+**Upgrading whisper.cpp:**
+```bash
+# Test new version first
+GIT_REF=v1.8.0 ./build-whisper.sh
+
+# Verify tests still pass
+./gradlew test
+
+# If successful, update default in build-whisper.sh:
+# GIT_REF=${GIT_REF:-"v1.8.0"}
+```
+
+### Vosk Models (Required for Vosk Engine)
+
+- **Model:** vosk-model-small-en-us-0.15
+- **Source:** https://alphacephei.com/vosk/models
+- **Download Method:** `./setup-models.sh` (automated)
+- **Install Location:** `models/vosk-model-small-en-us-0.15/`
+- **Checksum Verification:** `models/checksums.sha256`
+
+### Whisper Models (Required for Whisper Engine)
+
+- **Model:** ggml-base.en.bin
+- **Source:** https://huggingface.co/ggerganov/whisper.cpp
+- **Download Method:** `./setup-models.sh` (automated)
+- **Install Location:** `models/ggml-base.en.bin`
+- **Size:** ~147 MB
+- **Checksum Verification:** `models/checksums.sha256`
 
 ## Documentation
 

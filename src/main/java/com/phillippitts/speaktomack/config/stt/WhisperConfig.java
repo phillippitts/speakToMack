@@ -15,11 +15,15 @@ import jakarta.validation.constraints.Positive;
  * stt.whisper.binary-path=models/whisper.cpp/main
  * stt.whisper.model-path=models/ggml-base.en.bin
  * stt.whisper.timeout-seconds=10
+ * stt.whisper.language=en
+ * stt.whisper.threads=4
  * </pre>
  *
  * @param binaryPath Path to the whisper.cpp binary executable
  * @param modelPath Path to the GGML model file (.bin)
  * @param timeoutSeconds Maximum time to wait for transcription (in seconds)
+ * @param language Language code for transcription (e.g., "en", "es", "fr")
+ * @param threads Number of CPU threads to use for transcription
  */
 @ConfigurationProperties(prefix = "stt.whisper")
 @Validated
@@ -31,12 +35,18 @@ public record WhisperConfig(
         String modelPath,
 
         @Positive(message = "Timeout must be positive")
-        int timeoutSeconds
+        int timeoutSeconds,
+
+        @NotBlank(message = "Language code must not be blank")
+        String language,
+
+        @Positive(message = "Thread count must be positive")
+        int threads
 ) {
     /**
      * Default constructor with standard values.
      */
     public WhisperConfig() {
-        this("models/whisper.cpp/main", "models/ggml-base.en.bin", 10);
+        this("models/whisper.cpp/main", "models/ggml-base.en.bin", 10, "en", 4);
     }
 }

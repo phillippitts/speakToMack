@@ -21,11 +21,13 @@ class WhisperConfigTest {
 
     @Test
     void shouldCreateValidConfig() {
-        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", 15);
+        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", 15, "en", 4);
 
         assertThat(config.binaryPath()).isEqualTo("bin/whisper");
         assertThat(config.modelPath()).isEqualTo("models/ggml.bin");
         assertThat(config.timeoutSeconds()).isEqualTo(15);
+        assertThat(config.language()).isEqualTo("en");
+        assertThat(config.threads()).isEqualTo(4);
     }
 
     @Test
@@ -35,11 +37,13 @@ class WhisperConfigTest {
         assertThat(config.binaryPath()).isEqualTo("models/whisper.cpp/main");
         assertThat(config.modelPath()).isEqualTo("models/ggml-base.en.bin");
         assertThat(config.timeoutSeconds()).isEqualTo(10);
+        assertThat(config.language()).isEqualTo("en");
+        assertThat(config.threads()).isEqualTo(4);
     }
 
     @Test
     void shouldRejectBlankBinaryPath() {
-        WhisperConfig config = new WhisperConfig("", "models/ggml.bin", 10);
+        WhisperConfig config = new WhisperConfig("", "models/ggml.bin", 10, "en", 4);
         Set<ConstraintViolation<WhisperConfig>> violations = validator.validate(config);
 
         assertThat(violations).hasSize(1);
@@ -49,7 +53,7 @@ class WhisperConfigTest {
 
     @Test
     void shouldRejectBlankModelPath() {
-        WhisperConfig config = new WhisperConfig("bin/whisper", "", 10);
+        WhisperConfig config = new WhisperConfig("bin/whisper", "", 10, "en", 4);
         Set<ConstraintViolation<WhisperConfig>> violations = validator.validate(config);
 
         assertThat(violations).hasSize(1);
@@ -59,7 +63,7 @@ class WhisperConfigTest {
 
     @Test
     void shouldRejectNegativeTimeout() {
-        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", -5);
+        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", -5, "en", 4);
         Set<ConstraintViolation<WhisperConfig>> violations = validator.validate(config);
 
         assertThat(violations).hasSize(1);
@@ -69,7 +73,7 @@ class WhisperConfigTest {
 
     @Test
     void shouldRejectZeroTimeout() {
-        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", 0);
+        WhisperConfig config = new WhisperConfig("bin/whisper", "models/ggml.bin", 0, "en", 4);
         Set<ConstraintViolation<WhisperConfig>> violations = validator.validate(config);
 
         assertThat(violations).hasSize(1);
@@ -79,7 +83,7 @@ class WhisperConfigTest {
 
     @Test
     void shouldAcceptValidNonDefaultValues() {
-        WhisperConfig config = new WhisperConfig("custom/whisper", "custom/model.bin", 30);
+        WhisperConfig config = new WhisperConfig("custom/whisper", "custom/model.bin", 30, "es", 8);
         Set<ConstraintViolation<WhisperConfig>> violations = validator.validate(config);
 
         assertThat(violations).isEmpty();
