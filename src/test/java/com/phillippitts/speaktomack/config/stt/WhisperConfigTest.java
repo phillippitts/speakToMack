@@ -34,7 +34,7 @@ class WhisperConfigTest {
     void shouldUseDefaultValues() {
         WhisperConfig config = new WhisperConfig();
 
-        assertThat(config.binaryPath()).isEqualTo("models/whisper.cpp/main");
+        assertThat(config.binaryPath()).isEqualTo("tools/whisper.cpp/main");
         assertThat(config.modelPath()).isEqualTo("models/ggml-base.en.bin");
         assertThat(config.timeoutSeconds()).isEqualTo(10);
         assertThat(config.language()).isEqualTo("en");

@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Positive;
  *
  * <p>Example application.properties:
  * <pre>
- * stt.whisper.binary-path=models/whisper.cpp/main
+ * stt.whisper.binary-path=tools/whisper.cpp/main
  * stt.whisper.model-path=models/ggml-base.en.bin
  * stt.whisper.timeout-seconds=10
  * stt.whisper.language=en
@@ -47,6 +47,6 @@ public record WhisperConfig(
      * Default constructor with standard values.
      */
     public WhisperConfig() {
-        this("models/whisper.cpp/main", "models/ggml-base.en.bin", 10, "en", 4);
+        this("tools/whisper.cpp/main", "models/ggml-base.en.bin", 10, "en", 4);
     }
 }

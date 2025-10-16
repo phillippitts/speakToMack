@@ -14,5 +14,5 @@ logs/
 /build/
 /out/
 /.gradle/
-/.editorconfig
 /.claude/
+/tools/
