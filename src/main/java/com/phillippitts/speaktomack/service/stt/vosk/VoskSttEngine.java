@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Objects;
 
@@ -33,6 +34,9 @@ public class VoskSttEngine implements SttEngine {
     private final VoskConfig config;
     private final Object lock = new Object();
 
+    // Lightweight concurrency guard (configurable)
+    private final java.util.concurrent.Semaphore concurrencySemaphore;
+
     // Native resources (created in initialize, closed in close)
     // @GuardedBy("lock")
     private org.vosk.Model model;           // JNI resource
@@ -47,6 +51,18 @@ public class VoskSttEngine implements SttEngine {
 
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
+        this.concurrencySemaphore = new java.util.concurrent.Semaphore(4);
+    }
+
+    /**
+     * Spring-friendly constructor to inject concurrency limits.
+     */
+    @Autowired
+    public VoskSttEngine(VoskConfig config,
+            com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties) {
+        this.config = Objects.requireNonNull(config, "config");
+        int max = Math.max(1, concurrencyProperties.getVoskMax());
+        this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
     }
 
     /**
@@ -100,29 +116,40 @@ public class VoskSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        org.vosk.Model localModel;
-        synchronized (lock) {
-            if (!initialized || closed) {
-                throw new TranscriptionException("Vosk engine not initialized", ENGINE_NAME);
+        boolean acquired = false;
+        try {
+            acquired = concurrencySemaphore.tryAcquire();
+            if (!acquired) {
+                throw new TranscriptionException("Vosk concurrency limit reached", ENGINE_NAME);
             }
-            localModel = this.model;
-        }
-        // Recognizer per call for thread-safety
-        try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
-            // Some Vosk versions expose this method; guard against NoSuchMethodError
-            try {
-                localRecognizer.setMaxAlternatives(config.maxAlternatives());
-            } catch (NoSuchMethodError ignored) {
-                // ignore
+            org.vosk.Model localModel;
+            synchronized (lock) {
+                if (!initialized || closed) {
+                    throw new TranscriptionException("Vosk engine not initialized", ENGINE_NAME);
+                }
+                localModel = this.model;
             }
-            // Feed full buffer (whole-clip MVP) and finalize
-            localRecognizer.acceptWaveForm(audioData, audioData.length);
-            String json = localRecognizer.getFinalResult();
-            VoskTranscription transcription = parseVoskJson(json);
-            // Empty text is valid (e.g., silence or unclear audio)
-            return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
-        } catch (Throwable t) {
-            throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
+            // Recognizer per call for thread-safety
+            try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
+                // Some Vosk versions expose this method; guard against NoSuchMethodError
+                try {
+                    localRecognizer.setMaxAlternatives(config.maxAlternatives());
+                } catch (NoSuchMethodError ignored) {
+                    // ignore
+                }
+                // Feed full buffer (whole-clip MVP) and finalize
+                localRecognizer.acceptWaveForm(audioData, audioData.length);
+                String json = localRecognizer.getFinalResult();
+                VoskTranscription transcription = parseVoskJson(json);
+                // Empty text is valid (e.g., silence or unclear audio)
+                return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
+            } catch (Throwable t) {
+                throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
+            }
+        } finally {
+            if (acquired) {
+                concurrencySemaphore.release();
+            }
         }
     }
 

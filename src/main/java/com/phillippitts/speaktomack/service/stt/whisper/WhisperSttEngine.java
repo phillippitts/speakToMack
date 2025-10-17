@@ -24,6 +24,8 @@ import java.util.Objects;
 @Component
 public final class WhisperSttEngine implements SttEngine {
 
+    private final java.util.concurrent.Semaphore concurrencySemaphore;
+
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
     private static final String ENGINE = "whisper";
 
@@ -37,6 +39,17 @@ public final class WhisperSttEngine implements SttEngine {
     public WhisperSttEngine(WhisperConfig cfg, WhisperProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
+        this.concurrencySemaphore = new java.util.concurrent.Semaphore(2);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WhisperSttEngine(WhisperConfig cfg,
+                             com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
+                             WhisperProcessManager manager) {
+        this.cfg = Objects.requireNonNull(cfg, "cfg");
+        this.manager = Objects.requireNonNull(manager, "manager");
+        int max = Math.max(1, concurrencyProperties.getWhisperMax());
+        this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
     }
 
     @Override
@@ -59,36 +72,47 @@ public final class WhisperSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        synchronized (lock) {
-            if (!initialized || closed) {
-                throw new TranscriptionException("Whisper engine not initialized", ENGINE);
-            }
-        }
-        Path wav = null;
-        long t0 = System.nanoTime();
+        boolean acquired = false;
         try {
-            wav = Files.createTempFile("whisper-", ".wav");
-            WavWriter.writePcm16LeMono16kHz(audioData, wav);
-
-            String stdout = manager.transcribe(wav, cfg); // may throw TranscriptionException
-            String text = stdout == null ? "" : stdout.trim();
-            double confidence = 1.0; // Unknown in text mode
-
-            long ms = (System.nanoTime() - t0) / 1_000_000L;
-            LOG.info("Whisper transcribed clip in {} ms (chars={})", ms, text.length());
-            return TranscriptionResult.of(text, confidence, ENGINE);
-        } catch (Exception e) {
-            if (e instanceof TranscriptionException te) {
-                throw te; // already enriched by manager
+            acquired = concurrencySemaphore.tryAcquire();
+            if (!acquired) {
+                throw new TranscriptionException("Whisper concurrency limit reached", ENGINE);
             }
-            throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
-        } finally {
-            if (wav != null) {
-                try {
-                    Files.deleteIfExists(wav);
-                } catch (Exception ignore) {
-                    // Cleanup failure is non-critical
+            synchronized (lock) {
+                if (!initialized || closed) {
+                    throw new TranscriptionException("Whisper engine not initialized", ENGINE);
                 }
+            }
+            Path wav = null;
+            long t0 = System.nanoTime();
+            try {
+                wav = Files.createTempFile("whisper-", ".wav");
+                WavWriter.writePcm16LeMono16kHz(audioData, wav);
+
+                String stdout = manager.transcribe(wav, cfg); // may throw TranscriptionException
+                String text = stdout == null ? "" : stdout.trim();
+                double confidence = 1.0; // Unknown in text mode
+
+                long ms = (System.nanoTime() - t0) / 1_000_000L;
+                LOG.info("Whisper transcribed clip in {} ms (chars={})", ms, text.length());
+                return TranscriptionResult.of(text, confidence, ENGINE);
+            } catch (Exception e) {
+                if (e instanceof TranscriptionException te) {
+                    throw te; // already enriched by manager
+                }
+                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
+            } finally {
+                if (wav != null) {
+                    try {
+                        Files.deleteIfExists(wav);
+                    } catch (Exception ignore) {
+                        // Cleanup failure is non-critical
+                    }
+                }
+            }
+        } finally {
+            if (acquired) {
+                concurrencySemaphore.release();
             }
         }
     }

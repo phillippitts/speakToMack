@@ -8,7 +8,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties({VoskConfig.class, WhisperConfig.class})
+@EnableConfigurationProperties({
+        VoskConfig.class,
+        WhisperConfig.class,
+        com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties.class
+})
 @EnableScheduling
 public class SpeakToMackApplication {
 
