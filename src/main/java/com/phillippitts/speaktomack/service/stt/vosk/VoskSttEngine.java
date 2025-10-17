@@ -14,9 +14,11 @@ import java.util.Objects;
 /**
  * Vosk-based implementation of the SttEngine interface.
  *
- * <p>Task 2.2 scope: lifecycle only (initialize/close). Audio processing is added in Task 2.3.
+ * <p>This engine provides offline speech-to-text transcription using the Vosk library.
+ * It supports per-call recognizer creation for thread-safe concurrent transcription.
  *
  * <p>Thread-safe: All state-modifying operations are synchronized.
+ * Transcription operations use per-call recognizers for safe concurrent access.
  *
  * <p>Audio contract: This engine expects raw PCM audio in the format defined by
  * com.phillippitts.speaktomack.service.audio.AudioFormat (16kHz, 16-bit, mono, little-endian).
@@ -26,6 +28,7 @@ import java.util.Objects;
 public class VoskSttEngine implements SttEngine {
 
     private static final Logger LOG = LogManager.getLogger(VoskSttEngine.class);
+    private static final String ENGINE_NAME = "vosk";
 
     private final VoskConfig config;
     private final Object lock = new Object();
@@ -76,7 +79,7 @@ public class VoskSttEngine implements SttEngine {
                 safeCloseUnlocked();
                 throw new TranscriptionException(
                     "Failed to initialize Vosk (model=" + config.modelPath()
-                        + ", sampleRate=" + config.sampleRate() + ")", "vosk", t);
+                        + ", sampleRate=" + config.sampleRate() + ")", ENGINE_NAME, t);
             }
         }
     }
@@ -84,10 +87,12 @@ public class VoskSttEngine implements SttEngine {
     /**
      * Transcribes audio data to text.
      *
-     * <p>Implementation pending in Task 2.3. Currently enforces initialization precondition.
+     * <p>Creates a new recognizer per call for thread-safe operation.
+     * Empty text results are valid (e.g., silence or unclear audio).
      *
      * @param audioData PCM audio data (16kHz, 16-bit, mono)
-     * @return transcription result
+     * @return transcription result with text and confidence score
+     * @throws IllegalArgumentException if audioData is null or empty
      * @throws TranscriptionException if engine not initialized or transcription fails
      */
     @Override
@@ -97,8 +102,8 @@ public class VoskSttEngine implements SttEngine {
         }
         org.vosk.Model localModel;
         synchronized (lock) {
-            if (!initialized || closed || model == null) {
-                throw new TranscriptionException("Vosk engine not initialized", "vosk");
+            if (!initialized || closed) {
+                throw new TranscriptionException("Vosk engine not initialized", ENGINE_NAME);
             }
             localModel = this.model;
         }
@@ -113,12 +118,11 @@ public class VoskSttEngine implements SttEngine {
             // Feed full buffer (whole-clip MVP) and finalize
             localRecognizer.acceptWaveForm(audioData, audioData.length);
             String json = localRecognizer.getFinalResult();
-            String text = extractTextFromVoskJson(json);
-            double confidence = extractConfidenceFromVoskJson(json);
+            VoskTranscription transcription = parseVoskJson(json);
             // Empty text is valid (e.g., silence or unclear audio)
-            return TranscriptionResult.of(text, confidence, getEngineName());
+            return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
         } catch (Throwable t) {
-            throw new TranscriptionException("Vosk transcription failed", "vosk", t);
+            throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
         }
     }
 
@@ -129,32 +133,20 @@ public class VoskSttEngine implements SttEngine {
      */
     @Override
     public String getEngineName() {
-        return "vosk";
+        return ENGINE_NAME;
     }
 
     /**
      * Checks if the engine is healthy and ready to transcribe.
      *
-     * <p>Returns true if initialized, not closed, and JNI resources are available.
+     * <p>Returns true if initialized, not closed, and model is loaded.
      *
      * @return true if healthy, false otherwise
      */
     @Override
     public boolean isHealthy() {
         synchronized (lock) {
-            if (!initialized || closed || model == null) {
-                return false;
-            }
-            // Optional: Quick JNI health check
-            try {
-                // Create and immediately close a recognizer to verify JNI works
-                try (org.vosk.Recognizer testRec = new org.vosk.Recognizer(model, config.sampleRate())) {
-                    return true;
-                }
-            } catch (Throwable t) {
-                LOG.warn("Vosk health check failed", t);
-                return false;
-            }
+            return initialized && !closed && model != null;
         }
     }
 
@@ -198,13 +190,79 @@ public class VoskSttEngine implements SttEngine {
     }
 
     /**
+     * Parses Vosk JSON response and extracts both text and confidence.
+     *
+     * <p>This method parses the JSON once and extracts both values for efficiency.
+     *
+     * @param json JSON string from Vosk recognizer
+     * @return VoskTranscription containing text and confidence
+     */
+    private static VoskTranscription parseVoskJson(String json) {
+        if (json == null || json.isBlank()) {
+            return new VoskTranscription("", 1.0);
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            String text = obj.optString("text", "").trim();
+            double confidence = extractConfidenceFromJson(obj);
+            return new VoskTranscription(text, confidence);
+        } catch (Exception e) {
+            LOG.warn("Failed to parse Vosk JSON response: {}", json, e);
+            return new VoskTranscription("", 1.0);
+        }
+    }
+
+    /**
+     * Extracts confidence from already-parsed JSONObject.
+     *
+     * @param obj parsed JSON object
+     * @return average confidence (0.0-1.0), or 1.0 if no confidence data
+     */
+    private static double extractConfidenceFromJson(JSONObject obj) {
+        if (!obj.has("result")) {
+            return 1.0; // No result array, assume perfect confidence
+        }
+        org.json.JSONArray results = obj.getJSONArray("result");
+        if (results.length() == 0) {
+            return 1.0; // Empty result, no words recognized
+        }
+
+        double sum = 0.0;
+        int count = 0;
+        for (int i = 0; i < results.length(); i++) {
+            JSONObject wordObj = results.getJSONObject(i);
+            if (wordObj.has("conf")) {
+                sum += wordObj.getDouble("conf");
+                count++;
+            }
+        }
+
+        double rawConfidence = count > 0 ? sum / count : 1.0;
+        // Clamp to [0.0, 1.0] to satisfy TranscriptionResult contract
+        return Math.min(1.0, Math.max(0.0, rawConfidence));
+    }
+
+    /**
+     * Internal record to hold parsed Vosk transcription data.
+     *
+     * @param text transcribed text (may be empty)
+     * @param confidence confidence score (0.0-1.0)
+     */
+    private record VoskTranscription(String text, double confidence) {
+    }
+
+    /**
      * Extracts the transcribed text from Vosk's JSON response.
+     *
+     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
+     *             This method is kept for backward compatibility with existing tests.
      *
      * <p>Example Vosk JSON: {@code {"text": "hello world"}}
      *
      * @param json JSON string from Vosk recognizer
      * @return extracted text, or empty string if parsing fails
      */
+    @Deprecated
     static String extractTextFromVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return "";
@@ -221,6 +279,9 @@ public class VoskSttEngine implements SttEngine {
     /**
      * Extracts average confidence from Vosk's JSON response.
      *
+     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
+     *             This method is kept for backward compatibility with existing tests.
+     *
      * <p>Vosk provides per-word confidence in the "result" array.
      * Example: {@code {"result": [{"conf": 0.95, "word": "hello"}, {"conf": 0.87, "word": "world"}]}}
      *
@@ -229,6 +290,7 @@ public class VoskSttEngine implements SttEngine {
      * @param json JSON string from Vosk recognizer
      * @return average confidence (0.0-1.0), or 1.0 if parsing fails
      */
+    @Deprecated
     static double extractConfidenceFromVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return 1.0;
@@ -253,7 +315,9 @@ public class VoskSttEngine implements SttEngine {
                 }
             }
 
-            return count > 0 ? sum / count : 1.0;
+            double rawConfidence = count > 0 ? sum / count : 1.0;
+            // Clamp to [0.0, 1.0] to satisfy TranscriptionResult contract
+            return Math.min(1.0, Math.max(0.0, rawConfidence));
         } catch (Exception e) {
             LOG.warn("Failed to parse confidence from Vosk JSON: {}", json, e);
             return 1.0; // Default to perfect confidence on parse error

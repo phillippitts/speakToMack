@@ -22,13 +22,14 @@ public record TranscriptionResult(
     /**
      * Compact constructor with validation.
      *
-     * @throws IllegalArgumentException if text is null, empty, or confidence is out of range
+     * <p>Note: Empty text is valid (e.g., silence or unclear audio may produce no transcription).
+     *
+     * @throws IllegalArgumentException if text is null or confidence is out of range
+     * @throws NullPointerException if text, timestamp, or engineName is null
      */
     public TranscriptionResult {
         Objects.requireNonNull(text, "Transcription text must not be null");
-        if (text.isBlank()) {
-            throw new IllegalArgumentException("Transcription text must not be blank");
-        }
+        // Empty text is valid (silence may produce empty transcription)
         if (confidence < 0.0 || confidence > 1.0) {
             throw new IllegalArgumentException(
                     "Confidence must be between 0.0 and 1.0, got: " + confidence

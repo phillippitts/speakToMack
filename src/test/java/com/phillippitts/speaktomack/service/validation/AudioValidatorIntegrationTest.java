@@ -1,11 +1,11 @@
 package com.phillippitts.speaktomack.service.validation;
 
+import com.phillippitts.speaktomack.TestResourceLoader;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,7 +27,7 @@ class AudioValidatorIntegrationTest {
 
     @Test
     void shouldAcceptOneSecondPcmSilence() throws IOException {
-        byte[] pcm = load("/audio/silence-1s.pcm");
+        byte[] pcm = TestResourceLoader.loadPcm("/audio/silence-1s.pcm");
         assertThatCode(() -> validator.validate(pcm))
                 .doesNotThrowAnyException();
     }
@@ -38,14 +38,5 @@ class AudioValidatorIntegrationTest {
         assertThatThrownBy(() -> validator.validate(tiny))
                 .isInstanceOf(com.phillippitts.speaktomack.exception.InvalidAudioException.class)
                 .hasMessageContaining("Audio too short");
-    }
-
-    private static byte[] load(String path) throws IOException {
-        try (InputStream in = AudioValidatorIntegrationTest.class.getResourceAsStream(path)) {
-            if (in == null) {
-                throw new IOException("Test resource not found: " + path);
-            }
-            return in.readAllBytes();
-        }
     }
 }

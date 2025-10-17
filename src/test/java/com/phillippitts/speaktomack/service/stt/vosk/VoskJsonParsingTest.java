@@ -8,6 +8,24 @@ import static org.assertj.core.api.Assertions.within;
 class VoskJsonParsingTest {
 
     @Test
+    void shouldTrimTextAndClampInvalidConfidence() {
+        String messy = "{\"text\": \"  hello  \", \"result\": [{\"conf\": 1.2}]}";
+        String text = VoskSttEngine.extractTextFromVoskJson(messy);
+        double confidence = VoskSttEngine.extractConfidenceFromVoskJson(messy);
+        assertThat(text).isEqualTo("hello");
+        // Confidence > 1.0 should be clamped to 1.0 to satisfy TranscriptionResult contract
+        assertThat(confidence).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldClampNegativeConfidence() {
+        String negativeConf = "{\"result\": [{\"conf\": -0.5}]}";
+        double confidence = VoskSttEngine.extractConfidenceFromVoskJson(negativeConf);
+        // Negative confidence should be clamped to 0.0
+        assertThat(confidence).isEqualTo(0.0);
+    }
+
+    @Test
     void shouldExtractTextFromValidVoskJson() {
         String json = "{\"text\": \"hello world\"}";
         String text = VoskSttEngine.extractTextFromVoskJson(json);

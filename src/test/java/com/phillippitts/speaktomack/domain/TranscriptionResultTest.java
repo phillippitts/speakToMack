@@ -33,10 +33,17 @@ class TranscriptionResultTest {
     }
 
     @Test
-    void shouldRejectBlankText() {
-        assertThatThrownBy(() -> new TranscriptionResult("   ", 0.95, Instant.now(), "vosk"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be blank");
+    void shouldAcceptEmptyText() {
+        // Empty text is valid (silence may produce empty transcription)
+        TranscriptionResult result = new TranscriptionResult("", 0.95, Instant.now(), "vosk");
+        assertThat(result.text()).isEmpty();
+    }
+
+    @Test
+    void shouldAcceptWhitespaceText() {
+        // Whitespace is valid (some STT engines may return spaces)
+        TranscriptionResult result = new TranscriptionResult("   ", 0.95, Instant.now(), "vosk");
+        assertThat(result.text()).isEqualTo("   ");
     }
 
     @Test

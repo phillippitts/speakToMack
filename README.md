@@ -201,6 +201,25 @@ Next steps:
 
 ---
 
+## Running Vosk gated integration tests
+
+By default, integration tests that require the real Vosk model are skipped in CI. To run them locally:
+
+```bash
+./setup-models.sh
+./gradlew test -Dvosk.model.available=true --tests "*VoskSttEngineIntegrationTest*"
+```
+
+Optional accent and noise tests look for additional PCM fixtures under `src/test/resources/audio` and will be skipped if not present:
+- /audio/phrase_british_en_1s.pcm
+- /audio/phrase_indian_en_1s.pcm
+- /audio/speech_with_cafe_noise_3s.pcm
+- /audio/cafe_noise_only_3s.pcm
+
+These tests assert engine resilience (no exceptions) and reasonable confidence handling without enforcing exact transcripts to avoid flakiness.
+
+---
+
 ## Troubleshooting
 
 ### `./build-whisper.sh` fails with "make not found"
