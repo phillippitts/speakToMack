@@ -36,7 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * - The PingController logs an INFO message
  * - The Log4j2 MDC contains requestId and userId propagated by MdcFilter
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+        "stt.validation.enabled=false" // avoid requiring real models/binaries in tests
+    }
+)
 class LoggingFormatIntegrationTest {
 
     @LocalServerPort
