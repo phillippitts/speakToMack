@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.phillippitts.speaktomack.service.orchestration.OrchestrationTestDoubles.FakeEngine;
+import static com.phillippitts.speaktomack.service.orchestration.OrchestrationTestDoubles.FailingEngine;
+import static com.phillippitts.speaktomack.service.orchestration.OrchestrationTestDoubles.SlowEngine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -52,94 +55,69 @@ class ParallelTranscriptionServiceTest {
         ParallelTranscriptionService svc = new ParallelTranscriptionService(validator, config);
 
         assertThatThrownBy(() -> svc.transcribeBoth(ONE_SECOND_PCM, Duration.ofMillis(200)))
-                .isInstanceOf(Exception.class);
+                .isInstanceOf(TranscriptionException.class)
+                .hasMessageContaining("timed out");
 
         exec.shutdownNow();
     }
 
-    // --- Test doubles ---
+    @Test
+    void shouldHandlePartialFailure() {
+        AudioValidator validator = new AudioValidator(new AudioValidationProperties());
+        SttEngine goodVosk = new FakeEngine("vosk", "success");
+        SttEngine failingWhisper = new FailingEngine("whisper");
+        ExecutorService exec = Executors.newFixedThreadPool(2);
 
-    private static final class FakeEngine implements SttEngine {
-        private final String name;
-        private final String text;
-        private boolean initialized;
+        ParallelTranscriptionService.EngineConfig config =
+                new ParallelTranscriptionService.EngineConfig(goodVosk, failingWhisper, exec);
+        ParallelTranscriptionService svc = new ParallelTranscriptionService(validator, config);
 
-        FakeEngine(String name, String text) {
-            this.name = name;
-            this.text = text;
-            this.initialized = true;
-        }
+        assertThatThrownBy(() -> svc.transcribeBoth(ONE_SECOND_PCM, Duration.ofSeconds(5)))
+                .isInstanceOf(TranscriptionException.class)
+                .hasMessageContaining("Parallel transcription failed");
 
-        @Override
-        public void initialize() {
-            this.initialized = true;
-        }
-
-        @Override
-        public TranscriptionResult transcribe(byte[] audioData) {
-            if (!initialized) {
-                throw new TranscriptionException("not initialized", name);
-            }
-            return TranscriptionResult.of(text, 1.0, name);
-        }
-
-        @Override
-        public String getEngineName() {
-            return name;
-        }
-
-        @Override
-        public boolean isHealthy() {
-            return initialized;
-        }
-
-        @Override
-        public void close() {
-            this.initialized = false;
-        }
+        exec.shutdownNow();
     }
 
-    private static final class SlowEngine implements SttEngine {
-        private final String name;
-        private final long delayMs;
-        private boolean initialized = true;
+    @Test
+    void shouldPropagateValidationErrors() {
+        AudioValidator validator = new AudioValidator(new AudioValidationProperties());
+        SttEngine vosk = new FakeEngine("vosk", "hello");
+        SttEngine whisper = new FakeEngine("whisper", "world");
+        ExecutorService exec = Executors.newFixedThreadPool(2);
 
-        SlowEngine(String name, long delayMs) {
-            this.name = name;
-            this.delayMs = delayMs;
-        }
+        ParallelTranscriptionService.EngineConfig config =
+                new ParallelTranscriptionService.EngineConfig(vosk, whisper, exec);
+        ParallelTranscriptionService svc = new ParallelTranscriptionService(validator, config);
 
-        @Override
-        public void initialize() {
-            this.initialized = true;
-        }
+        byte[] tooShort = new byte[1000]; // Less than 250ms minimum
 
-        @Override
-        public TranscriptionResult transcribe(byte[] audioData) {
-            try {
-                Thread.sleep(delayMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            if (!initialized) {
-                throw new TranscriptionException("not initialized", name);
-            }
-            return TranscriptionResult.of("slow", 1.0, name);
-        }
+        assertThatThrownBy(() -> svc.transcribeBoth(tooShort, Duration.ofSeconds(5)))
+                .hasMessageContaining("Audio too short");
 
-        @Override
-        public String getEngineName() {
-            return name;
-        }
+        exec.shutdownNow();
+    }
 
-        @Override
-        public boolean isHealthy() {
-            return initialized;
-        }
+    @Test
+    void shouldActuallyRunInParallel() {
+        AudioValidator validator = new AudioValidator(new AudioValidationProperties());
+        SttEngine slowVosk = new SlowEngine("vosk", 500);
+        SttEngine slowWhisper = new SlowEngine("whisper", 500);
+        ExecutorService exec = Executors.newFixedThreadPool(2);
 
-        @Override
-        public void close() {
-            this.initialized = false;
-        }
+        ParallelTranscriptionService.EngineConfig config =
+                new ParallelTranscriptionService.EngineConfig(slowVosk, slowWhisper, exec);
+        ParallelTranscriptionService svc = new ParallelTranscriptionService(validator, config);
+
+        long start = System.currentTimeMillis();
+        List<TranscriptionResult> results = svc.transcribeBoth(ONE_SECOND_PCM, Duration.ofSeconds(5));
+        long duration = System.currentTimeMillis() - start;
+
+        assertThat(results).hasSize(2);
+        // If running in parallel, should complete in ~500ms, not 1000ms (sequential)
+        assertThat(duration).isLessThan(800);
+        assertThat(duration).isGreaterThanOrEqualTo(500);
+
+        exec.shutdownNow();
     }
 }
