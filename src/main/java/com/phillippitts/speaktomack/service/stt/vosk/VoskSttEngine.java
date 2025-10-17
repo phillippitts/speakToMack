@@ -9,8 +9,12 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
+import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 
 /**
  * Vosk-based implementation of the SttEngine interface.
@@ -37,6 +41,9 @@ public class VoskSttEngine implements SttEngine {
     // Lightweight concurrency guard (configurable)
     private final java.util.concurrent.Semaphore concurrencySemaphore;
 
+    // Optional event publisher for watchdog events
+    private ApplicationEventPublisher publisher;
+
     // Native resources (created in initialize, closed in close)
     // @GuardedBy("lock")
     private org.vosk.Model model;           // JNI resource
@@ -59,10 +66,12 @@ public class VoskSttEngine implements SttEngine {
      */
     @Autowired
     public VoskSttEngine(VoskConfig config,
-            com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties) {
+            com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
+            ApplicationEventPublisher publisher) {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
+        this.publisher = publisher;
     }
 
     /**
@@ -93,6 +102,13 @@ public class VoskSttEngine implements SttEngine {
             } catch (Throwable t) {
                 // Ensure partial resources are closed on failure
                 safeCloseUnlocked();
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("modelPath", String.valueOf(config.modelPath()));
+                    ctx.put("sampleRate", String.valueOf(config.sampleRate()));
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE_NAME, java.time.Instant.now(),
+                            "initialize failure", t, ctx));
+                }
                 throw new TranscriptionException(
                     "Failed to initialize Vosk (model=" + config.modelPath()
                         + ", sampleRate=" + config.sampleRate() + ")", ENGINE_NAME, t);
@@ -120,6 +136,12 @@ public class VoskSttEngine implements SttEngine {
         try {
             acquired = concurrencySemaphore.tryAcquire();
             if (!acquired) {
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("reason", "concurrency-limit");
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE_NAME, java.time.Instant.now(),
+                            "concurrency limit reached", null, ctx));
+                }
                 throw new TranscriptionException("Vosk concurrency limit reached", ENGINE_NAME);
             }
             org.vosk.Model localModel;

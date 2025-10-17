@@ -11,7 +11,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties({
         VoskConfig.class,
         WhisperConfig.class,
-        com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties.class
+        com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties.class,
+        com.phillippitts.speaktomack.config.stt.SttWatchdogProperties.class
 })
 @EnableScheduling
 public class SpeakToMackApplication {

@@ -8,6 +8,11 @@ import com.phillippitts.speaktomack.service.stt.SttEngine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +36,7 @@ public final class WhisperSttEngine implements SttEngine {
 
     private final WhisperConfig cfg;
     private final WhisperProcessManager manager;
+    private ApplicationEventPublisher publisher;
 
     private final Object lock = new Object();
     private boolean initialized;
@@ -42,28 +48,49 @@ public final class WhisperSttEngine implements SttEngine {
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(2);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public WhisperSttEngine(WhisperConfig cfg,
                              com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
-                             WhisperProcessManager manager) {
+                             WhisperProcessManager manager,
+                             ApplicationEventPublisher publisher) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
+        this.publisher = publisher;
     }
 
     @Override
     public void initialize() {
         synchronized (lock) {
             if (closed) {
-                throw new IllegalStateException("Engine already closed");
+                IllegalStateException ex = new IllegalStateException("Engine already closed");
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("binaryPath", cfg.binaryPath());
+                    ctx.put("modelPath", cfg.modelPath());
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                            "initialize failure (already closed)", ex, ctx));
+                }
+                throw ex;
             }
             if (initialized) {
                 return;
             }
-            initialized = true; // Fail-fast validation already ran at startup
-            LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
-                    cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
+            try {
+                initialized = true; // Fail-fast validation already ran at startup
+                LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
+                        cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
+            } catch (Throwable t) {
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("binaryPath", cfg.binaryPath());
+                    ctx.put("modelPath", cfg.modelPath());
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                            "initialize failure", t, ctx));
+                }
+                throw new TranscriptionException("Whisper initialization failed", ENGINE, t);
+            }
         }
     }
 
@@ -76,6 +103,12 @@ public final class WhisperSttEngine implements SttEngine {
         try {
             acquired = concurrencySemaphore.tryAcquire();
             if (!acquired) {
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("reason", "concurrency-limit");
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                            "concurrency limit reached", null, ctx));
+                }
                 throw new TranscriptionException("Whisper concurrency limit reached", ENGINE);
             }
             synchronized (lock) {
@@ -98,7 +131,21 @@ public final class WhisperSttEngine implements SttEngine {
                 return TranscriptionResult.of(text, confidence, ENGINE);
             } catch (Exception e) {
                 if (e instanceof TranscriptionException te) {
+                    if (publisher != null) {
+                        Map<String, String> ctx = new HashMap<>();
+                        ctx.put("binaryPath", cfg.binaryPath());
+                        ctx.put("modelPath", cfg.modelPath());
+                        publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                                "transcribe failure", e, ctx));
+                    }
                     throw te; // already enriched by manager
+                }
+                if (publisher != null) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("binaryPath", cfg.binaryPath());
+                    ctx.put("modelPath", cfg.modelPath());
+                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                            "transcribe failure", e, ctx));
                 }
                 throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
             } finally {
