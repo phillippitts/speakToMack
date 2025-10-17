@@ -277,4 +277,77 @@ public class VoskSttEngine implements SttEngine {
      */
     private record VoskTranscription(String text, double confidence) {
     }
+
+    /**
+     * Extracts the transcribed text from Vosk's JSON response.
+     *
+     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
+     *             This method is kept for backward compatibility with existing tests.
+     *
+     * <p>Example Vosk JSON: {@code {"text": "hello world"}}
+     *
+     * @param json JSON string from Vosk recognizer
+     * @return extracted text, or empty string if parsing fails
+     */
+    @Deprecated
+    static String extractTextFromVoskJson(String json) {
+        if (json == null || json.isBlank()) {
+            return "";
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            return obj.optString("text", "").trim();
+        } catch (Exception e) {
+            LOG.warn("Failed to parse Vosk JSON response: {}", json, e);
+            return "";
+        }
+    }
+
+    /**
+     * Extracts average confidence from Vosk's JSON response.
+     *
+     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
+     *             This method is kept for backward compatibility with existing tests.
+     *
+     * <p>Vosk provides per-word confidence in the "result" array.
+     * Example: {@code {"result": [{"conf": 0.95, "word": "hello"}, {"conf": 0.87, "word": "world"}]}}
+     *
+     * <p>If no confidence data is available, returns 1.0 (assume perfect confidence).
+     *
+     * @param json JSON string from Vosk recognizer
+     * @return average confidence (0.0-1.0), or 1.0 if parsing fails
+     */
+    @Deprecated
+    static double extractConfidenceFromVoskJson(String json) {
+        if (json == null || json.isBlank()) {
+            return 1.0;
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            if (!obj.has("result")) {
+                return 1.0; // No result array, assume perfect confidence
+            }
+            org.json.JSONArray results = obj.getJSONArray("result");
+            if (results.length() == 0) {
+                return 1.0; // Empty result, no words recognized
+            }
+
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject wordObj = results.getJSONObject(i);
+                if (wordObj.has("conf")) {
+                    sum += wordObj.getDouble("conf");
+                    count++;
+                }
+            }
+
+            double rawConfidence = count > 0 ? sum / count : 1.0;
+            // Clamp to [0.0, 1.0] to satisfy TranscriptionResult contract
+            return Math.min(1.0, Math.max(0.0, rawConfidence));
+        } catch (Exception e) {
+            LOG.warn("Failed to parse confidence from Vosk JSON: {}", json, e);
+            return 1.0; // Default to perfect confidence on parse error
+        }
+    }
 }
