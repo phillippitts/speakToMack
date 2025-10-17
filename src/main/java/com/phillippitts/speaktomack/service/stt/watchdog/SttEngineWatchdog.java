@@ -115,45 +115,97 @@ public class SttEngineWatchdog {
         LOG.info(sb.toString().trim());
     }
 
+    /**
+     * Attempts to restart a failed engine within budget constraints.
+     *
+     * <p>State transitions:
+     * <ul>
+     *   <li>Budget available → restart → HEALTHY (on success) or remain DEGRADED (on failure)</li>
+     *   <li>Budget exceeded → DISABLED with cooldown period</li>
+     * </ul>
+     *
+     * @param engine engine name to restart
+     */
     private void attemptRestart(String engine) {
+        withRestartLock(engine, () -> {
+            if (isDisabledByCooldown(engine)) {
+                LOG.warn("Engine {} is in cooldown until {}", engine, disabledUntil.get(engine));
+                return;
+            }
+            if (!budgetAllowsRestart(engine)) {
+                disableEngine(engine);
+                return;
+            }
+            recordRestartAttempt(engine);
+            if (tryRestart(engine)) {
+                // Don't transition to HEALTHY or clear window here - let onRecovered() handle it
+                // This ensures budget tracking remains accurate even if event delivery is async
+                publisher.publishEvent(new EngineRecoveredEvent(engine, Instant.now()));
+                LOG.info("Engine {} restarted successfully", engine);
+            } else {
+                // remain degraded; future failures will trigger further attempts until budget exceeded
+                state.put(engine, EngineState.DEGRADED);
+                LOG.warn("Engine {} restart failed; remaining in DEGRADED state", engine);
+            }
+        });
+    }
+
+    /** Guard restart with a per-engine lock to avoid concurrent restarts. */
+    private void withRestartLock(String engine, Runnable action) {
         ReentrantLock lock = restartLocks.get(engine);
         if (!lock.tryLock()) {
             LOG.debug("Restart already in progress for {}", engine);
             return;
         }
         try {
-            // Enforce sliding window budget
-            Deque<Instant> window = restartWindow.get(engine);
-            Instant now = Instant.now();
-            pruneOld(window, props.getWindowMinutes());
-            if (window.size() >= props.getMaxRestartsPerWindow()) {
-                // Disable with cooldown
-                state.put(engine, EngineState.DISABLED);
-                Instant until = now.plus(Duration.ofMinutes(props.getCooldownMinutes()));
-                disabledUntil.put(engine, until);
-                LOG.error("Engine {} disabled after {} failures within {}m; cooldown until {}",
-                        engine, window.size(), props.getWindowMinutes(), until);
-                return;
-            }
-
-            // Perform restart
-            window.addLast(now);
-            SttEngine e = enginesByName.get(engine);
-            try {
-                LOG.warn("Restarting engine {}", engine);
-                e.close();
-            } catch (Exception ex) {
-                LOG.debug("Error during engine.close(): {}", ex.toString());
-            }
-            try {
-                e.initialize();
-                publisher.publishEvent(new EngineRecoveredEvent(engine, Instant.now()));
-            } catch (Exception ex) {
-                // keep degraded; let future failures continue counting toward budget
-                LOG.error("Engine {} failed to initialize after restart: {}", engine, ex.toString());
-            }
+            action.run();
         } finally {
             lock.unlock();
+        }
+    }
+
+    /** Returns true when engine is currently disabled and cooldown has not elapsed. */
+    private boolean isDisabledByCooldown(String engine) {
+        Instant until = disabledUntil.get(engine);
+        return until != null && Instant.now().isBefore(until);
+    }
+
+    /** Returns true if restart budget allows another attempt (after pruning old attempts). */
+    private boolean budgetAllowsRestart(String engine) {
+        Deque<Instant> window = restartWindow.get(engine);
+        pruneOld(window, props.getWindowMinutes());
+        return window.size() < props.getMaxRestartsPerWindow();
+    }
+
+    /** Records a restart attempt timestamp in the sliding window. */
+    private void recordRestartAttempt(String engine) {
+        restartWindow.get(engine).addLast(Instant.now());
+    }
+
+    /** Disables engine and sets cooldown timestamp. */
+    private void disableEngine(String engine) {
+        state.put(engine, EngineState.DISABLED);
+        Instant until = Instant.now().plus(Duration.ofMinutes(props.getCooldownMinutes()));
+        disabledUntil.put(engine, until);
+        LOG.error("Engine {} disabled after {} failures within {}m; cooldown until {}",
+                engine, restartWindow.get(engine).size(), props.getWindowMinutes(), until);
+    }
+
+    /** Attempts to restart engine: close then initialize. Returns true on success. */
+    private boolean tryRestart(String engine) {
+        SttEngine e = enginesByName.get(engine);
+        try {
+            LOG.warn("Restarting engine {}", engine);
+            e.close();
+        } catch (Exception ex) {
+            LOG.debug("Error during engine.close(): {}", ex.toString());
+        }
+        try {
+            e.initialize();
+            return true;
+        } catch (Exception ex) {
+            LOG.error("Engine {} failed to initialize after restart: {}", engine, ex.toString());
+            return false;
         }
     }
 

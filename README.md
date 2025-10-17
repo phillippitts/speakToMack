@@ -8,8 +8,8 @@ speakToMack lets you dictate text into any macOS application using a configurabl
 
 ## Status: 🚧 In Development
 
-Current phase: Phases 0–1 complete (Environment + Core Abstractions) ✅
-Next: Phase 2 – STT Engine Integration (Vosk + Whisper)
+Current phase: Phases 0–2 complete (Environment, Core Abstractions, STT Engine Integration) ✅
+Next: Phase 3 – Parallel Development (Audio capture, hotkeys) and Phase 4–5 integration/docs
 See: [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
 Current capabilities (implemented):
@@ -20,9 +20,12 @@ Current capabilities (implemented):
 - ✅ SttEngine interface (Adapter pattern target)
 - ✅ Typed configuration records (VoskConfig, WhisperConfig) bound via @EnableConfigurationProperties
 - ✅ Thread pool configuration with MDC task decoration
+- ✅ Vosk STT engine (JNI) with JSON parsing and per-call recognizer (thread-safe)
+- ✅ Whisper STT engine via whisper.cpp process (temp WAV + robust manager with timeouts)
+- ✅ Parallel execution test scaffolding and lightweight bulkheads (semaphores)
+- ✅ Event-driven watchdog with bounded auto-restart and cooldown
 
 Not yet implemented (planned in later phases):
-- ❌ Vosk/Whisper engine implementations
 - ❌ Audio capture and hotkey orchestration
 - ❌ Reconciliation strategies
 - ❌ Typing/paste service and fallbacks
@@ -201,13 +204,19 @@ Next steps:
 
 ---
 
-## Running Vosk gated integration tests
+## Running gated integration tests
 
-By default, integration tests that require the real Vosk model are skipped in CI. To run them locally:
+By default, integration tests that require real models/binaries are skipped in CI. To run them locally:
 
+Vosk engine (requires downloaded model):
 ```bash
 ./setup-models.sh
 ./gradlew test -Dvosk.model.available=true --tests "*VoskSttEngineIntegrationTest*"
+```
+
+Parallel Vosk+Whisper (Vosk real, Whisper stubbed to keep hermetic):
+```bash
+./gradlew test -Dvosk.model.available=true --tests "*ParallelSttEnginesIntegrationTest*"
 ```
 
 Optional accent and noise tests look for additional PCM fixtures under `src/test/resources/audio` and will be skipped if not present:
@@ -217,6 +226,20 @@ Optional accent and noise tests look for additional PCM fixtures under `src/test
 - /audio/cafe_noise_only_3s.pcm
 
 These tests assert engine resilience (no exceptions) and reasonable confidence handling without enforcing exact transcripts to avoid flakiness.
+
+### Watchdog configuration (Task 2.7)
+
+The event-driven watchdog automatically restarts engines within a sliding-window budget.
+
+Properties (defaults shown):
+```properties
+stt.watchdog.enabled=true
+stt.watchdog.window-minutes=60
+stt.watchdog.max-restarts-per-window=3
+stt.watchdog.cooldown-minutes=10
+```
+
+The watchdog listens for engine failure events and performs a bounded restart. It never logs transcripts and avoids heavy polling.
 
 ---
 

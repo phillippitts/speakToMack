@@ -54,9 +54,6 @@ jobs:
       - name: Build
         run: ./gradlew --no-daemon clean build
 
-      - name: Test
-        run: ./gradlew --no-daemon test
-
       - name: Upload test and style reports on failure
         if: failure()
         uses: actions/upload-artifact@v4

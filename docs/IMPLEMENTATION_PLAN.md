@@ -1,6 +1,6 @@
 # speakToMack Implementation Plan
 
-**Status:** Phases 0–1 implemented; Phases 2–6 planned (not yet implemented)
+**Status:** Phases 0–2 implemented; Phases 3–6 planned
 **Timeline:** 6 days (~45.25 hours)
 **Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2)
 
@@ -627,8 +627,8 @@ FAIL → Debug before production hardening
 | Accessibility permission denial | Planned | 3-tier fallback (Task 3.4) |
 | Memory leaks (JNI) | Planned | Automated tests (Task 6.10) |
 | Dependency vulnerabilities | Planned | OWASP + Dependabot (Task 6.11) |
-| **JVM crashes from native code** | Planned | **Watchdog auto-recovery (Task 2.7)** |
-| **Whisper process management** | Planned | **Process lifecycle handling (Tasks 2.4-2.6)** |
+| **JVM crashes from native code** | ✅ RESOLVED | **Watchdog auto-recovery (Task 2.7)** |
+| **Whisper process management** | ✅ RESOLVED | **Process lifecycle handling (Tasks 2.4-2.6)** |
 | **Cascading STT failures** | Planned | **Circuit breakers (Task 6.3)** |
 | **PII leakage in logs** | Planned | **PII redaction (Task 6.11)** |
 | **Thread pool exhaustion** | ✅ **RESOLVED** | **Optimized thread pools (Task 1.5)** |
