@@ -30,6 +30,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Temp-file WAV handling is performed by the caller (engine) in Task 2.5.
  */
+import org.springframework.stereotype.Component;
+
+@Component
 public final class WhisperProcessManager implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger(WhisperProcessManager.class);
