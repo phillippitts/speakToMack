@@ -305,13 +305,26 @@ public class VoskSttEngine implements SttEngine {
      *
      * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
      *             This method is kept for backward compatibility with existing tests.
+     *             Will be removed in version 2.0.
+     *
+     * <p><strong>Migration Guide:</strong>
+     * <pre>{@code
+     * // Old approach (parses JSON twice):
+     * String text = extractTextFromVoskJson(json);
+     * double confidence = extractConfidenceFromVoskJson(json);
+     *
+     * // New approach (parses JSON once):
+     * VoskTranscription result = parseVoskJson(json);
+     * String text = result.text();
+     * double confidence = result.confidence();
+     * }</pre>
      *
      * <p>Example Vosk JSON: {@code {"text": "hello world"}}
      *
      * @param json JSON string from Vosk recognizer
      * @return extracted text, or empty string if parsing fails
      */
-    @Deprecated
+    @Deprecated(since = "1.0", forRemoval = true)
     static String extractTextFromVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return "";
@@ -330,6 +343,23 @@ public class VoskSttEngine implements SttEngine {
      *
      * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
      *             This method is kept for backward compatibility with existing tests.
+     *             Will be removed in version 2.0.
+     *
+     * <p><strong>Problem:</strong> Calling {@code extractTextFromVoskJson()} and
+     * {@code extractConfidenceFromVoskJson()} separately parses the JSON twice,
+     * which is inefficient for production code.
+     *
+     * <p><strong>Migration Guide:</strong>
+     * <pre>{@code
+     * // Old approach (inefficient - parses JSON twice):
+     * String text = extractTextFromVoskJson(json);
+     * double confidence = extractConfidenceFromVoskJson(json);
+     *
+     * // New approach (efficient - parses JSON once):
+     * VoskTranscription result = parseVoskJson(json);
+     * String text = result.text();
+     * double confidence = result.confidence();
+     * }</pre>
      *
      * <p>Vosk provides per-word confidence in the "result" array.
      * Example: {@code {"result": [{"conf": 0.95, "word": "hello"}, {"conf": 0.87, "word": "world"}]}}
@@ -339,7 +369,7 @@ public class VoskSttEngine implements SttEngine {
      * @param json JSON string from Vosk recognizer
      * @return average confidence (0.0-1.0), or 1.0 if parsing fails
      */
-    @Deprecated
+    @Deprecated(since = "1.0", forRemoval = true)
     static double extractConfidenceFromVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return 1.0;

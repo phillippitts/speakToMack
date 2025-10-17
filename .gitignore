@@ -16,3 +16,4 @@ logs/
 /.gradle/
 /.claude/
 /tools/
+/gradle/

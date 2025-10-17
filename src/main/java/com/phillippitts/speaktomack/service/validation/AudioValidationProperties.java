@@ -2,6 +2,9 @@ package com.phillippitts.speaktomack.service.validation;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.Positive;
 
 /**
  * Configurable audio validation thresholds.
@@ -9,12 +12,15 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConfigurationProperties(prefix = "audio.validation")
+@Validated
 public class AudioValidationProperties {
 
     /** Minimum duration in milliseconds for a valid clip (UX guard, not security). */
+    @Positive(message = "Minimum duration must be positive")
     private int minDurationMs = 250;          // ~0.25s
 
     /** Maximum duration in milliseconds for a valid clip (security cap). */
+    @Positive(message = "Maximum duration must be positive")
     private int maxDurationMs = 300_000;      // 5 minutes
 
     public int getMinDurationMs() {

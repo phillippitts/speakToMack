@@ -1,23 +1,30 @@
 package com.phillippitts.speaktomack.config.stt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.Positive;
 
 /**
  * Configuration properties for the STT engine watchdog (Task 2.7).
  */
 @ConfigurationProperties(prefix = "stt.watchdog")
+@Validated
 public class SttWatchdogProperties {
 
     /** Enable/disable watchdog globally. */
     private boolean enabled = true;
 
     /** Sliding window size for restart budget, in minutes. */
+    @Positive(message = "Window minutes must be positive")
     private int windowMinutes = 60;
 
     /** Maximum restarts permitted per engine within the window. */
+    @Positive(message = "Max restarts per window must be positive")
     private int maxRestartsPerWindow = 3;
 
     /** Cooldown minutes after disabling an engine before attempting re-enable. */
+    @Positive(message = "Cooldown minutes must be positive")
     private int cooldownMinutes = 10;
 
     /** Optional lightweight probe enabled (not used by default). */
