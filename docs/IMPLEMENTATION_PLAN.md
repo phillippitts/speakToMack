@@ -1,8 +1,8 @@
 # speakToMack Implementation Plan
 
 **Status:** Phases 0–2 implemented; Phases 3–6 planned
-**Timeline:** 6 days (~45.25 hours)
-**Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2)
+**Timeline:** 6 days (~46.5 hours)
+**Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2 and Enhanced Phase 3)
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ---
 
-## MVP Track: Phases 0-5 (27 tasks, ~25.25 hours)
+## MVP Track: Phases 0-5 (29 tasks, ~26.5 hours)
 
 ### Phase 0: Environment Setup (4 tasks, ~4.5 hours)
 
@@ -323,58 +323,120 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ---
 
-### Phase 3: Parallel Development (4 tasks, ~6 hours)
+### Phase 3: Parallel Development (6 tasks, ~7.25 hours) ⭐ ENHANCED
 
-#### Task 3.1: Audio Capture Service (Independent, hardened)
-- **Time:** 1.5 hours
-- **Goal:** Explicit, testable capture contract that always returns PCM16LE mono @ 16kHz
+#### Task 3.1: Audio Capture Service (1.5 hours) ⭐ ENHANCED
+- **Goal:** Explicit, testable capture contract that always returns validated PCM16LE mono @ 16kHz
 - **Deliverable:** `AudioCaptureService` + ring-buffered `AudioBuffer`
-- **Details (Top quick wins):**
+- **Details:**
   - API: `startSession()` → `stopSession()`/`cancelSession()` → `readAll(sessionId)` (single active session)
-  - Format enforcement or conversion to required format; reuse `AudioValidator` before engines
   - Ring buffer with 20–40ms chunks to avoid realloc/GC spikes; cap by `audio.validation.max-duration-ms`
-  - Permission/device handling: publish `CaptureErrorEvent` when microphone permission denied or device unavailable; log OS/arch + mixer name at INFO once
-- **Test (Hermetic):** Fake `TargetDataLine` provider; thread-safety via Awaitility; no real mic needed
+  - **NEW: Integrate AudioValidator.validate() before returning audio**
+  - **NEW: Throw AudioValidationException on invalid format (sample rate, bit depth, channels)**
+  - **NEW: Publish CaptureErrorEvent when microphone permission denied or device unavailable**
+  - Permission/device handling: log OS/arch + mixer name at INFO once
+- **Test (Hermetic):**
+  - Fake `TargetDataLine` provider (no real mic needed)
+  - **NEW: Invalid format rejected before STT**
+  - **NEW: Permission denial publishes event**
+  - Thread-safety via Awaitility
 - **Commit:** `feat(audio): add AudioCaptureService with ring buffer and validation`
 
-#### Task 3.2: Hotkey Detection (Independent, debounced)
-- **Time:** 1.5 hours
-- **Goal:** Debounced push-to-talk event stream with clean shutdown
+#### Task 3.2: Hotkey Detection (1.5 hours) ⭐ ENHANCED
+- **Goal:** Debounced push-to-talk event stream with platform-aware error handling
 - **Deliverable:** `HotkeyManager` with `JNativeHook` adapter publishing `HotkeyPressedEvent` / `HotkeyReleasedEvent`
-- **Details (Top quick wins):**
-  - Debounce/double-tap threshold from properties; ignore OS-reserved keys
+- **Details:**
+  - Debounce/double-tap threshold from properties
   - Clean register/unregister on start/stop; implement `DisposableBean` or `SmartLifecycle` to guarantee unregister on shutdown
+  - **NEW: Platform-specific permission handling:**
+    - **macOS:** Detect Accessibility permission denial, include setup instructions in error
+    - **Linux:** Document X11 vs Wayland differences in error messages
+    - **Windows:** Note admin rights requirement for global hooks
+  - **NEW: Publish HotkeyConflictEvent for OS-reserved keys (e.g., Cmd+Tab, Win+L)**
+  - **NEW: Publish HotkeyPermissionDeniedEvent on macOS Accessibility denial**
   - Hermetic adapter interface for tests (no global hooks in CI)
-- **Test (Hermetic):** Stubbed key event source verifies matching, debouncing, and release semantics
-- **Commit:** `feat(hotkey): add debounced hotkey detection with clean lifecycle`
+- **Test (Hermetic):**
+  - Stubbed key event source verifies matching, debouncing, and release semantics
+  - **NEW: Permission denial → event published**
+  - **NEW: OS-reserved key conflict detected**
+- **Commit:** `feat(hotkey): add debounced hotkey detection with platform awareness`
 
-#### Task 3.3: Hotkey Configuration Loading (Properties → Trigger factory)
-- **Time:** 1 hour
+#### Task 3.3: Hotkey Configuration Loading (1 hour)
 - **Goal:** Config-driven trigger creation with validation
 - **Deliverable:** `HotkeyTriggerFactory` building `SingleKeyTrigger` / `DoubleTapTrigger` / `ModifierCombinationTrigger` from typed `HotkeyProperties`
-- **Details (Top quick wins):**
+- **Details:**
   - `@ConfigurationProperties(prefix = "hotkey")` + `@Validated` for fail-fast startup
-  - Friendly error on unknown keys/modifiers; optional dynamic reload deferred
-- **Test:** Unit tests per trigger with positive/negative matches + threshold boundary for double-tap
-- **Commit:** `feat(hotkey): add trigger factory with typed properties and validation`
+  - Friendly error on unknown keys/modifiers
+  - **CLARIFIED: Dynamic reload deferred to Phase 6** (not "optional")
+- **Test:**
+  - Unit tests per trigger with positive/negative matches
+  - Threshold boundary for double-tap
+- **Commit:** `feat(hotkey): add trigger factory with typed properties`
 
-#### Task 3.4: Fallback Manager (3-tier strategy)
-- **Time:** 2 hours
-- **Goal:** Graceful degradation when Accessibility is missing or paste fails
-- **Deliverable:** `FallbackManager` and `TypingService` using Strategy pattern
-- **Details (Top quick wins):**
-  - Tier 1: `RobotTypingAdapter` (requires Accessibility) with chunked paste (500–1000 chars) + short delays
-  - Tier 2: `ClipboardTypingAdapter` (copy + Cmd/CTRL+V when possible; otherwise clipboard-only)
-  - Tier 3: `NotifyOnlyAdapter` (toast/log) with preview truncated to 120 chars; never log full text at INFO
-  - Publish `TranscriptionCompletedEvent` for UI/telemetry; PII-safe logging (length only at INFO)
-- **Test (Hermetic):** Adapter interface tests simulating success/failure per tier; no OS permission needed
+#### Task 3.4: Fallback Manager (2.5 hours) ⭐ TIME ADJUSTED
+- **Goal:** Graceful 3-tier degradation with chunked paste
+- **Deliverable:** `FallbackManager` + `TypingService` using Strategy pattern
+- **Details:**
+  - **Tier 1 (45 min):** `RobotTypingAdapter` with chunked paste (500–1000 chars) + delays (requires Accessibility)
+  - **Tier 2 (45 min):** `ClipboardTypingAdapter` (copy + Cmd/Ctrl+V detection; clipboard-only fallback)
+  - **Tier 3 (30 min):** `NotifyOnlyAdapter` (toast/log) with preview truncated to 120 chars; never log full text at INFO
+  - **Integration (30 min):** Strategy selection based on availability + `TranscriptionCompletedEvent` publishing
+  - PII-safe logging (length only at INFO)
+- **Test (Hermetic):**
+  - Adapter interface tests simulating success/failure per tier
+  - No OS permission needed (mocked Robot/Clipboard)
+  - **NEW: Chunked paste verified (split at 500 chars)**
 - **Commit:** `feat(fallback): add 3-tier typing fallback with chunked paste`
 
-##### Phase 3 Acceptance (added)
+#### Task 3.5: STT Orchestration Layer (45 min) ⭐ NEW
+- **Goal:** Formalize DualEngineOrchestrator implementation and configuration
+- **Deliverable:** DualEngineOrchestrator + orchestration configuration
+- **Details:**
+  - Add `stt.orchestration.primary-engine` config property (vosk/whisper, default: vosk)
+  - Document routing logic: primary (healthy) → fallback (watchdog-aware) → exception (both disabled)
+  - Document not using @Component annotation (manual instantiation to avoid bean ambiguity)
+  - Add `OrchestrationConfig` class for DualEngineOrchestrator bean creation
+  - Inject SttEngineWatchdog for health-aware routing
+- **Test:**
+  - Both engines healthy → uses primary
+  - Primary degraded/disabled → uses fallback
+  - Both disabled → throws TranscriptionException
+  - Health check reflects at least one engine available
+- **Commit:** `feat(orchestration): formalize DualEngineOrchestrator with config`
+- **Rationale:** DualEngineOrchestrator already implemented in Phase 2 but needs formalization as a configured component
+
+#### Task 3.6: Error Handling & Events (30 min) ⭐ NEW
+- **Goal:** Unified error event strategy for user feedback
+- **Deliverable:** Event definitions + ApplicationEventPublisher integration
+- **Details:**
+  - Define error events:
+    - `CaptureErrorEvent` (mic permission denied, device unavailable, mixer not found)
+    - `HotkeyConflictEvent` (OS-reserved key conflict)
+    - `HotkeyPermissionDeniedEvent` (macOS Accessibility permission denied)
+  - ApplicationEventPublisher integration in AudioCaptureService and HotkeyManager
+  - Event listeners skeleton for Phase 4.2 (DictationOrchestrator will consume events)
+  - Document event handling strategy in Javadoc
+- **Test:**
+  - Simulated mic permission failure → CaptureErrorEvent published
+  - OS-reserved key pressed → HotkeyConflictEvent published
+  - macOS Accessibility denied → HotkeyPermissionDeniedEvent published
+- **Commit:** `feat(events): add error event definitions and publishing`
+- **Rationale:** Prevents silent failures, enables graceful error handling and user notifications
+
+##### Phase 3 Acceptance
 - Audio capture returns validated PCM and respects min/max duration; single-session lifecycle enforced
+- **NEW: AudioValidator integration rejects invalid formats before STT**
+- **NEW: CaptureErrorEvent published on permission/device errors**
 - Hotkeys publish pressed/released with debouncing; clean unregister on shutdown
+- **NEW: Platform-specific error handling for macOS/Linux/Windows**
+- **NEW: HotkeyConflictEvent and HotkeyPermissionDeniedEvent published**
 - Trigger factory validates config and builds the right trigger; boundary tests pass
-- Fallback manager selects highest-available tier and degrades gracefully; chunked paste verified in tests
+- **NEW: Dynamic reload clarified as Phase 6 feature**
+- Fallback manager selects highest-available tier and degrades gracefully
+- **NEW: Chunked paste verified (splits at 500-1000 char boundary)**
+- **NEW: DualEngineOrchestrator configured with primary-engine property**
+- **NEW: Orchestrator routes based on watchdog state**
+- **NEW: Error events defined and integrated**
 - All tests are hermetic by default; any device/OS tests are tagged and skipped in CI
 
 ---
@@ -419,7 +481,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ## MVP Checkpoint: Validate Core Functionality
 
-**After Phase 5 (Day 3), you have:**
+**After Phase 5 (Day 4), you have:**
 - ✅ Working transcription (Vosk)
 - ✅ Hotkey trigger system
 - ✅ Clipboard paste with fallback
@@ -602,30 +664,32 @@ FAIL → Debug before production hardening
 ### Solo Developer (Sequential)
 - **Day 1:** Phase 0-1 (Environment + Abstractions) → ~7.75 hours
 - **Day 2:** Phase 2 (STT Engine Integration with Whisper) → ~5.75 hours
-- **Day 3:** Phase 3 (Parallel Development) → ~6 hours
+- **Day 3:** Phase 3 (Parallel Development - Enhanced) → ~7.25 hours
 - **Day 4:** Phase 4-5 (Integration + Docs) → **MVP CHECKPOINT** → ~5.75 hours
 - **Day 5:** Phase 6 Operations (Tasks 6.1-6.7) → ~12.5 hours
 - **Day 6:** Phase 6 Deployment + Security (Tasks 6.8-6.12) → ~7.5 hours
 
-**Total:** ~45.25 hours (~6 work days, down from original 36.5 hours baseline)
+**Total:** ~46.5 hours (~6 work days)
 
 ### Two Developers (Parallelized)
 - **Developer A:** Phase 0 → Phase 1 → Phase 2 = ~11.75 hours
-- **Developer B:** (After Task 1.2) → Phase 3 (Tasks 3.1 + 3.4) = ~3.5 hours
+- **Developer B:** (After Task 1.2) → Phase 3 (Tasks 3.1, 3.4, 3.5, 3.6) = ~4.75 hours
 - **Both:** Phase 4 + Phase 5 = ~6 hours
 
-**Total elapsed:** ~18 hours (~2.5 work days)
+**Total elapsed:** ~18.75 hours (~2.5 work days)
 
 ---
 
 ## Success Criteria
 
 ### MVP Complete (Gate 1: After Phase 5)
-- [ ] All 27 MVP tasks completed with passing tests (streamlined from 28, optimized from original 25, increased from initial 19)
+- [ ] All 29 MVP tasks completed with passing tests (enhanced from 27, streamlined from 28, optimized from original 25)
 - [ ] Can transcribe 5-sentence speech accurately with both Vosk and Whisper
-- [ ] Dual-engine reconciliation produces coherent output
-- [ ] Hotkey triggers reliably in 5 different apps
-- [ ] Fallback works when Accessibility denied
+- [ ] DualEngineOrchestrator routes based on watchdog state (primary → fallback)
+- [ ] Error events published for capture/hotkey failures (CaptureErrorEvent, HotkeyConflictEvent, HotkeyPermissionDeniedEvent)
+- [ ] AudioValidator integration rejects invalid formats before STT
+- [ ] Hotkey triggers reliably in 5 different apps with platform-specific error handling
+- [ ] Fallback works when Accessibility denied (3-tier degradation with chunked paste)
 - [ ] STT engines auto-recover from crashes (watchdog tested)
 - [ ] CI passes on ARM64 + x86_64
 - [ ] README and architecture diagram published
@@ -688,7 +752,124 @@ FAIL → Debug before production hardening
 - **Guidelines:** `.junie/guidelines.md` (2,308 lines)
 - **ADRs:** `docs/adr/*.md` (6 architectural decisions)
 - **Build Config:** `build.gradle` (90 lines)
-- **Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2)
+- **Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2 and Enhanced Phase 3)
+
+---
+
+## Changelog: Phase 3 Enhancements (2025-01-17)
+
+### Summary
+
+**Enhanced Phase 3 with better error handling, orchestration formalization, and platform awareness:**
+- Task count: 4 → 6 tasks (+2 new tasks)
+- Total time: 6 hours → 7.25 hours (+1.25 hours, +21%)
+- MVP total: 27 → 29 tasks
+- MVP hours: 25.25 → 26.5 hours
+
+### Changes Applied
+
+#### Enhanced Existing Tasks (3.1, 3.2, 3.4)
+
+**Task 3.1: Audio Capture Service** (Enhanced)
+- **Added:** AudioValidator.validate() integration before returning audio
+- **Added:** AudioValidationException on invalid format (sample rate, bit depth, channels)
+- **Added:** CaptureErrorEvent publishing when microphone permission denied or device unavailable
+- **Rationale:** Prevent invalid audio from reaching STT engines; fail-fast on permission errors
+
+**Task 3.2: Hotkey Detection** (Enhanced)
+- **Added:** Platform-specific permission handling:
+  - macOS: Detect Accessibility permission denial with setup instructions
+  - Linux: Document X11 vs Wayland differences
+  - Windows: Note admin rights requirement for global hooks
+- **Added:** HotkeyConflictEvent for OS-reserved keys (e.g., Cmd+Tab, Win+L)
+- **Added:** HotkeyPermissionDeniedEvent on macOS Accessibility denial
+- **Rationale:** Platform-aware error messages improve user experience; events enable graceful degradation
+
+**Task 3.4: Fallback Manager** (Time Adjusted)
+- **Changed:** Time estimate 2 hours → 2.5 hours (+30 min)
+- **Added:** Detailed time breakdown per tier (45 min + 45 min + 30 min + 30 min)
+- **Added:** Chunked paste verification test (split at 500 chars)
+- **Rationale:** More realistic time estimate; explicit chunking prevents paste failures
+
+#### Clarified Task (3.3)
+
+**Task 3.3: Hotkey Configuration Loading** (Clarified)
+- **Changed:** "optional dynamic reload deferred" → "Dynamic reload deferred to Phase 6"
+- **Rationale:** Explicit deferral removes ambiguity
+
+#### New Tasks (3.5, 3.6)
+
+**Task 3.5: STT Orchestration Layer** (NEW - 45 min)
+- **Goal:** Formalize DualEngineOrchestrator implementation and configuration
+- **Deliverable:** OrchestrationConfig class + primary-engine property
+- **Details:**
+  - Add `stt.orchestration.primary-engine` config property (vosk/whisper)
+  - Document routing logic and bean creation
+  - Health-aware routing via SttEngineWatchdog integration
+- **Tests:** Primary/fallback routing, both disabled exception, health check
+- **Rationale:** DualEngineOrchestrator already implemented in Phase 2 but needs formalization as a configured component
+
+**Task 3.6: Error Handling & Events** (NEW - 30 min)
+- **Goal:** Unified error event strategy for user feedback
+- **Deliverable:** Event definitions + ApplicationEventPublisher integration
+- **Details:**
+  - Define: CaptureErrorEvent, HotkeyConflictEvent, HotkeyPermissionDeniedEvent
+  - Integrate ApplicationEventPublisher in AudioCaptureService and HotkeyManager
+  - Event listeners skeleton for Phase 4.2 (DictationOrchestrator)
+- **Tests:** Simulated failures → events published
+- **Rationale:** Prevents silent failures; enables graceful error handling and user notifications
+
+### Impact on Plan
+
+#### Time Changes
+- Phase 3: 6 hours → 7.25 hours (+1.25 hours)
+- MVP total: 25.25 hours → 26.5 hours (+1.25 hours)
+- Project total: 45.25 hours → 46.5 hours (+1.25 hours)
+- Two developers (parallelized): 18 hours → 18.75 hours (+45 min for Developer B)
+
+#### Task Count Changes
+- Phase 3: 4 tasks → 6 tasks (+2)
+- MVP: 27 tasks → 29 tasks (+2)
+
+#### Success Criteria Additions
+**MVP Gate (After Phase 5):**
+- DualEngineOrchestrator routes based on watchdog state
+- Error events published for capture/hotkey failures
+- AudioValidator integration rejects invalid formats before STT
+- Platform-specific error handling for hotkeys
+- 3-tier fallback with chunked paste verified
+
+### Rationale
+
+These enhancements address gaps identified during Phase 3 plan review:
+
+1. **Missing STT orchestration formalization** → Task 3.5 added
+   - DualEngineOrchestrator exists but wasn't in the plan
+   - Needs configuration and bean setup
+
+2. **No error event strategy** → Task 3.6 added
+   - Silent failures hurt user experience
+   - Events enable DictationOrchestrator to show helpful errors
+
+3. **AudioValidator not integrated** → Enhanced Task 3.1
+   - Validator exists but wasn't wired into capture flow
+   - Prevents invalid audio from reaching engines
+
+4. **Platform differences ignored** → Enhanced Task 3.2
+   - macOS Accessibility permission is common pain point
+   - X11 vs Wayland on Linux affects hotkey reliability
+   - Platform-specific errors help users fix issues
+
+5. **Time estimates too optimistic** → Adjusted Task 3.4
+   - 2 hours for 3 adapters + integration is tight
+   - 2.5 hours more realistic with chunked paste testing
+
+### Grade Impact
+
+Phase 3 completeness: 85/100 → 92/100
+- Better error handling (+3)
+- Formalized orchestration (+2)
+- Platform awareness (+2)
 
 ---
 
