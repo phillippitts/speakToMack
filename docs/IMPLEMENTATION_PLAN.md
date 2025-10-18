@@ -325,29 +325,57 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ### Phase 3: Parallel Development (4 tasks, ~6 hours)
 
-#### Task 3.1: Audio Capture Service (Independent)
+#### Task 3.1: Audio Capture Service (Independent, hardened)
 - **Time:** 1.5 hours
-- **Deliverable:** AudioCaptureService + AudioBuffer
-- **Test:** Thread-safety via Awaitility
-- **Commit:** `feat: add audio capture service with thread-safe buffer`
+- **Goal:** Explicit, testable capture contract that always returns PCM16LE mono @ 16kHz
+- **Deliverable:** `AudioCaptureService` + ring-buffered `AudioBuffer`
+- **Details (Top quick wins):**
+  - API: `startSession()` → `stopSession()`/`cancelSession()` → `readAll(sessionId)` (single active session)
+  - Format enforcement or conversion to required format; reuse `AudioValidator` before engines
+  - Ring buffer with 20–40ms chunks to avoid realloc/GC spikes; cap by `audio.validation.max-duration-ms`
+  - Permission/device handling: publish `CaptureErrorEvent` when microphone permission denied or device unavailable; log OS/arch + mixer name at INFO once
+- **Test (Hermetic):** Fake `TargetDataLine` provider; thread-safety via Awaitility; no real mic needed
+- **Commit:** `feat(audio): add AudioCaptureService with ring buffer and validation`
 
-#### Task 3.2: Hotkey Detection (Independent)
+#### Task 3.2: Hotkey Detection (Independent, debounced)
 - **Time:** 1.5 hours
-- **Deliverable:** HotkeyManager with JNativeHook
-- **Test:** Mock key event detection
-- **Commit:** `feat: add hotkey detection with event publishing`
+- **Goal:** Debounced push-to-talk event stream with clean shutdown
+- **Deliverable:** `HotkeyManager` with `JNativeHook` adapter publishing `HotkeyPressedEvent` / `HotkeyReleasedEvent`
+- **Details (Top quick wins):**
+  - Debounce/double-tap threshold from properties; ignore OS-reserved keys
+  - Clean register/unregister on start/stop; implement `DisposableBean` or `SmartLifecycle` to guarantee unregister on shutdown
+  - Hermetic adapter interface for tests (no global hooks in CI)
+- **Test (Hermetic):** Stubbed key event source verifies matching, debouncing, and release semantics
+- **Commit:** `feat(hotkey): add debounced hotkey detection with clean lifecycle`
 
-#### Task 3.3: Hotkey Configuration Loading
+#### Task 3.3: Hotkey Configuration Loading (Properties → Trigger factory)
 - **Time:** 1 hour
-- **Deliverable:** Properties → HotkeyTrigger factory
-- **Test:** Spring loads application.yml config
-- **Commit:** `feat: add hotkey configuration loading from properties`
+- **Goal:** Config-driven trigger creation with validation
+- **Deliverable:** `HotkeyTriggerFactory` building `SingleKeyTrigger` / `DoubleTapTrigger` / `ModifierCombinationTrigger` from typed `HotkeyProperties`
+- **Details (Top quick wins):**
+  - `@ConfigurationProperties(prefix = "hotkey")` + `@Validated` for fail-fast startup
+  - Friendly error on unknown keys/modifiers; optional dynamic reload deferred
+- **Test:** Unit tests per trigger with positive/negative matches + threshold boundary for double-tap
+- **Commit:** `feat(hotkey): add trigger factory with typed properties and validation`
 
-#### Task 3.4: Fallback Manager
+#### Task 3.4: Fallback Manager (3-tier strategy)
 - **Time:** 2 hours
-- **Deliverable:** 3-tier fallback (paste/clipboard/notification)
-- **Test:** All fallback modes work
-- **Commit:** `feat: add fallback manager with graceful degradation`
+- **Goal:** Graceful degradation when Accessibility is missing or paste fails
+- **Deliverable:** `FallbackManager` and `TypingService` using Strategy pattern
+- **Details (Top quick wins):**
+  - Tier 1: `RobotTypingAdapter` (requires Accessibility) with chunked paste (500–1000 chars) + short delays
+  - Tier 2: `ClipboardTypingAdapter` (copy + Cmd/CTRL+V when possible; otherwise clipboard-only)
+  - Tier 3: `NotifyOnlyAdapter` (toast/log) with preview truncated to 120 chars; never log full text at INFO
+  - Publish `TranscriptionCompletedEvent` for UI/telemetry; PII-safe logging (length only at INFO)
+- **Test (Hermetic):** Adapter interface tests simulating success/failure per tier; no OS permission needed
+- **Commit:** `feat(fallback): add 3-tier typing fallback with chunked paste`
+
+##### Phase 3 Acceptance (added)
+- Audio capture returns validated PCM and respects min/max duration; single-session lifecycle enforced
+- Hotkeys publish pressed/released with debouncing; clean unregister on shutdown
+- Trigger factory validates config and builds the right trigger; boundary tests pass
+- Fallback manager selects highest-available tier and degrades gracefully; chunked paste verified in tests
+- All tests are hermetic by default; any device/OS tests are tagged and skipped in CI
 
 ---
 

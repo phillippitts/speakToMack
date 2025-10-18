@@ -30,7 +30,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("hello world", "", 0, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -47,7 +47,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "error", 1, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -63,7 +63,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "", 0, -1)) // never finishes
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 1, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 1, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -79,7 +79,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "", 0, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -94,7 +94,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("test", "", 0, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
 
         // Initialize multiple times - should be idempotent
@@ -115,7 +115,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("test", "", 0, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -136,7 +136,7 @@ class WhisperSttEngineTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "", 0, 0))
         ));
-        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+        WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
         WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
         engine.initialize();
 
@@ -163,7 +163,7 @@ class WhisperSttEngineTest {
             WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                     new TestProcess(new ProcessBehavior("sensitive secret password data", "", 0, 0))
             ));
-            WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2);
+            WhisperConfig cfg = new WhisperConfig("/bin/echo", "/tmp/model.bin", 2, "en", 2, 1048576);
             WhisperSttEngine engine = new WhisperSttEngine(cfg, mgr);
             engine.initialize();
 

@@ -66,8 +66,16 @@ public class SttEngineWatchdog {
 
     /** Visible for tests */
     EngineState getState(String engine) { return state.get(engine); }
-    /** Visible for tests */
-    boolean isEngineEnabled(String engine) {
+
+    /**
+     * Checks if an engine is currently enabled (not disabled or in cooldown).
+     *
+     * <p>Used by orchestrators to query engine availability before routing.
+     *
+     * @param engine engine name to check
+     * @return true if engine is enabled and not in cooldown, false otherwise
+     */
+    public boolean isEngineEnabled(String engine) {
         EngineState s = state.get(engine);
         if (s == EngineState.DISABLED) return false;
         Instant until = disabledUntil.get(engine);

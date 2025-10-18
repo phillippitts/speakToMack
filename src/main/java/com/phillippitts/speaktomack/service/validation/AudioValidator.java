@@ -8,18 +8,14 @@ import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_BL
 import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_BYTE_RATE;
 import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_CHANNELS;
 import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_SAMPLE_RATE;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_BITS_PER_SAMPLE_OFFSET;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_BLOCK_ALIGN_OFFSET;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_BYTE_RATE_OFFSET;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_CHANNELS_OFFSET;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_HEADER_SIZE;
-import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_SAMPLE_RATE_OFFSET;
 
 /**
  * Validates input audio as either WAV (RIFF/WAVE) or raw PCM for STT ingestion.
  *
- * WAV: Checks RIFF/WAVE presence and exact header fields match the required format.
- * PCM: Checks length-derived duration and block alignment under known capture settings.
+ * <p>WAV: Parses chunk structure to locate fmt and data chunks, validates format fields.
+ * Handles non-standard WAV files with additional chunks or extended fmt chunks.
+ *
+ * <p>PCM: Checks length-derived duration and block alignment under known capture settings.
  */
 @Component
 public class AudioValidator {
@@ -46,21 +42,110 @@ public class AudioValidator {
     }
 
     private boolean isWav(byte[] a) {
-        return a.length >= WAV_HEADER_SIZE
+        return a.length >= 12
             && a[0] == 'R' && a[1] == 'I' && a[2] == 'F' && a[3] == 'F'
             && a[8] == 'W' && a[9] == 'A' && a[10] == 'V' && a[11] == 'E';
     }
 
+    /**
+     * Validates WAV file by parsing chunk structure to find fmt and data chunks.
+     *
+     * <p>WAV file structure:
+     * <ul>
+     *   <li>RIFF header (12 bytes): "RIFF" + fileSize + "WAVE"</li>
+     *   <li>Chunks: chunkID (4 bytes) + chunkSize (4 bytes) + chunkData (chunkSize bytes)</li>
+     *   <li>fmt chunk: audio format parameters</li>
+     *   <li>data chunk: actual PCM audio data</li>
+     * </ul>
+     *
+     * @param wav WAV file bytes
+     * @throws InvalidAudioException if WAV structure is invalid or format doesn't match requirements
+     */
     private void validateWav(byte[] wav) {
-        if (wav.length < WAV_HEADER_SIZE) {
-            throw new InvalidAudioException("Audio too small for WAV header (44 bytes)");
+        if (wav.length < 12) {
+            throw new InvalidAudioException("Audio too small for RIFF header (12 bytes)");
         }
-        int channels = readLEShort(wav, WAV_CHANNELS_OFFSET);
-        int sampleRate = readLEInt(wav, WAV_SAMPLE_RATE_OFFSET);
-        int byteRate = readLEInt(wav, WAV_BYTE_RATE_OFFSET);
-        int blockAlign = readLEShort(wav, WAV_BLOCK_ALIGN_OFFSET);
-        int bitsPerSample = readLEShort(wav, WAV_BITS_PER_SAMPLE_OFFSET);
 
+        // Parse chunks to find fmt and data
+        WavChunks chunks = parseWavChunks(wav);
+
+        // Validate fmt chunk
+        if (chunks.fmtOffset == -1) {
+            throw new InvalidAudioException("Missing fmt chunk in WAV file");
+        }
+        validateFmtChunk(wav, chunks.fmtOffset, chunks.fmtSize);
+
+        // Validate data chunk
+        if (chunks.dataOffset == -1) {
+            throw new InvalidAudioException("Missing data chunk in WAV file");
+        }
+        validateDurationByBytes(chunks.dataSize);
+    }
+
+    /**
+     * Parses WAV file to locate fmt and data chunks.
+     *
+     * @param wav WAV file bytes
+     * @return WavChunks containing offsets and sizes
+     */
+    private WavChunks parseWavChunks(byte[] wav) {
+        int offset = 12; // Skip RIFF header
+        int fmtOffset = -1;
+        int fmtSize = 0;
+        int dataOffset = -1;
+        int dataSize = 0;
+
+        while (offset + 8 <= wav.length) {
+            // Read chunk ID (4 bytes) and size (4 bytes)
+            String chunkId = readChunkId(wav, offset);
+            int chunkSize = readLEInt(wav, offset + 4);
+
+            if (chunkSize < 0 || offset + 8 + chunkSize > wav.length) {
+                throw new InvalidAudioException("Invalid chunk size: " + chunkSize + " at offset " + offset);
+            }
+
+            if ("fmt ".equals(chunkId)) {
+                fmtOffset = offset + 8;
+                fmtSize = chunkSize;
+            } else if ("data".equals(chunkId)) {
+                dataOffset = offset + 8;
+                dataSize = chunkSize;
+                break; // data chunk is usually last, stop parsing
+            }
+
+            // Move to next chunk (pad to even boundary)
+            offset += 8 + chunkSize;
+            if (chunkSize % 2 == 1) {
+                offset++; // WAV chunks are padded to even byte boundaries
+            }
+        }
+
+        return new WavChunks(fmtOffset, fmtSize, dataOffset, dataSize);
+    }
+
+    /**
+     * Validates fmt chunk contains required audio format.
+     *
+     * @param wav WAV file bytes
+     * @param offset offset to fmt chunk data (after chunk header)
+     * @param size size of fmt chunk
+     */
+    private void validateFmtChunk(byte[] wav, int offset, int size) {
+        // Standard PCM fmt chunk is 16 bytes, but can be larger with extensions
+        if (size < 16) {
+            throw new InvalidAudioException("fmt chunk too small: " + size + " bytes (expected at least 16)");
+        }
+
+        int audioFormat = readLEShort(wav, offset);      // 2 bytes: audio format (1 = PCM)
+        int channels = readLEShort(wav, offset + 2);     // 2 bytes: number of channels
+        int sampleRate = readLEInt(wav, offset + 4);     // 4 bytes: sample rate
+        int byteRate = readLEInt(wav, offset + 8);       // 4 bytes: byte rate
+        int blockAlign = readLEShort(wav, offset + 12);  // 2 bytes: block align
+        int bitsPerSample = readLEShort(wav, offset + 14); // 2 bytes: bits per sample
+
+        if (audioFormat != 1) {
+            throw new InvalidAudioException("Unsupported audio format: " + audioFormat + " (expected 1 for PCM)");
+        }
         if (channels != REQUIRED_CHANNELS) {
             throw new InvalidAudioException("Invalid channel count: " + channels + ". Expected: " + REQUIRED_CHANNELS);
         }
@@ -79,9 +164,37 @@ public class AudioValidator {
         if (byteRate != REQUIRED_BYTE_RATE) {
             throw new InvalidAudioException("Invalid byte rate: " + byteRate + ". Expected: " + REQUIRED_BYTE_RATE);
         }
+    }
 
-        int payloadBytes = Math.max(0, wav.length - WAV_HEADER_SIZE);
-        validateDurationByBytes(payloadBytes);
+    /**
+     * Reads 4-character chunk ID from WAV file.
+     *
+     * @param wav WAV file bytes
+     * @param offset offset to chunk ID
+     * @return chunk ID as string
+     */
+    private String readChunkId(byte[] wav, int offset) {
+        if (offset + 4 > wav.length) {
+            return "";
+        }
+        return new String(new byte[]{wav[offset], wav[offset + 1], wav[offset + 2], wav[offset + 3]});
+    }
+
+    /**
+     * Container for WAV chunk locations.
+     */
+    private static class WavChunks {
+        final int fmtOffset;
+        final int fmtSize;
+        final int dataOffset;
+        final int dataSize;
+
+        WavChunks(int fmtOffset, int fmtSize, int dataOffset, int dataSize) {
+            this.fmtOffset = fmtOffset;
+            this.fmtSize = fmtSize;
+            this.dataOffset = dataOffset;
+            this.dataSize = dataSize;
+        }
     }
 
     private void validatePcm(byte[] pcm) {

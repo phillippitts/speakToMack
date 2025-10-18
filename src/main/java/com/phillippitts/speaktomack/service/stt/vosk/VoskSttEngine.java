@@ -11,9 +11,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 
+import jakarta.annotation.PreDestroy;
 import java.util.Objects;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 
 /**
@@ -40,6 +42,7 @@ public class VoskSttEngine implements SttEngine {
 
     // Lightweight concurrency guard (configurable)
     private final java.util.concurrent.Semaphore concurrencySemaphore;
+    private final int acquireTimeoutMs;
 
     // Optional event publisher for watchdog events
     private ApplicationEventPublisher publisher;
@@ -59,6 +62,7 @@ public class VoskSttEngine implements SttEngine {
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(4);
+        this.acquireTimeoutMs = 1000; // Default 1 second
     }
 
     /**
@@ -71,6 +75,7 @@ public class VoskSttEngine implements SttEngine {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
+        this.acquireTimeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
         this.publisher = publisher;
     }
 
@@ -134,16 +139,23 @@ public class VoskSttEngine implements SttEngine {
         }
         boolean acquired = false;
         try {
-            acquired = concurrencySemaphore.tryAcquire();
+            // Try to acquire with bounded wait to handle brief spikes gracefully
+            acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
             if (!acquired) {
                 if (publisher != null) {
                     Map<String, String> ctx = new HashMap<>();
                     ctx.put("reason", "concurrency-limit");
+                    ctx.put("timeoutMs", String.valueOf(acquireTimeoutMs));
                     publisher.publishEvent(new EngineFailureEvent(ENGINE_NAME, java.time.Instant.now(),
-                            "concurrency limit reached", null, ctx));
+                            "concurrency limit reached after " + acquireTimeoutMs + "ms wait", null, ctx));
                 }
-                throw new TranscriptionException("Vosk concurrency limit reached", ENGINE_NAME);
+                throw new TranscriptionException("Vosk concurrency limit reached after " + acquireTimeoutMs + "ms wait", ENGINE_NAME);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Restore interrupt status
+            throw new TranscriptionException("Vosk transcription interrupted while waiting for semaphore", ENGINE_NAME, e);
+        }
+        try {
             org.vosk.Model localModel;
             synchronized (lock) {
                 if (!initialized || closed) {
@@ -205,8 +217,11 @@ public class VoskSttEngine implements SttEngine {
      * <p>This operation is idempotent - multiple calls are safe.
      *
      * <p>Thread-safe: synchronized to prevent concurrent closure.
+     *
+     * <p>Automatically invoked by Spring container on shutdown via {@link PreDestroy}.
      */
     @Override
+    @PreDestroy
     public void close() {
         synchronized (lock) {
             if (closed) {

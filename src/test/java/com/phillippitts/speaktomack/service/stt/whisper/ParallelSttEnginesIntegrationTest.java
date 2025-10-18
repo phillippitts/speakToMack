@@ -67,7 +67,7 @@ class ParallelSttEnginesIntegrationTest {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("stub whisper", "", 0, 0))
         ));
-        WhisperConfig wcfg = new WhisperConfig("/bin/echo", "models/ggml-base.en.bin", 5, "en", 2);
+        WhisperConfig wcfg = new WhisperConfig("/bin/echo", "models/ggml-base.en.bin", 5, "en", 2, 1048576);
         whisper = new WhisperSttEngine(wcfg, mgr);
         whisper.initialize();
     }

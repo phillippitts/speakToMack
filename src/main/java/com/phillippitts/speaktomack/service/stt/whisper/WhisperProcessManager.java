@@ -90,8 +90,9 @@ public final class WhisperProcessManager implements AutoCloseable {
             this.current = p;
 
             // Start gobblers before waiting to avoid deadlock
-            outGobbler = startGobbler(p.getInputStream(), stdout, "whisper-out");
-            errGobbler = startGobbler(p.getErrorStream(), stderr, "whisper-err");
+            // Cap stdout to prevent pathological memory usage; stderr capped at 256KB for diagnostics
+            outGobbler = startGobbler(p.getInputStream(), stdout, "whisper-out", cfg.maxStdoutBytes());
+            errGobbler = startGobbler(p.getErrorStream(), stderr, "whisper-err", 262144);
 
             boolean finished = p.waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
             if (!finished) {
@@ -143,15 +144,32 @@ public final class WhisperProcessManager implements AutoCloseable {
         return cmd;
     }
 
-    private Thread startGobbler(InputStream is, StringBuilder sink, String name) {
+    private Thread startGobbler(InputStream is, StringBuilder sink, String name, int maxBytes) {
         Thread t = new Thread(() -> {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
+                boolean capReached = false;
                 while ((line = br.readLine()) != null) {
+                    // Stop accumulating once we hit the cap (but keep reading to drain the stream)
+                    if (sink.length() >= maxBytes) {
+                        if (!capReached) {
+                            LOG.warn("Stream '{}' reached {}B cap; discarding further output", name, maxBytes);
+                            capReached = true;
+                        }
+                        continue; // Drain stream without accumulating
+                    }
                     if (sink.length() > 0) {
                         sink.append('\n');
                     }
-                    sink.append(line);
+                    // Truncate line if it would exceed the cap
+                    int available = maxBytes - sink.length();
+                    if (line.length() > available) {
+                        sink.append(line, 0, available);
+                        LOG.warn("Stream '{}' reached {}B cap (truncated line)", name, maxBytes);
+                        capReached = true;
+                    } else {
+                        sink.append(line);
+                    }
                 }
             } catch (IOException e) {
                 LOG.debug("Stream gobbler '{}' stopped: {}", name, e.toString());

@@ -66,6 +66,38 @@ class AudioValidatorTest {
                 .hasMessageContaining("too short");
     }
 
+    @Test
+    void wavShouldHandleNonStandardHeaderWithListChunk() {
+        // WAV with LIST chunk before data chunk (common in files with metadata)
+        byte[] wav = makeWavWithListChunk(16_000, 1, 16);
+        assertThatCode(() -> validator.validate(wav)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void wavShouldHandleExtendedFmtChunk() {
+        // WAV with extended fmt chunk (18 bytes instead of 16)
+        byte[] wav = makeWavWithExtendedFmt(16_000, 1, 16);
+        assertThatCode(() -> validator.validate(wav)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void wavShouldRejectMissingFmtChunk() {
+        // WAV with data chunk but no fmt chunk
+        byte[] wav = makeWavWithoutFmtChunk();
+        assertThatThrownBy(() -> validator.validate(wav))
+                .isInstanceOf(InvalidAudioException.class)
+                .hasMessageContaining("Missing fmt chunk");
+    }
+
+    @Test
+    void wavShouldRejectMissingDataChunk() {
+        // WAV with fmt chunk but no data chunk
+        byte[] wav = makeWavWithoutDataChunk();
+        assertThatThrownBy(() -> validator.validate(wav))
+                .isInstanceOf(InvalidAudioException.class)
+                .hasMessageContaining("Missing data chunk");
+    }
+
     // --- Helpers ---
 
     private static byte[] makeMinimalWav(int sampleRate, int channels, int bitsPerSample) {
@@ -90,6 +122,111 @@ class AudioValidatorTest {
         // data
         out[36] = 'd'; out[37] = 'a'; out[38] = 't'; out[39] = 'a';
         putLEInt(out, 40, payloadBytes);
+        return out;
+    }
+
+    private static byte[] makeWavWithListChunk(int sampleRate, int channels, int bitsPerSample) {
+        int payloadBytes = 40_000;
+        int listChunkSize = 24; // LIST chunk with some metadata
+        int totalSize = 12 + 8 + 16 + 8 + listChunkSize + 8 + payloadBytes;
+        byte[] out = new byte[totalSize];
+        int offset = 0;
+
+        // RIFF header
+        out[offset++] = 'R'; out[offset++] = 'I'; out[offset++] = 'F'; out[offset++] = 'F';
+        putLEInt(out, offset, totalSize - 8); offset += 4;
+        out[offset++] = 'W'; out[offset++] = 'A'; out[offset++] = 'V'; out[offset++] = 'E';
+
+        // fmt chunk
+        out[offset++] = 'f'; out[offset++] = 'm'; out[offset++] = 't'; out[offset++] = ' ';
+        putLEInt(out, offset, 16); offset += 4;
+        putLEShort(out, offset, 1); offset += 2; // PCM
+        putLEShort(out, offset, channels); offset += 2;
+        putLEInt(out, offset, sampleRate); offset += 4;
+        int blockAlign = (bitsPerSample / 8) * channels;
+        int byteRate = sampleRate * blockAlign;
+        putLEInt(out, offset, byteRate); offset += 4;
+        putLEShort(out, offset, blockAlign); offset += 2;
+        putLEShort(out, offset, bitsPerSample); offset += 2;
+
+        // LIST chunk (metadata)
+        out[offset++] = 'L'; out[offset++] = 'I'; out[offset++] = 'S'; out[offset++] = 'T';
+        putLEInt(out, offset, listChunkSize); offset += 4;
+        offset += listChunkSize; // Skip LIST content
+
+        // data chunk
+        out[offset++] = 'd'; out[offset++] = 'a'; out[offset++] = 't'; out[offset++] = 'a';
+        putLEInt(out, offset, payloadBytes);
+        return out;
+    }
+
+    private static byte[] makeWavWithExtendedFmt(int sampleRate, int channels, int bitsPerSample) {
+        int payloadBytes = 40_000;
+        int fmtSize = 18; // Extended format with cbSize field
+        int totalSize = 12 + 8 + fmtSize + 8 + payloadBytes;
+        byte[] out = new byte[totalSize];
+        int offset = 0;
+
+        // RIFF header
+        out[offset++] = 'R'; out[offset++] = 'I'; out[offset++] = 'F'; out[offset++] = 'F';
+        putLEInt(out, offset, totalSize - 8); offset += 4;
+        out[offset++] = 'W'; out[offset++] = 'A'; out[offset++] = 'V'; out[offset++] = 'E';
+
+        // fmt chunk (extended)
+        out[offset++] = 'f'; out[offset++] = 'm'; out[offset++] = 't'; out[offset++] = ' ';
+        putLEInt(out, offset, fmtSize); offset += 4;
+        putLEShort(out, offset, 1); offset += 2; // PCM
+        putLEShort(out, offset, channels); offset += 2;
+        putLEInt(out, offset, sampleRate); offset += 4;
+        int blockAlign = (bitsPerSample / 8) * channels;
+        int byteRate = sampleRate * blockAlign;
+        putLEInt(out, offset, byteRate); offset += 4;
+        putLEShort(out, offset, blockAlign); offset += 2;
+        putLEShort(out, offset, bitsPerSample); offset += 2;
+        putLEShort(out, offset, 0); offset += 2; // cbSize = 0 (no extension)
+
+        // data chunk
+        out[offset++] = 'd'; out[offset++] = 'a'; out[offset++] = 't'; out[offset++] = 'a';
+        putLEInt(out, offset, payloadBytes);
+        return out;
+    }
+
+    private static byte[] makeWavWithoutFmtChunk() {
+        int payloadBytes = 40_000;
+        int totalSize = 12 + 8 + payloadBytes;
+        byte[] out = new byte[totalSize];
+        int offset = 0;
+
+        // RIFF header
+        out[offset++] = 'R'; out[offset++] = 'I'; out[offset++] = 'F'; out[offset++] = 'F';
+        putLEInt(out, offset, totalSize - 8); offset += 4;
+        out[offset++] = 'W'; out[offset++] = 'A'; out[offset++] = 'V'; out[offset++] = 'E';
+
+        // data chunk only (no fmt)
+        out[offset++] = 'd'; out[offset++] = 'a'; out[offset++] = 't'; out[offset++] = 'a';
+        putLEInt(out, offset, payloadBytes);
+        return out;
+    }
+
+    private static byte[] makeWavWithoutDataChunk() {
+        int totalSize = 12 + 8 + 16;
+        byte[] out = new byte[totalSize];
+        int offset = 0;
+
+        // RIFF header
+        out[offset++] = 'R'; out[offset++] = 'I'; out[offset++] = 'F'; out[offset++] = 'F';
+        putLEInt(out, offset, totalSize - 8); offset += 4;
+        out[offset++] = 'W'; out[offset++] = 'A'; out[offset++] = 'V'; out[offset++] = 'E';
+
+        // fmt chunk only (no data)
+        out[offset++] = 'f'; out[offset++] = 'm'; out[offset++] = 't'; out[offset++] = ' ';
+        putLEInt(out, offset, 16); offset += 4;
+        putLEShort(out, offset, 1); offset += 2; // PCM
+        putLEShort(out, offset, 1); offset += 2; // mono
+        putLEInt(out, offset, 16000); offset += 4; // sample rate
+        putLEInt(out, offset, 32000); offset += 4; // byte rate
+        putLEShort(out, offset, 2); offset += 2; // block align
+        putLEShort(out, offset, 16); // bits per sample
         return out;
     }
 

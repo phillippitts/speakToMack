@@ -16,7 +16,7 @@ class ModelValidationServiceTest {
 
     @Test
     void shouldFailWhenWhisperModelMissing() {
-        WhisperConfig whisper = new WhisperConfig("/bin/echo", "/tmp/does-not-exist.bin", 10, "en", 2);
+        WhisperConfig whisper = new WhisperConfig("/bin/echo", "/tmp/does-not-exist.bin", 10, "en", 2, 1048576);
         VoskConfig vosk = new VoskConfig();
         ModelValidationService svc = new ModelValidationService(vosk, whisper);
 
@@ -34,7 +34,7 @@ class ModelValidationServiceTest {
         Files.createFile(tmpBin);
         tmpBin.toFile().setExecutable(true);
 
-        WhisperConfig whisper = new WhisperConfig(tmpBin.toString(), tmpModel.toString(), 10, "en", 2);
+        WhisperConfig whisper = new WhisperConfig(tmpBin.toString(), tmpModel.toString(), 10, "en", 2, 1048576);
         VoskConfig vosk = new VoskConfig();
         ModelValidationService svc = new ModelValidationService(vosk, whisper);
 
@@ -52,7 +52,7 @@ class ModelValidationServiceTest {
         Files.createFile(tmpBin);
         tmpBin.toFile().setExecutable(false);
 
-        WhisperConfig whisper = new WhisperConfig(tmpBin.toString(), tmpModel.toString(), 10, "en", 2);
+        WhisperConfig whisper = new WhisperConfig(tmpBin.toString(), tmpModel.toString(), 10, "en", 2, 1048576);
         VoskConfig vosk = new VoskConfig();
         ModelValidationService svc = new ModelValidationService(vosk, whisper);
 
@@ -69,7 +69,7 @@ class ModelValidationServiceTest {
         Path tmpDir = tempDir.resolve("whisper-dir");
         Files.createDirectory(tmpDir);
 
-        WhisperConfig whisper = new WhisperConfig(tmpDir.toString(), tmpModel.toString(), 10, "en", 2);
+        WhisperConfig whisper = new WhisperConfig(tmpDir.toString(), tmpModel.toString(), 10, "en", 2, 1048576);
         VoskConfig vosk = new VoskConfig();
         ModelValidationService svc = new ModelValidationService(vosk, whisper);
 

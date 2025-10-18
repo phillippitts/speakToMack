@@ -14,9 +14,11 @@ import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import java.util.HashMap;
 import java.util.Map;
 
+import jakarta.annotation.PreDestroy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Whisper-based implementation of {@link SttEngine} using the external whisper.cpp binary.
@@ -30,6 +32,7 @@ import java.util.Objects;
 public final class WhisperSttEngine implements SttEngine {
 
     private final java.util.concurrent.Semaphore concurrencySemaphore;
+    private final int acquireTimeoutMs;
 
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
     private static final String ENGINE = "whisper";
@@ -46,6 +49,7 @@ public final class WhisperSttEngine implements SttEngine {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(2);
+        this.acquireTimeoutMs = 1000; // Default 1 second
     }
 
     @Autowired
@@ -57,6 +61,7 @@ public final class WhisperSttEngine implements SttEngine {
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
+        this.acquireTimeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
         this.publisher = publisher;
     }
 
@@ -101,16 +106,23 @@ public final class WhisperSttEngine implements SttEngine {
         }
         boolean acquired = false;
         try {
-            acquired = concurrencySemaphore.tryAcquire();
+            // Try to acquire with bounded wait to handle brief spikes gracefully
+            acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
             if (!acquired) {
                 if (publisher != null) {
                     Map<String, String> ctx = new HashMap<>();
                     ctx.put("reason", "concurrency-limit");
+                    ctx.put("timeoutMs", String.valueOf(acquireTimeoutMs));
                     publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                            "concurrency limit reached", null, ctx));
+                            "concurrency limit reached after " + acquireTimeoutMs + "ms wait", null, ctx));
                 }
-                throw new TranscriptionException("Whisper concurrency limit reached", ENGINE);
+                throw new TranscriptionException("Whisper concurrency limit reached after " + acquireTimeoutMs + "ms wait", ENGINE);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Restore interrupt status
+            throw new TranscriptionException("Whisper transcription interrupted while waiting for semaphore", ENGINE, e);
+        }
+        try {
             synchronized (lock) {
                 if (!initialized || closed) {
                     throw new TranscriptionException("Whisper engine not initialized", ENGINE);
@@ -176,7 +188,17 @@ public final class WhisperSttEngine implements SttEngine {
         }
     }
 
+    /**
+     * Closes the Whisper engine and releases process resources.
+     *
+     * <p>This operation is idempotent - multiple calls are safe.
+     *
+     * <p>Thread-safe: synchronized to prevent concurrent closure.
+     *
+     * <p>Automatically invoked by Spring container on shutdown via {@link PreDestroy}.
+     */
     @Override
+    @PreDestroy
     public void close() {
         synchronized (lock) {
             if (closed) {
