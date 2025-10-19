@@ -38,6 +38,7 @@ public final class WhisperProcessManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(WhisperProcessManager.class);
 
     private final ProcessFactory processFactory;
+    private final String outputMode; // "text" | "json"
 
     private volatile Process current;
     private volatile Thread outGobbler;
@@ -54,12 +55,18 @@ public final class WhisperProcessManager implements AutoCloseable {
             Throwable cause
     ) {}
 
-    public WhisperProcessManager() {
-        this(new DefaultProcessFactory());
+    @org.springframework.beans.factory.annotation.Autowired
+    public WhisperProcessManager(@org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}") String outputMode) {
+        this(new DefaultProcessFactory(), outputMode);
     }
 
     WhisperProcessManager(ProcessFactory processFactory) {
+        this(processFactory, "text");
+    }
+
+    WhisperProcessManager(ProcessFactory processFactory, String outputMode) {
         this.processFactory = Objects.requireNonNull(processFactory, "processFactory");
+        this.outputMode = (outputMode == null || outputMode.isBlank()) ? "text" : outputMode.toLowerCase();
     }
 
     /**
@@ -126,7 +133,7 @@ public final class WhisperProcessManager implements AutoCloseable {
         }
     }
 
-    private static List<String> buildCommand(WhisperConfig cfg, Path wavPath) {
+    private List<String> buildCommand(WhisperConfig cfg, Path wavPath) {
         List<String> cmd = new ArrayList<>();
         cmd.add(cfg.binaryPath());
         cmd.add("-m");
@@ -135,8 +142,12 @@ public final class WhisperProcessManager implements AutoCloseable {
         cmd.add(wavPath.toString());
         cmd.add("-l");
         cmd.add(cfg.language());
-        // Prefer text to stdout for first implementation; switch to -oj if supported later
-        cmd.add("-otxt");
+        // Output selection: JSON (-oj) when enabled, otherwise text (-otxt)
+        if ("json".equalsIgnoreCase(this.outputMode)) {
+            cmd.add("-oj");
+        } else {
+            cmd.add("-otxt");
+        }
         cmd.add("-of");
         cmd.add("stdout");
         cmd.add("-t");

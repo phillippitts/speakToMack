@@ -90,9 +90,17 @@ public class DefaultParallelSttService implements ParallelSttService {
         try {
             TranscriptionResult tr = engine.transcribe(pcm);
             long ms = (System.nanoTime() - t0) / 1_000_000L;
-            // naive tokens from text for now; will be enhanced by Whisper JSON toggle later
             List<String> tokens = tokenize(tr.text());
-            return new EngineResult(tr.text(), tr.confidence(), tokens, ms, engine.getEngineName(), null);
+            String rawJson = null;
+            // If this is the Whisper engine in JSON mode, prefer JSON-derived tokens/raw
+            if (engine instanceof com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine w) {
+                List<String> jt = w.consumeLastTokens();
+                if (jt != null && !jt.isEmpty()) {
+                    tokens = jt;
+                }
+                rawJson = w.consumeLastRawJson();
+            }
+            return new EngineResult(tr.text(), tr.confidence(), tokens, ms, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
             LOG.warn("{} failed: {}", engine.getEngineName(), te.getMessage());
             return null;

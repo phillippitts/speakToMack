@@ -11,7 +11,7 @@ public record EngineResult(
         double confidence,
         List<String> tokens,
         long durationMs,
-        String engine,
+        String engineName,
         String rawJson
 ) {
     public EngineResult {
@@ -20,6 +20,6 @@ public record EngineResult(
             throw new IllegalArgumentException("confidence must be between 0.0 and 1.0");
         }
         tokens = tokens == null ? List.of() : List.copyOf(tokens);
-        Objects.requireNonNull(engine, "engine");
+        Objects.requireNonNull(engineName, "engineName");
     }
 }

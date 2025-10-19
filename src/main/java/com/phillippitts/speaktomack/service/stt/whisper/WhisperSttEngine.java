@@ -40,6 +40,10 @@ public final class WhisperSttEngine implements SttEngine {
     private final WhisperConfig cfg;
     private final WhisperProcessManager manager;
     private ApplicationEventPublisher publisher;
+    private final boolean jsonMode;
+    // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
+    private volatile String lastRawJson;
+    private volatile java.util.List<String> lastTokens;
 
     private final Object lock = new Object();
     private boolean initialized;
@@ -50,19 +54,22 @@ public final class WhisperSttEngine implements SttEngine {
         this.manager = Objects.requireNonNull(manager, "manager");
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(2);
         this.acquireTimeoutMs = 1000; // Default 1 second
+        this.jsonMode = false;
     }
 
     @Autowired
     public WhisperSttEngine(WhisperConfig cfg,
                              com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
                              WhisperProcessManager manager,
-                             ApplicationEventPublisher publisher) {
+                             ApplicationEventPublisher publisher,
+                             @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}") String outputMode) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
         this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
         this.acquireTimeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
         this.publisher = publisher;
+        this.jsonMode = "json".equalsIgnoreCase(outputMode);
     }
 
     @Override
@@ -137,7 +144,17 @@ public final class WhisperSttEngine implements SttEngine {
                 WavWriter.writePcm16LeMono16kHz(audioData, wav);
 
                 String stdout = manager.transcribe(wav, cfg); // may throw TranscriptionException
-                String text = stdout == null ? "" : stdout.trim();
+                String text;
+                if (jsonMode) {
+                    // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
+                    text = WhisperJsonParser.extractText(stdout);
+                    this.lastRawJson = stdout;
+                    this.lastTokens = WhisperJsonParser.extractTokens(stdout);
+                } else {
+                    text = stdout == null ? "" : stdout.trim();
+                    this.lastRawJson = null;
+                    this.lastTokens = null;
+                }
                 double confidence = 1.0; // Unknown in text mode
 
                 long ms = (System.nanoTime() - t0) / 1_000_000L;
@@ -176,6 +193,26 @@ public final class WhisperSttEngine implements SttEngine {
                 concurrencySemaphore.release();
             }
         }
+    }
+
+    /**
+     * Consume and clear the last raw JSON captured in JSON mode.
+     * Returns null if JSON mode is disabled or no JSON available.
+     */
+    public String consumeLastRawJson() {
+        String v = this.lastRawJson;
+        this.lastRawJson = null;
+        return v;
+    }
+
+    /**
+     * Consume and clear the last parsed tokens captured in JSON mode.
+     * Returns an empty list if JSON mode is disabled or no tokens available.
+     */
+    public java.util.List<String> consumeLastTokens() {
+        java.util.List<String> v = this.lastTokens;
+        this.lastTokens = null;
+        return v == null ? java.util.List.of() : v;
     }
 
     @Override
