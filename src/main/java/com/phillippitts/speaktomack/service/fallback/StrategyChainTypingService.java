@@ -25,7 +25,8 @@ public class StrategyChainTypingService implements TypingService {
     private final TypingProperties props;
     private final ApplicationEventPublisher publisher;
 
-    public StrategyChainTypingService(List<TypingAdapter> adapters, TypingProperties props, ApplicationEventPublisher publisher) {
+    public StrategyChainTypingService(List<TypingAdapter> adapters, TypingProperties props,
+                                      ApplicationEventPublisher publisher) {
         this.props = Objects.requireNonNull(props);
         this.publisher = Objects.requireNonNull(publisher);
         // Order adapters: Robot (if present) -> Clipboard -> Notify

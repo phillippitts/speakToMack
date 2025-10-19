@@ -116,11 +116,13 @@ public final class WhisperSttEngine implements SttEngine {
                     publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
                             "concurrency limit reached after " + acquireTimeoutMs + "ms wait", null, ctx));
                 }
-                throw new TranscriptionException("Whisper concurrency limit reached after " + acquireTimeoutMs + "ms wait", ENGINE);
+                throw new TranscriptionException("Whisper concurrency limit reached after "
+                        + acquireTimeoutMs + "ms wait", ENGINE);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // Restore interrupt status
-            throw new TranscriptionException("Whisper transcription interrupted while waiting for semaphore", ENGINE, e);
+            throw new TranscriptionException("Whisper transcription interrupted while waiting for semaphore",
+                    ENGINE, e);
         }
         try {
             synchronized (lock) {

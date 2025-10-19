@@ -22,11 +22,15 @@ public final class DoubleTapTrigger implements HotkeyTrigger {
     }
 
     @Override
-    public String name() { return "double-tap:" + key + "@" + thresholdMs + "ms"; }
+    public String name() {
+        return "double-tap:" + key + "@" + thresholdMs + "ms";
+    }
 
     @Override
     public boolean onKeyPressed(NormalizedKeyEvent e) {
-        if (!e.key().equals(key)) return false;
+        if (!e.key().equals(key)) {
+            return false;
+        }
         long now = e.whenMillis();
         if (lastTapAt < 0) {
             lastTapAt = now;
@@ -46,7 +50,9 @@ public final class DoubleTapTrigger implements HotkeyTrigger {
 
     @Override
     public boolean onKeyReleased(NormalizedKeyEvent e) {
-        if (!e.key().equals(key)) return false;
+        if (!e.key().equals(key)) {
+            return false;
+        }
         if (armed) {
             armed = false;
             return true;

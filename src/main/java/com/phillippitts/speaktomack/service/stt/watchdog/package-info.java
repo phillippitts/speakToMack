@@ -19,7 +19,8 @@
  * </ul>
  *
  * <h2>Design Approach</h2>
- * <p><strong>Event-Driven Detection:</strong> Engines publish {@link com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent EngineFailureEvent}
+ * <p><strong>Event-Driven Detection:</strong> Engines publish
+ * {@link com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent EngineFailureEvent}
  * when transcription or initialization fails. The watchdog listens for these events and reacts
  * only when failures occur, avoiding the overhead of periodic health probes.</p>
  *
@@ -36,7 +37,8 @@
  * </ul>
  *
  * <h2>Configuration</h2>
- * <p>The watchdog is configured via {@link com.phillippitts.speaktomack.config.stt.SttWatchdogProperties SttWatchdogProperties}
+ * <p>The watchdog is configured via
+ * {@link com.phillippitts.speaktomack.config.stt.SttWatchdogProperties SttWatchdogProperties}
  * with the following properties (prefix: {@code stt.watchdog}):</p>
  * <ul>
  *   <li>{@code enabled} - Enable/disable watchdog globally (default: true)</li>
@@ -91,7 +93,8 @@
  * </ul>
  *
  * <h2>Integration with STT Engines</h2>
- * <p>STT engines should publish {@link com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent EngineFailureEvent}
+ * <p>STT engines should publish
+ * {@link com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent EngineFailureEvent}
  * during both initialization and transcription failures:</p>
  *
  * <pre>{@code

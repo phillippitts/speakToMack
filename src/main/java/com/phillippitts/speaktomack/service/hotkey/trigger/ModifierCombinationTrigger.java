@@ -21,13 +21,21 @@ public final class ModifierCombinationTrigger implements HotkeyTrigger {
     }
 
     @Override
-    public String name() { return "combo:" + String.join("+", requiredModifiers) + "+" + primaryKey; }
+    public String name() {
+        return "combo:" + String.join("+", requiredModifiers) + "+" + primaryKey;
+    }
 
     @Override
     public boolean onKeyPressed(NormalizedKeyEvent e) {
-        if (held) return false;
-        if (!e.key().equals(primaryKey)) return false;
-        if (!e.modifiers().containsAll(requiredModifiers)) return false;
+        if (held) {
+            return false;
+        }
+        if (!e.key().equals(primaryKey)) {
+            return false;
+        }
+        if (!e.modifiers().containsAll(requiredModifiers)) {
+            return false;
+        }
         held = true;
         return true;
     }

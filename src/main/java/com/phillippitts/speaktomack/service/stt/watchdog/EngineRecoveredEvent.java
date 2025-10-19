@@ -10,6 +10,8 @@ public record EngineRecoveredEvent(
         Instant at
 ) {
     public EngineRecoveredEvent {
-        if (at == null) at = Instant.now();
+        if (at == null) {
+            at = Instant.now();
+        }
     }
 }

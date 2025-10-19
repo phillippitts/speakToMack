@@ -22,9 +22,13 @@ public final class KeyNameMapper {
     static {
         Set<String> keys = new HashSet<>();
         // Letters A..Z
-        for (char c = 'A'; c <= 'Z'; c++) keys.add(String.valueOf(c));
+        for (char c = 'A'; c <= 'Z'; c++) {
+            keys.add(String.valueOf(c));
+        }
         // Digits 0..9
-        for (char c = '0'; c <= '9'; c++) keys.add(String.valueOf(c));
+        for (char c = '0'; c <= '9'; c++) {
+            keys.add(String.valueOf(c));
+        }
         // Function keys F1..F24
         IntStream.rangeClosed(1, 24).forEach(i -> keys.add("F" + i));
         // Specials
@@ -39,21 +43,29 @@ public final class KeyNameMapper {
 
     /** Canonicalize a key name (case-insensitive, spaces to underscores, aliases). */
     public static String normalizeKey(String keyText) {
-        if (keyText == null) return "UNKNOWN";
+        if (keyText == null) {
+            return "UNKNOWN";
+        }
         String k = keyText.trim().toUpperCase(Locale.ROOT)
                 .replace(' ', '_')
                 .replace("PLUS", "+")
                 .replace("COMMAND", "META")
                 .replace("CMD", "META");
         // Normalize common forms
-        if (k.contains("RIGHT_META")) return "RIGHT_META";
-        if (k.contains("LEFT_META")) return "LEFT_META";
+        if (k.contains("RIGHT_META")) {
+            return "RIGHT_META";
+        }
+        if (k.contains("LEFT_META")) {
+            return "LEFT_META";
+        }
         return k;
     }
 
     /** Normalize a single modifier alias to canonical form. */
     public static String normalizeModifier(String mod) {
-        if (mod == null) return "";
+        if (mod == null) {
+            return "";
+        }
         String m = mod.trim().toUpperCase(Locale.ROOT)
                 .replace(' ', '_')
                 .replace("COMMAND", "META")
@@ -63,8 +75,12 @@ public final class KeyNameMapper {
 
     /** Normalize a list of modifiers. */
     public static Set<String> normalizeModifiers(List<String> mods) {
-        if (mods == null) return Set.of();
-        return mods.stream().map(KeyNameMapper::normalizeModifier).collect(Collectors.toUnmodifiableSet());
+        if (mods == null) {
+            return Set.of();
+        }
+        return mods.stream()
+                .map(KeyNameMapper::normalizeModifier)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public static boolean isValidKey(String key) {
@@ -73,7 +89,8 @@ public final class KeyNameMapper {
 
     public static boolean isValidModifier(String mod) {
         String m = normalizeModifier(mod);
-        return ALLOWED_MODIFIERS.contains(m) || m.equals("META") || m.equals("SHIFT") || m.equals("CONTROL") || m.equals("ALT");
+        return ALLOWED_MODIFIERS.contains(m) || m.equals("META") || m.equals("SHIFT")
+                || m.equals("CONTROL") || m.equals("ALT");
     }
 
     /**
@@ -81,22 +98,29 @@ public final class KeyNameMapper {
      * like "META+TAB" or "META+SHIFT+D".
      */
     public static boolean matchesReserved(Set<String> configuredMods, String configuredKey, String reservedSpec) {
-        if (reservedSpec == null || reservedSpec.isBlank()) return false;
+        if (reservedSpec == null || reservedSpec.isBlank()) {
+            return false;
+        }
         String[] parts = reservedSpec.split("\\+");
         Set<String> rmods = new HashSet<>();
         String rkey = null;
         for (String p : parts) {
             String n = p.trim();
-            if (n.isEmpty()) continue;
+            if (n.isEmpty()) {
+                continue;
+            }
             String nm = normalizeModifier(n);
-            if (ALLOWED_MODIFIERS.contains(nm) || nm.equals("META") || nm.equals("SHIFT") || nm.equals("CONTROL") || nm.equals("ALT")) {
+            if (ALLOWED_MODIFIERS.contains(nm) || nm.equals("META") || nm.equals("SHIFT")
+                    || nm.equals("CONTROL") || nm.equals("ALT")) {
                 rmods.add(nm);
             } else {
                 rkey = normalizeKey(n);
             }
         }
         String ckey = normalizeKey(configuredKey);
-        Set<String> cmods = configuredMods.stream().map(KeyNameMapper::normalizeModifier).collect(Collectors.toSet());
+        Set<String> cmods = configuredMods.stream()
+                .map(KeyNameMapper::normalizeModifier)
+                .collect(Collectors.toSet());
         return ckey.equals(rkey) && cmods.containsAll(rmods) && rmods.containsAll(cmods);
     }
 }

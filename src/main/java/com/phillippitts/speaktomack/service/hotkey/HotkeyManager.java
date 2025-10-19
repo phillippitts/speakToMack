@@ -49,7 +49,9 @@ public class HotkeyManager implements SmartLifecycle {
 
     @Override
     public void start() {
-        if (running) return;
+        if (running) {
+            return;
+        }
         try {
             hook.addListener(dispatcher());
             hook.register();
@@ -67,8 +69,14 @@ public class HotkeyManager implements SmartLifecycle {
 
     @Override
     public void stop() {
-        if (!running) return;
-        try { hook.unregister(); } catch (Exception ignored) {}
+        if (!running) {
+            return;
+        }
+        try {
+            hook.unregister();
+        } catch (Exception ignored) {
+            // Ignore
+        }
         running = false;
         LOG.info("HotkeyManager stopped");
     }
@@ -80,7 +88,9 @@ public class HotkeyManager implements SmartLifecycle {
     }
 
     @Override
-    public boolean isRunning() { return running; }
+    public boolean isRunning() {
+        return running;
+    }
 
     private Consumer<NormalizedKeyEvent> dispatcher() {
         return e -> {
@@ -101,10 +111,12 @@ public class HotkeyManager implements SmartLifecycle {
     private void detectReservedConflict() {
         // Compare configured hotkey against reserved list from properties
         String key = props.getKey();
-        Set<String> mods = Set.copyOf(props.getModifiers().stream().map(m -> m.toUpperCase(Locale.ROOT)).toList());
+        Set<String> mods = Set.copyOf(props.getModifiers().stream()
+                .map(m -> m.toUpperCase(Locale.ROOT)).toList());
         for (String spec : props.getReserved()) {
             if (com.phillippitts.speaktomack.service.hotkey.KeyNameMapper.matchesReserved(mods, key, spec)) {
-                publisher.publishEvent(new HotkeyConflictEvent(props.getKey(), List.copyOf(props.getModifiers()), Instant.now()));
+                publisher.publishEvent(new HotkeyConflictEvent(props.getKey(),
+                        List.copyOf(props.getModifiers()), Instant.now()));
                 LOG.warn("Configured hotkey '{}' + {} conflicts with reserved '{}'", key, mods, spec);
                 break;
             }

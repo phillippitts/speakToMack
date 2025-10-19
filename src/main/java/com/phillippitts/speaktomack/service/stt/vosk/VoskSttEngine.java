@@ -155,11 +155,13 @@ public class VoskSttEngine implements SttEngine {
                     publisher.publishEvent(new EngineFailureEvent(ENGINE_NAME, java.time.Instant.now(),
                             "concurrency limit reached after " + acquireTimeoutMs + "ms wait", null, ctx));
                 }
-                throw new TranscriptionException("Vosk concurrency limit reached after " + acquireTimeoutMs + "ms wait", ENGINE_NAME);
+                throw new TranscriptionException("Vosk concurrency limit reached after "
+                        + acquireTimeoutMs + "ms wait", ENGINE_NAME);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // Restore interrupt status
-            throw new TranscriptionException("Vosk transcription interrupted while waiting for semaphore", ENGINE_NAME, e);
+            throw new TranscriptionException("Vosk transcription interrupted while waiting for semaphore",
+                    ENGINE_NAME, e);
         }
         try {
             org.vosk.Model localModel;

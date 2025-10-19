@@ -16,6 +16,8 @@ public record EngineFailureEvent(
         Map<String, String> context
 ) {
     public EngineFailureEvent {
-        if (at == null) at = Instant.now();
+        if (at == null) {
+            at = Instant.now();
+        }
     }
 }

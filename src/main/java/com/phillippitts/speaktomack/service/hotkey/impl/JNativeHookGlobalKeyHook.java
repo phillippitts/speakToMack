@@ -31,7 +31,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
     @Override
     public void register() {
-        if (registered.get()) return;
+        if (registered.get()) {
+            return;
+        }
         try {
             GlobalScreen.registerNativeHook();
             GlobalScreen.addNativeKeyListener(this);
@@ -44,7 +46,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
     @Override
     public void unregister() {
-        if (!registered.get()) return;
+        if (!registered.get()) {
+            return;
+        }
         try {
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.unregisterNativeHook();
@@ -75,7 +79,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
     private void emit(NativeKeyEvent ne, NormalizedKeyEvent.Type type) {
         Consumer<NormalizedKeyEvent> l = this.listener;
-        if (l == null) return;
+        if (l == null) {
+            return;
+        }
         String keyText = NativeKeyEvent.getKeyText(ne.getKeyCode());
         String key = KeyNameMapper.normalizeKey(keyText);
         Set<String> mods = extractModifiers(ne);
@@ -90,10 +96,18 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     private static Set<String> extractModifiers(NativeKeyEvent e) {
         int m = e.getModifiers();
         Set<String> mods = new HashSet<>();
-        if ((m & NativeInputEvent.SHIFT_MASK) != 0) mods.add("SHIFT");
-        if ((m & NativeInputEvent.CTRL_MASK) != 0) mods.add("CONTROL");
-        if ((m & NativeInputEvent.ALT_MASK) != 0) mods.add("ALT");
-        if ((m & NativeInputEvent.META_MASK) != 0) mods.add("META");
+        if ((m & NativeInputEvent.SHIFT_MASK) != 0) {
+            mods.add("SHIFT");
+        }
+        if ((m & NativeInputEvent.CTRL_MASK) != 0) {
+            mods.add("CONTROL");
+        }
+        if ((m & NativeInputEvent.ALT_MASK) != 0) {
+            mods.add("ALT");
+        }
+        if ((m & NativeInputEvent.META_MASK) != 0) {
+            mods.add("META");
+        }
         return mods;
     }
 }

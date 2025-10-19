@@ -20,13 +20,21 @@ public final class SingleKeyTrigger implements HotkeyTrigger {
     }
 
     @Override
-    public String name() { return "single-key:" + key + (modifiers.isEmpty()?"":"+"+String.join("+", modifiers)); }
+    public String name() {
+        return "single-key:" + key + (modifiers.isEmpty() ? "" : "+" + String.join("+", modifiers));
+    }
 
     @Override
     public boolean onKeyPressed(NormalizedKeyEvent e) {
-        if (held) return false; // ignore repeats while held
-        if (!e.key().equals(key)) return false;
-        if (!e.modifiers().containsAll(modifiers)) return false;
+        if (held) {
+            return false; // ignore repeats while held
+        }
+        if (!e.key().equals(key)) {
+            return false;
+        }
+        if (!e.modifiers().containsAll(modifiers)) {
+            return false;
+        }
         held = true;
         return true;
     }

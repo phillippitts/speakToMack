@@ -26,7 +26,8 @@ class ErrorEventsListener {
     @EventListener
     void onHotkeyPermissionDenied(HotkeyPermissionDeniedEvent e) {
         if (shouldLog("hotkey-permission")) {
-            LOG.warn("Hotkey permission denied. On macOS grant Accessibility: System Settings → Privacy & Security → Accessibility (then restart app)");
+            LOG.warn("Hotkey permission denied. On macOS grant Accessibility: "
+                    + "System Settings → Privacy & Security → Accessibility (then restart app)");
         }
     }
 
@@ -34,7 +35,8 @@ class ErrorEventsListener {
     void onHotkeyConflict(HotkeyConflictEvent e) {
         String key = "hotkey-conflict-" + e.key() + '-' + e.modifiers();
         if (shouldLog(key)) {
-            LOG.warn("Configured hotkey conflicts with OS-reserved shortcut: key={}, modifiers={}. Update hotkey.* properties.", e.key(), e.modifiers());
+            LOG.warn("Configured hotkey conflicts with OS-reserved shortcut: key={}, modifiers={}. "
+                    + "Update hotkey.* properties.", e.key(), e.modifiers());
         }
     }
 

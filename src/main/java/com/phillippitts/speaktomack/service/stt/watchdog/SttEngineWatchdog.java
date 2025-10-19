@@ -65,7 +65,9 @@ public class SttEngineWatchdog {
     }
 
     /** Visible for tests */
-    EngineState getState(String engine) { return state.get(engine); }
+    EngineState getState(String engine) {
+        return state.get(engine);
+    }
 
     /**
      * Checks if an engine is currently enabled (not disabled or in cooldown).
@@ -77,7 +79,9 @@ public class SttEngineWatchdog {
      */
     public boolean isEngineEnabled(String engine) {
         EngineState s = state.get(engine);
-        if (s == EngineState.DISABLED) return false;
+        if (s == EngineState.DISABLED) {
+            return false;
+        }
         Instant until = disabledUntil.get(engine);
         return until == null || Instant.now().isAfter(until);
     }
@@ -107,7 +111,9 @@ public class SttEngineWatchdog {
     @EventListener
     public void onRecovered(EngineRecoveredEvent event) {
         String engine = event.engine();
-        if (!enginesByName.containsKey(engine)) return;
+        if (!enginesByName.containsKey(engine)) {
+            return;
+        }
         state.put(engine, EngineState.HEALTHY);
         // Clear restart window after successful recovery
         restartWindow.get(engine).clear();
