@@ -81,8 +81,14 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform {
-        // By default, exclude integration tests for fast unit test execution
-        excludeTags 'integration', 'requiresVoskModel', 'requiresWhisperBinary'
+        // By default, exclude integration tests and tests requiring real binaries/hardware
+        // for fast unit test execution in CI
+        excludeTags 'integration', 'requiresVoskModel', 'requiresWhisperBinary', 'real-binary'
+
+        // Allow running real-binary tests with: ./gradlew test -Dtest.includeRealBinary=true
+        if (System.getProperty('test.includeRealBinary') == 'true') {
+            includeTags 'real-binary'
+        }
     }
     // Address Mockito warning on Java 21
     jvmArgs '-XX:+EnableDynamicAgentLoading'
@@ -105,6 +111,17 @@ tasks.register('voskIntegrationTest', Test) {
     group = 'verification'
     useJUnitPlatform {
         includeTags 'requiresVoskModel'
+    }
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    shouldRunAfter test
+}
+
+// Task for tests requiring real binaries/hardware
+tasks.register('realBinaryTest', Test) {
+    description = 'Runs tests requiring real binaries, models, or hardware (tagged with @RequiresRealBinary)'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'real-binary'
     }
     jvmArgs '-XX:+EnableDynamicAgentLoading'
     shouldRunAfter test
