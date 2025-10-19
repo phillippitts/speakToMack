@@ -6,6 +6,7 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.NativeInputEvent;
 import com.phillippitts.speaktomack.service.hotkey.GlobalKeyHook;
+import com.phillippitts.speaktomack.service.hotkey.KeyNameMapper;
 import com.phillippitts.speaktomack.service.hotkey.NormalizedKeyEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -76,7 +77,7 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
         Consumer<NormalizedKeyEvent> l = this.listener;
         if (l == null) return;
         String keyText = NativeKeyEvent.getKeyText(ne.getKeyCode());
-        String key = canonicalizeKey(keyText);
+        String key = KeyNameMapper.normalizeKey(keyText);
         Set<String> mods = extractModifiers(ne);
         NormalizedKeyEvent e = new NormalizedKeyEvent(type, key, mods, System.currentTimeMillis());
         try {
@@ -94,17 +95,5 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
         if ((m & NativeInputEvent.ALT_MASK) != 0) mods.add("ALT");
         if ((m & NativeInputEvent.META_MASK) != 0) mods.add("META");
         return mods;
-    }
-
-    private static String canonicalizeKey(String keyText) {
-        if (keyText == null) return "UNKNOWN";
-        String k = keyText.trim().toUpperCase()
-                .replace(' ', '_')
-                .replace("PLUS", "+")
-                .replace("COMMAND", "META");
-        // Normalize RIGHT/LEFT META names
-        if (k.contains("RIGHT_META")) return "RIGHT_META";
-        if (k.contains("LEFT_META")) return "LEFT_META";
-        return k;
     }
 }

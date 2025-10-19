@@ -99,14 +99,15 @@ public class HotkeyManager implements SmartLifecycle {
     }
 
     private void detectReservedConflict() {
-        // Very small denylist; platform-aware expansion can be added later
-        String key = props.getKey().toUpperCase(Locale.ROOT);
+        // Compare configured hotkey against reserved list from properties
+        String key = props.getKey();
         Set<String> mods = Set.copyOf(props.getModifiers().stream().map(m -> m.toUpperCase(Locale.ROOT)).toList());
-        boolean macCmdTab = mods.contains("META") && "TAB".equals(key);
-        boolean winLock = mods.contains("META") && "L".equals(key);
-        if (macCmdTab || winLock) {
-            publisher.publishEvent(new HotkeyConflictEvent(props.getKey(), List.copyOf(props.getModifiers()), Instant.now()));
-            LOG.warn("Configured hotkey may conflict with OS-reserved shortcut: {} + {}", mods, key);
+        for (String spec : props.getReserved()) {
+            if (com.phillippitts.speaktomack.service.hotkey.KeyNameMapper.matchesReserved(mods, key, spec)) {
+                publisher.publishEvent(new HotkeyConflictEvent(props.getKey(), List.copyOf(props.getModifiers()), Instant.now()));
+                LOG.warn("Configured hotkey '{}' + {} conflicts with reserved '{}'", key, mods, spec);
+                break;
+            }
         }
     }
 }

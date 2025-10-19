@@ -19,7 +19,7 @@ class HotkeyManagerTest {
     @Test
     void publishesPressAndReleaseForSingleKey() {
         // Arrange defaults: single-key RIGHT_META
-        HotkeyProperties props = new HotkeyProperties("single-key", "RIGHT_META", 300, List.of());
+        HotkeyProperties props = new HotkeyProperties(com.phillippitts.speaktomack.config.hotkey.TriggerType.SINGLE_KEY, "RIGHT_META", 300, List.of(), List.of());
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher publisher = events::add;
 

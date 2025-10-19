@@ -13,12 +13,10 @@ import org.springframework.stereotype.Component;
 public class HotkeyTriggerFactory {
 
     public HotkeyTrigger from(HotkeyProperties p) {
-        String type = p.getType().toLowerCase();
-        return switch (type) {
-            case "single-key" -> new SingleKeyTrigger(p.getKey(), p.getModifiers());
-            case "double-tap" -> new DoubleTapTrigger(p.getKey(), p.getThresholdMs());
-            case "modifier-combination" -> new ModifierCombinationTrigger(p.getModifiers(), p.getKey());
-            default -> throw new IllegalArgumentException("Unknown hotkey.type: " + p.getType());
+        return switch (p.getType()) {
+            case SINGLE_KEY -> new SingleKeyTrigger(p.getKey(), p.getModifiers());
+            case DOUBLE_TAP -> new DoubleTapTrigger(p.getKey(), p.getThresholdMs());
+            case MODIFIER_COMBO -> new ModifierCombinationTrigger(p.getModifiers(), p.getKey());
         };
     }
 }
