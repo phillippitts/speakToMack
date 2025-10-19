@@ -9,7 +9,10 @@ import com.phillippitts.speaktomack.service.audio.capture.CaptureErrorEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
+import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
+import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,6 +40,11 @@ public final class DualEngineOrchestrator {
     private final OrchestrationProperties props;
     private final ApplicationEventPublisher publisher;
 
+    // Optional Phase 4 components
+    private final ParallelSttService parallel;
+    private final TranscriptReconciler reconciler;
+    private final ReconciliationProperties recProps;
+
     private final Object lock = new Object();
     private UUID activeSession;
 
@@ -46,12 +54,27 @@ public final class DualEngineOrchestrator {
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
                                   ApplicationEventPublisher publisher) {
+        this(captureService, vosk, whisper, watchdog, props, publisher, null, null, null);
+    }
+
+    public DualEngineOrchestrator(AudioCaptureService captureService,
+                                  SttEngine vosk,
+                                  SttEngine whisper,
+                                  SttEngineWatchdog watchdog,
+                                  OrchestrationProperties props,
+                                  ApplicationEventPublisher publisher,
+                                  ParallelSttService parallel,
+                                  TranscriptReconciler reconciler,
+                                  ReconciliationProperties recProps) {
         this.captureService = Objects.requireNonNull(captureService);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);
         this.watchdog = Objects.requireNonNull(watchdog);
         this.props = Objects.requireNonNull(props);
         this.publisher = Objects.requireNonNull(publisher);
+        this.parallel = parallel;
+        this.reconciler = reconciler;
+        this.recProps = recProps;
     }
 
     @EventListener
