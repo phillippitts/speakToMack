@@ -13,7 +13,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         WhisperConfig.class,
         com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties.class,
         com.phillippitts.speaktomack.config.stt.SttWatchdogProperties.class,
-        com.phillippitts.speaktomack.config.audio.AudioCaptureProperties.class
+        com.phillippitts.speaktomack.config.audio.AudioCaptureProperties.class,
+        com.phillippitts.speaktomack.config.hotkey.HotkeyProperties.class
 })
 @EnableScheduling
 public class SpeakToMackApplication {
