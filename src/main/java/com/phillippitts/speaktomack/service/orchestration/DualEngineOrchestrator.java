@@ -111,6 +111,27 @@ public final class DualEngineOrchestrator {
             return;
         }
 
+        // If reconciliation is enabled and services are present, run both engines and reconcile
+        if (recProps != null && recProps.isEnabled() && parallel != null && reconciler != null) {
+            try {
+                long t0 = System.nanoTime();
+                var pair = parallel.transcribeBoth(pcm, 0L); // use default timeout from service
+                TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
+                long ms = (System.nanoTime() - t0) / 1_000_000L;
+                String strategy = String.valueOf(recProps.getStrategy());
+                LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", ms, strategy, result.text().length());
+                publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), "reconciled"));
+            } catch (TranscriptionException te) {
+                LOG.warn("Reconciled transcription failed: {}", te.getMessage());
+            } catch (RuntimeException re) {
+                LOG.error("Unexpected error during reconciled transcription", re);
+            } finally {
+                pcm = null;
+            }
+            return;
+        }
+
+        // Otherwise, single-engine routing based on watchdog state
         SttEngine engine;
         try {
             engine = selectEngine();
