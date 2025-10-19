@@ -325,7 +325,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 ### Phase 3: Parallel Development (6 tasks, ~7.25 hours) ⭐ ENHANCED
 
-#### Task 3.1: Audio Capture Service (1.5 hours) ⭐ ENHANCED
+#### Task 3.1: Audio Capture Service (1.5 hours) ⭐ ENHANCED — Completed (✓)
 - **Goal:** Explicit, testable capture contract that always returns validated PCM16LE mono @ 16kHz
 - **Deliverable:** `AudioCaptureService` + ring-buffered `AudioBuffer`
 - **Details:**

@@ -24,9 +24,10 @@ Current capabilities (implemented):
 - ✅ Whisper STT engine via whisper.cpp process (temp WAV + robust manager with timeouts)
 - ✅ Parallel execution test scaffolding and lightweight bulkheads (semaphores)
 - ✅ Event-driven watchdog with bounded auto-restart and cooldown
+- ✅ Audio Capture Service (Java Sound, PCM16LE mono @ 16kHz) with ring buffer, validation, and hermetic tests
 
 Not yet implemented (planned in later phases):
-- ❌ Audio capture and hotkey orchestration
+- ❌ Hotkey orchestration
 - ❌ Reconciliation strategies
 - ❌ Typing/paste service and fallbacks
 - ❌ Database persistence and search
@@ -203,6 +204,37 @@ Next steps:
 ```
 
 ---
+
+## Audio Capture Service (Phase 3.1)
+
+The Audio Capture Service implements a single-active-session, push-to-talk capture API and always returns validated PCM16LE mono at 16 kHz:
+
+- API: `startSession()` → `stopSession()`/`cancelSession()` → `readAll(sessionId)`
+- Buffering: ring buffer with 20–40 ms chunks to minimize GC and jitter; capped by validation thresholds
+- Validation: integrates `AudioValidator` to enforce min/max duration and block alignment before STT
+- Error events: publishes `CaptureErrorEvent` for permission/device failures (privacy-safe)
+- Testability: uses a `DataLineProvider` seam to run hermetically in CI (no real microphone required)
+
+Configuration (application.properties):
+
+```properties
+# Audio capture defaults
+audio.capture.chunk-millis=40
+audio.capture.max-duration-ms=60000
+# audio.capture.device-name=
+```
+
+Validation thresholds:
+
+```properties
+# Audio Validation
+audio.validation.min-duration-ms=250
+audio.validation.max-duration-ms=300000
+```
+
+Notes:
+- macOS permissions: System Settings → Privacy & Security → Microphone
+- The service emits PCM; engines expect PCM (WAV headers are not passed to engines)
 
 ## Running gated integration tests
 

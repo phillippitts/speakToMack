@@ -98,6 +98,15 @@ class AudioValidatorTest {
                 .hasMessageContaining("Missing data chunk");
     }
 
+    @Test
+    void wavShouldRejectMisalignedDataChunk() {
+        // WAV with odd data size (not aligned to block size of 2 bytes)
+        byte[] wav = makeWavWithMisalignedData(16_000, 1, 16);
+        assertThatThrownBy(() -> validator.validate(wav))
+                .isInstanceOf(InvalidAudioException.class)
+                .hasMessageContaining("not aligned to block size");
+    }
+
     // --- Helpers ---
 
     private static byte[] makeMinimalWav(int sampleRate, int channels, int bitsPerSample) {
@@ -227,6 +236,31 @@ class AudioValidatorTest {
         putLEInt(out, offset, 32000); offset += 4; // byte rate
         putLEShort(out, offset, 2); offset += 2; // block align
         putLEShort(out, offset, 16); // bits per sample
+        return out;
+    }
+
+    private static byte[] makeWavWithMisalignedData(int sampleRate, int channels, int bitsPerSample) {
+        int payloadBytes = 40_001; // ODD size - not aligned to 2-byte block
+        int header = 44;
+        byte[] out = new byte[header + payloadBytes];
+        // RIFF/WAVE
+        out[0] = 'R'; out[1] = 'I'; out[2] = 'F'; out[3] = 'F';
+        putLEInt(out, 4, 36 + payloadBytes);
+        out[8] = 'W'; out[9] = 'A'; out[10] = 'V'; out[11] = 'E';
+        // fmt chunk
+        out[12] = 'f'; out[13] = 'm'; out[14] = 't'; out[15] = ' ';
+        putLEInt(out, 16, 16);
+        putLEShort(out, 20, 1);
+        putLEShort(out, 22, channels);
+        putLEInt(out, 24, sampleRate);
+        int blockAlign = (bitsPerSample / 8) * channels;
+        int byteRate = sampleRate * blockAlign;
+        putLEInt(out, 28, byteRate);
+        putLEShort(out, 32, blockAlign);
+        putLEShort(out, 34, bitsPerSample);
+        // data with misaligned size
+        out[36] = 'd'; out[37] = 'a'; out[38] = 't'; out[39] = 'a';
+        putLEInt(out, 40, payloadBytes); // ODD size - misaligned!
         return out;
     }
 

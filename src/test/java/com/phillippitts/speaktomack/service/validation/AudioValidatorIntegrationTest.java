@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.validation;
 
 import com.phillippitts.speaktomack.TestResourceLoader;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
@@ -14,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Integration test using real test resources under src/test/resources/audio.
  * Ensures AudioValidator accepts a valid 1-second PCM clip and rejects too-short clips.
  */
+@Tag("integration")
 @SpringBootTest(properties = {
         "stt.validation.enabled=false" // avoid requiring real models/binaries in CI
 })

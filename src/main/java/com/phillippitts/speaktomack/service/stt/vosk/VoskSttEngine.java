@@ -37,6 +37,12 @@ public class VoskSttEngine implements SttEngine {
     private static final Logger LOG = LogManager.getLogger(VoskSttEngine.class);
     private static final String ENGINE_NAME = "vosk";
 
+    /**
+     * Maximum allowed JSON response size from Vosk recognizer (1MB).
+     * Protects against malicious/custom Vosk builds returning unbounded output.
+     */
+    private static final int MAX_JSON_SIZE = 1_048_576; // 1MB
+
     private final VoskConfig config;
     private final Object lock = new Object();
 
@@ -258,12 +264,21 @@ public class VoskSttEngine implements SttEngine {
      *
      * <p>This method parses the JSON once and extracts both values for efficiency.
      *
+     * <p>Protects against unbounded output from malicious/custom Vosk builds by
+     * capping JSON response size at {@link #MAX_JSON_SIZE}.
+     *
      * @param json JSON string from Vosk recognizer
      * @return VoskTranscription containing text and confidence
      */
     private static VoskTranscription parseVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return new VoskTranscription("", 1.0);
+        }
+        // Protect against malicious Vosk builds returning huge JSON
+        if (json.length() > MAX_JSON_SIZE) {
+            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
+                    MAX_JSON_SIZE, json.length());
+            json = json.substring(0, MAX_JSON_SIZE);
         }
         try {
             JSONObject obj = new JSONObject(json);
@@ -344,6 +359,12 @@ public class VoskSttEngine implements SttEngine {
         if (json == null || json.isBlank()) {
             return "";
         }
+        // Protect against malicious Vosk builds returning huge JSON
+        if (json.length() > MAX_JSON_SIZE) {
+            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
+                    MAX_JSON_SIZE, json.length());
+            json = json.substring(0, MAX_JSON_SIZE);
+        }
         try {
             JSONObject obj = new JSONObject(json);
             return obj.optString("text", "").trim();
@@ -388,6 +409,12 @@ public class VoskSttEngine implements SttEngine {
     static double extractConfidenceFromVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return 1.0;
+        }
+        // Protect against malicious Vosk builds returning huge JSON
+        if (json.length() > MAX_JSON_SIZE) {
+            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
+                    MAX_JSON_SIZE, json.length());
+            json = json.substring(0, MAX_JSON_SIZE);
         }
         try {
             JSONObject obj = new JSONObject(json);

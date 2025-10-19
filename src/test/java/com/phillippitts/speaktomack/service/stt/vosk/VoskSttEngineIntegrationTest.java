@@ -5,6 +5,7 @@ import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -18,10 +19,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Integration test for VoskSttEngine with real Vosk model.
  *
  * <p>This test runs only if the Vosk model is available in the expected location.
- * It uses JUnit assumptions to skip gracefully if the model is not present.
+ * Tagged with @Tag("integration") and @Tag("requiresVoskModel") for selective execution.
  *
  * <p>Expected model location: models/vosk-model-small-en-us-0.15
  */
+@Tag("integration")
+@Tag("requiresVoskModel")
 class VoskSttEngineIntegrationTest {
 
     private static final String MODEL_PATH = "models/vosk-model-small-en-us-0.15";

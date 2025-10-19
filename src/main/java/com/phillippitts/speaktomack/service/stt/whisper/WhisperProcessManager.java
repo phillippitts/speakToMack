@@ -194,12 +194,22 @@ public final class WhisperProcessManager implements AutoCloseable {
     private void destroyProcess(Process p) {
         try {
             p.destroy();
-        } catch (Throwable ignored) { }
-        try {
-            if (p.isAlive()) {
+            // Wait briefly for graceful shutdown
+            boolean exited = p.waitFor(500, TimeUnit.MILLISECONDS);
+            if (!exited && p.isAlive()) {
                 p.destroyForcibly();
+                // Wait for forcible termination
+                p.waitFor(1000, TimeUnit.MILLISECONDS);
+                if (p.isAlive()) {
+                    LOG.warn("Process still alive after destroyForcibly");
+                }
             }
-        } catch (Throwable ignored) { }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn("Interrupted while destroying process");
+        } catch (Throwable t) {
+            LOG.warn("Error destroying process: {}", t.toString());
+        }
     }
 
     private TranscriptionException whisperError(String msg, ErrorContext ctx) {

@@ -79,6 +79,11 @@ public class AudioValidator {
         if (chunks.dataOffset == -1) {
             throw new InvalidAudioException("Missing data chunk in WAV file");
         }
+        // Ensure data size is aligned to block size (2 bytes for 16-bit mono)
+        if (chunks.dataSize % REQUIRED_BLOCK_ALIGN != 0) {
+            throw new InvalidAudioException("WAV data not aligned to block size (" + REQUIRED_BLOCK_ALIGN
+                    + " bytes). Size: " + chunks.dataSize);
+        }
         validateDurationByBytes(chunks.dataSize);
     }
 

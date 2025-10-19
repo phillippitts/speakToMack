@@ -9,6 +9,7 @@ import com.phillippitts.speaktomack.service.orchestration.ParallelTranscriptionS
 import com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -39,6 +40,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * <p>This test is gated and will only run when the real Vosk model is available locally.
  * Whisper is executed via a stubbed process (hermetic) so no real binary is needed.
  */
+@Tag("integration")
+@Tag("requiresVoskModel")
 class ParallelSttEnginesIntegrationTest {
 
     private static final String VOSK_MODEL = "models/vosk-model-small-en-us-0.15";
