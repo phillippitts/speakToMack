@@ -38,7 +38,15 @@ public class AudioCaptureProperties {
         this.deviceName = (deviceName == null || deviceName.isBlank()) ? null : deviceName;
     }
 
-    public int getChunkMillis() { return chunkMillis; }
-    public int getMaxDurationMs() { return maxDurationMs; }
-    public String getDeviceName() { return deviceName; }
+    public int getChunkMillis() {
+        return chunkMillis;
+    }
+
+    public int getMaxDurationMs() {
+        return maxDurationMs;
+    }
+
+    public String getDeviceName() {
+        return deviceName;
+    }
 }

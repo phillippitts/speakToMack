@@ -8,8 +8,12 @@ public final class LogSanitizer {
      * Truncate the input string to at most max characters; returns "" for null.
      */
     public static String truncate(String s, int max) {
-        if (s == null) return "";
-        if (max <= 0) return "";
+        if (s == null) {
+            return "";
+        }
+        if (max <= 0) {
+            return "";
+        }
         return s.length() <= max ? s : s.substring(0, max);
     }
 }

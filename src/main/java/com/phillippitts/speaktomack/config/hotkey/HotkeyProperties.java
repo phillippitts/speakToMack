@@ -58,9 +58,23 @@ public class HotkeyProperties {
                 : List.copyOf(reserved);
     }
 
-    public TriggerType getType() { return type; }
-    public String getKey() { return key; }
-    public int getThresholdMs() { return thresholdMs; }
-    public List<String> getModifiers() { return modifiers; }
-    public List<String> getReserved() { return reserved; }
+    public TriggerType getType() {
+        return type;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public int getThresholdMs() {
+        return thresholdMs;
+    }
+
+    public List<String> getModifiers() {
+        return modifiers;
+    }
+
+    public List<String> getReserved() {
+        return reserved;
+    }
 }

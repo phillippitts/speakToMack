@@ -10,7 +10,11 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.Mixer;
+import javax.sound.sampled.TargetDataLine;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +34,8 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
 
     /** Abstraction to open a TargetDataLine (for testing). */
     public interface DataLineProvider {
-        TargetDataLine open(javax.sound.sampled.AudioFormat format, Optional<String> deviceName) throws LineUnavailableException;
+        TargetDataLine open(javax.sound.sampled.AudioFormat format, Optional<String> deviceName)
+                throws LineUnavailableException;
     }
 
     private final AudioCaptureProperties props;
@@ -65,8 +70,9 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
         int mixerCount = AudioSystem.getMixerInfo().length;
         String device = props.getDeviceName() != null ? props.getDeviceName() : "default";
 
-        LOG.info("Audio capture initialized: OS={}, arch={}, device='{}', available-mixers={}, chunk={}ms, max-duration={}ms",
-                 os, arch, device, mixerCount, props.getChunkMillis(), props.getMaxDurationMs());
+        LOG.info("Audio capture initialized: OS={}, arch={}, device='{}', available-mixers={}, "
+                + "chunk={}ms, max-duration={}ms",
+                os, arch, device, mixerCount, props.getChunkMillis(), props.getMaxDurationMs());
     }
 
     @PreDestroy
@@ -197,7 +203,9 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             long written = 0;
             while (s.active.get()) {
                 int n = line.read(buf, 0, buf.length);
-                if (n <= 0) continue;
+                if (n <= 0) {
+                    continue;
+                }
                 s.buffer.write(buf, 0, n);
                 written += n;
                 if (written >= hardStopBytes) {
@@ -217,8 +225,16 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             publisher.publishEvent(new CaptureErrorEvent("CAPTURE_ERROR", Instant.now()));
         } finally {
             if (line != null) {
-                try { line.stop(); } catch (Exception ignore) {}
-                try { line.close(); } catch (Exception ignore) {}
+                try {
+                    line.stop();
+                } catch (Exception ignore) {
+                    // Ignore
+                }
+                try {
+                    line.close();
+                } catch (Exception ignore) {
+                    // Ignore
+                }
             }
         }
     }
@@ -257,6 +273,9 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
         volatile boolean canceled = false;
         volatile Thread thread;
         volatile PcmRingBuffer buffer;
-        Session(UUID id) { this.id = id; }
+
+        Session(UUID id) {
+            this.id = id;
+        }
     }
 }

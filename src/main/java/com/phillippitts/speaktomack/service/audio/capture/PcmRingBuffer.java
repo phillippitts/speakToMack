@@ -16,10 +16,14 @@ final class PcmRingBuffer {
         this.buffer = new byte[capacityBytes];
     }
 
-    int capacity() { return buffer.length; }
+    int capacity() {
+        return buffer.length;
+    }
 
     synchronized void write(byte[] src, int off, int len) {
-        if (len <= 0) return;
+        if (len <= 0) {
+            return;
+        }
         // If incoming exceeds capacity, drop oldest by keeping only the last capacity bytes
         if (len >= buffer.length) {
             // keep tail of src
@@ -50,7 +54,9 @@ final class PcmRingBuffer {
     }
 
     synchronized byte[] toByteArray() {
-        if (size == 0) return new byte[0];
+        if (size == 0) {
+            return new byte[0];
+        }
         byte[] out = new byte[size];
         int start = (writePos - size + buffer.length) % buffer.length;
         int first = Math.min(size, buffer.length - start);
