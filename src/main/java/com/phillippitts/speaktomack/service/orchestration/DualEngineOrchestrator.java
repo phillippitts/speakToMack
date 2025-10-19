@@ -115,7 +115,7 @@ public final class DualEngineOrchestrator {
     /**
      * Handles audio capture errors (e.g., microphone permission denied, device unavailable).
      *
-     * <p>Cancels the active session if one exists. Task 3.6 will add user notification.
+     * <p>Cancels the active session if one exists. Phase 4.2 will add user notification.
      *
      * @param event capture error event with reason and timestamp
      */
@@ -130,7 +130,7 @@ public final class DualEngineOrchestrator {
                 LOG.debug("Capture error when no active session: {}", event.reason());
             }
         }
-        // Task 3.6 will add user notification event publishing here
+        // Phase 4.2: Publish user notification event for UI display
     }
 
     private SttEngine selectEngine() {

@@ -28,7 +28,7 @@ class StrategyChainTypingServiceTest {
             @Override public boolean type(String text) { return true; }
             @Override public String name() { return "notify"; }
         };
-        StrategyChainTypingService svc = new StrategyChainTypingService(List.of(failingRobot, okClipboard, notify), props);
+        StrategyChainTypingService svc = new StrategyChainTypingService(List.of(failingRobot, okClipboard, notify), props, e -> {});
         boolean ok = svc.paste("hello");
         assertThat(ok).isTrue();
         assertThat(clipboardCalled[0]).isTrue();
