@@ -1,6 +1,6 @@
 # speakToMack Implementation Plan
 
-**Status:** Phases 0–2 implemented; Phases 3–6 planned
+**Status:** Phases 0–2 implemented; Phase 3 in progress (Tasks 3.1–3.3 complete); Phases 4–6 planned
 **Timeline:** 6 days (~47.25 hours)
 **Grade:** 98/100 → 99.5/100 (Production-Ready with Streamlined Phase 2 and Enhanced Phase 3)
 
@@ -1339,3 +1339,62 @@ The following clarifications refine Phase 2 and must be treated as part of the p
 - Task 2.7b: Auto-restart with retry limits; production health indicators deferred to Phase 6
 
 These clarifications keep Phase 2 focused on MVP functionality while deferring production features (HealthIndicator, Micrometer, concurrency caps) to Phase 6.
+
+
+---
+
+## Phase 3 Status Update and Reordering (Authoritative Addendum)
+
+This addendum reflects the current repository state and clarifies execution order for the remainder of Phase 3 based on work completed during this session.
+
+Status summary (as of 2025-10-19):
+- 3.1 Audio Capture Service — Completed (✓)
+- 3.2 Hotkey Detection — Completed (✓)
+- 3.3 Hotkey Configuration Loading — Completed (✓)
+- 3.5 STT Orchestration Layer — Next (moved ahead of 3.4)
+- 3.4 Fallback Manager — After 3.5
+- 3.6 Error Handling & Event Listeners — Finalize after 3.4
+
+Rationale for reordering:
+- Building 3.5 first yields a full “press → capture → transcribe → result” flow sooner, providing earlier feedback and reducing rework for 3.4.
+
+### 3.5 STT Orchestration Layer — Do this next
+- Deliverables:
+  - DualEngineOrchestrator (service) subscribing to HotkeyPressedEvent/HotkeyReleasedEvent.
+  - On press → AudioCaptureService.startSession(); on release → stop → readAll (validated PCM) → route to engine(s).
+  - Health-aware routing using SttEngineWatchdog and property `stt.orchestration.primary-engine` (default: `vosk`).
+  - Publish TranscriptionCompletedEvent with TranscriptionResult for downstream consumers.
+- Routing rules:
+  - If primary engine HEALTHY → use it; if DEGRADED/DISABLED → fallback to the other engine.
+  - If both DISABLED → throw TranscriptionException("Both engines unavailable").
+  - Parallel/both-engines mode and reconciliation are Phase 4 concerns (not in 3.5 scope).
+- Tests (hermetic):
+  - shouldUsePrimaryWhenHealthy
+  - shouldFallbackWhenPrimaryDisabled
+  - shouldThrowWhenBothDisabled
+  - shouldPublishTranscriptionCompletedEvent
+
+### 3.4 Fallback Manager — After 3.5
+- Deliverables:
+  - TypingService interface and FallbackManager listening to TranscriptionCompletedEvent.
+  - Strategy chain: RobotTypingAdapter → ClipboardTypingAdapter → NotifyOnlyAdapter.
+  - Chunked paste (500–1000 chars) with short delays; PII-safe logging (length only at INFO; full text only at DEBUG under a dev flag).
+- Tests (hermetic):
+  - Strategy selection and fall-through behavior without OS permissions.
+  - Chunking splits long text; last chunk shorter is OK.
+
+### 3.6 Error Handling & Event Listeners — Finalize
+- Deliverables:
+  - Event listeners wiring for existing events: CaptureErrorEvent, HotkeyConflictEvent, HotkeyPermissionDeniedEvent.
+  - Orchestrator consumes CaptureErrorEvent to stop/retry as appropriate (no UI yet).
+- Tests (hermetic):
+  - Publish each error event and assert listener behavior (logging/flags) without OS dependencies.
+
+Acceptance criteria snapshot (Phase 3 remainder):
+- 3.5: Orchestrator starts/stops capture on hotkeys, routes per watchdog/primary property, publishes TranscriptionCompletedEvent. Hermetic tests pass.
+- 3.4: Fallback strategy chain implemented with chunked paste and PII-safe logs. Hermetic tests pass.
+- 3.6: Error listeners present and validated via tests.
+
+Notes:
+- Existing components leveraged: AudioCaptureService, HotkeyManager (+ triggers), VoskSttEngine, WhisperSttEngine, SttEngineWatchdog.
+- Keep CI hermetic: no global hooks or OS typing in CI; use stubs. Tag any real-device/binary tests and exclude by default.
