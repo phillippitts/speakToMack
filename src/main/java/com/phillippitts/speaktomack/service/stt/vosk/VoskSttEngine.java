@@ -269,10 +269,12 @@ public class VoskSttEngine implements SttEngine {
      * <p>Protects against unbounded output from malicious/custom Vosk builds by
      * capping JSON response size at {@link #MAX_JSON_SIZE}.
      *
+     * <p>Package-private for testing purposes.
+     *
      * @param json JSON string from Vosk recognizer
      * @return VoskTranscription containing text and confidence
      */
-    private static VoskTranscription parseVoskJson(String json) {
+    static VoskTranscription parseVoskJson(String json) {
         if (json == null || json.isBlank()) {
             return new VoskTranscription("", 1.0);
         }
@@ -338,94 +340,11 @@ public class VoskSttEngine implements SttEngine {
     /**
      * Internal record to hold parsed Vosk transcription data.
      *
+     * <p>Package-private for testing purposes.
+     *
      * @param text transcribed text (may be empty)
      * @param confidence confidence score (0.0-1.0)
      */
-    private record VoskTranscription(String text, double confidence) {
-    }
-
-    /**
-     * Extracts the transcribed text from Vosk's JSON response.
-     *
-     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
-     *             This method is kept for backward compatibility with existing tests.
-     *             Will be removed in version 2.0.
-     *
-     * <p><strong>Migration Guide:</strong>
-     * <pre>{@code
-     * // Old approach (parses JSON twice):
-     * String text = extractTextFromVoskJson(json);
-     * double confidence = extractConfidenceFromVoskJson(json);
-     *
-     * // New approach (parses JSON once):
-     * VoskTranscription result = parseVoskJson(json);
-     * String text = result.text();
-     * double confidence = result.confidence();
-     * }</pre>
-     *
-     * <p>Example Vosk JSON: {@code {"text": "hello world"}}
-     *
-     * @param json JSON string from Vosk recognizer
-     * @return extracted text, or empty string if parsing fails
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    static String extractTextFromVoskJson(String json) {
-        if (json == null || json.isBlank()) {
-            return "";
-        }
-        json = truncateJsonIfNeeded(json);
-        try {
-            JSONObject obj = new JSONObject(json);
-            return obj.optString("text", "").trim();
-        } catch (Exception e) {
-            LOG.warn("Failed to parse Vosk JSON response: {}", json, e);
-            return "";
-        }
-    }
-
-    /**
-     * Extracts average confidence from Vosk's JSON response.
-     *
-     * @deprecated Use {@link #parseVoskJson(String)} instead for better performance.
-     *             This method is kept for backward compatibility with existing tests.
-     *             Will be removed in version 2.0.
-     *
-     * <p><strong>Problem:</strong> Calling {@code extractTextFromVoskJson()} and
-     * {@code extractConfidenceFromVoskJson()} separately parses the JSON twice,
-     * which is inefficient for production code.
-     *
-     * <p><strong>Migration Guide:</strong>
-     * <pre>{@code
-     * // Old approach (inefficient - parses JSON twice):
-     * String text = extractTextFromVoskJson(json);
-     * double confidence = extractConfidenceFromVoskJson(json);
-     *
-     * // New approach (efficient - parses JSON once):
-     * VoskTranscription result = parseVoskJson(json);
-     * String text = result.text();
-     * double confidence = result.confidence();
-     * }</pre>
-     *
-     * <p>Vosk provides per-word confidence in the "result" array.
-     * Example: {@code {"result": [{"conf": 0.95, "word": "hello"}, {"conf": 0.87, "word": "world"}]}}
-     *
-     * <p>If no confidence data is available, returns 1.0 (assume perfect confidence).
-     *
-     * @param json JSON string from Vosk recognizer
-     * @return average confidence (0.0-1.0), or 1.0 if parsing fails
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    static double extractConfidenceFromVoskJson(String json) {
-        if (json == null || json.isBlank()) {
-            return 1.0;
-        }
-        json = truncateJsonIfNeeded(json);
-        try {
-            JSONObject obj = new JSONObject(json);
-            return extractConfidenceFromJson(obj);
-        } catch (Exception e) {
-            LOG.warn("Failed to parse confidence from Vosk JSON: {}", json, e);
-            return 1.0; // Default to perfect confidence on parse error
-        }
+    record VoskTranscription(String text, double confidence) {
     }
 }
