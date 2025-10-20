@@ -93,13 +93,24 @@ Planned (later phases):
 - **Audio Buffer** - Thread-safe storage for captured microphone audio
 - **Model Validation** - Startup check ensuring STT models are present and loadable
 
-## Prerequisites
+## Getting Started
 
-- macOS 12+ (Monterey or later)
-- Java 21
-- Microphone access permission
-- Accessibility permission (for keystroke injection)
-- ~200 MB disk space for STT models
+**Choose your path:**
+
+- **📦 End Users** (Want to install and use the app): See [INSTALL.md](INSTALL.md)
+  - Pre-built JAR installation
+  - Run as background service (auto-start on login)
+  - Troubleshooting common issues
+
+- **⚙️ Operators** (Deploying to production): See [DEPLOYMENT.md](DEPLOYMENT.md)
+  - systemd/LaunchDaemon service configuration
+  - Production environment setup
+  - Monitoring, logging, and security
+  - Performance tuning and backup strategies
+
+- **👨‍💻 Developers** (Contributing code): Continue reading below
+
+---
 
 ## Quick Start (New Developers)
 
@@ -462,6 +473,13 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 
 ## Documentation
 
+### Getting Started Guides
+- **[INSTALL.md](INSTALL.md)** - End user installation guide (JAR, background service, troubleshooting)
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide (systemd, monitoring, security)
+- [User Guide](docs/user-guide.md) - Using the app (hotkey config, dictation, reconciliation)
+- [Operator Guide](docs/operator-guide.md) - Running and maintaining the service
+- [Developer Guide](docs/developer-guide.md) - Contributing to the codebase
+
 ### Implementation & Planning
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - 40-task roadmap (28 MVP + 12 production)
 - [Session Context](docs/SESSION_CONTEXT.md) - Comprehensive planning session summary
@@ -469,15 +487,21 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 
 ### Architecture Decisions
 - [ADR-001: Dual-Engine STT Strategy](docs/adr/001-dual-engine-stt-strategy.md)
-- [ADR-002: PostgreSQL MVP Database](docs/adr/002-postgresql-mvp-database.md)
+- [ADR-002: PostgreSQL MVP Database](docs/adr/002-postgresql-mvp-database.md) (Rejected)
 - [ADR-003: Manual Model Setup](docs/adr/003-manual-model-setup.md)
 - [ADR-004: Properties-Based Hotkey Config](docs/adr/004-properties-hotkey-config.md)
 - [ADR-005: Log4j 2 Logging](docs/adr/005-log4j2-logging.md)
-- [ADR-006: 3-Tier Architecture](docs/adr/006-three-tier-architecture.md)
+- [ADR-006: Event-Driven Architecture](docs/adr/006-event-driven-architecture.md)
 
-### Diagrams
+### Diagrams & Runbooks
 - [Architecture Overview](docs/diagrams/architecture-overview.md)
 - [Data Flow Diagram](docs/diagrams/data-flow-diagram.md)
+- [Reconciliation Guide](docs/reconciliation.md)
+- [Configuration Reference](docs/configuration-reference.md)
+- [FAQ](docs/FAQ.md)
+- Runbooks:
+  - [Engine Failures](docs/runbooks/engine-failures.md)
+  - [Permissions & Hotkeys](docs/runbooks/permissions-and-hotkeys.md)
 
 ## Development
 
@@ -560,24 +584,3 @@ See [Guidelines](.junie/guidelines.md) for comprehensive development standards.
 ---
 
 **Grade: 99.5/100** - Production-ready planning with Phase 2 optimization, MVP implementation in progress.
-
-
----
-
-## Documentation
-- User Guide: docs/user-guide.md
-- Operator Guide: docs/operator-guide.md
-- Developer Guide: docs/developer-guide.md
-- Reconciliation Guide: docs/reconciliation.md
-- Changelog: CHANGELOG.md
-- Runbooks:
-  - Engine Failures: docs/runbooks/engine-failures.md
-  - Permissions & Hotkeys: docs/runbooks/permissions-and-hotkeys.md
-
-## Operational notices & error events
-Certain issues are surfaced as throttled WARN logs and corresponding events (privacy‑safe):
-- HotkeyPermissionDeniedEvent: Accessibility permission not granted
-- HotkeyConflictEvent: Configured hotkey conflicts with OS‑reserved shortcuts (e.g., META+TAB)
-- CaptureErrorEvent: Microphone permission/device issues
-
-See the Runbooks above for steps to resolve.
