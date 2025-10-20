@@ -1,294 +1,269 @@
 # Continuous Integration (CI)
 
-This project uses GitHub Actions for automated testing and quality checks.
+This project uses GitHub Actions for automated testing.
 
-## CI Pipeline Overview
+## CI Pipeline
 
-The CI pipeline runs on every push to `main` and on all pull requests. It consists of 5 parallel jobs:
+The CI pipeline runs on every push to `main` and on all pull requests.
 
-### 1. Unit Tests (Fast Feedback)
-**Platforms**: Ubuntu, macOS 14, macOS 13
-**Duration**: ~2-3 minutes
-**What it does**:
-- Runs all unit tests (280+ tests)
-- Excludes integration tests that require models
-- Validates code compiles on all platforms
-- Uploads JAR artifact from Ubuntu build
+### What It Does
 
-**Why multiple platforms?**
-- macOS: Target platform for end users
-- Ubuntu: Faster for CI, used for integration tests
-- Cross-platform verification ensures portability
+**Single Job: Build & Test**
+- Runs on: Ubuntu (latest) and macOS 14
+- Duration: ~3-4 minutes
+- Executes: `./gradlew clean build -x integrationTest`
 
-### 2. Integration Tests (Full Validation)
-**Platform**: Ubuntu only (for speed)
-**Duration**: ~8-10 minutes (first run), ~3-5 minutes (cached)
-**What it does**:
-- Downloads STT models (~200 MB, cached)
-- Builds whisper.cpp binary (cached)
-- Runs integration tests with real models
-- Validates end-to-end transcription flow
+**What's tested:**
+- ✅ Code compiles on Linux and macOS
+- ✅ All 280+ unit tests pass
+- ✅ Checkstyle validates code style
+- ✅ JAR builds successfully (55 MB)
 
-**Caching strategy**:
-- Models cached by `setup-models.sh` hash
-- Whisper.cpp binary cached by `build-whisper.sh` hash
-- Subsequent runs are much faster
+**What's NOT tested in CI:**
+- ❌ Integration tests (require STT models - 200 MB download)
+- ❌ Vosk model loading
+- ❌ Whisper.cpp binary execution
 
-### 3. Verify Whisper Build (macOS)
-**Platform**: macOS 14
-**Duration**: ~5-7 minutes (first run), ~1 minute (cached)
-**What it does**:
-- Verifies whisper.cpp builds on macOS
-- Checks binary is executable and has correct architecture
-- Validates macOS-specific build steps
+## Why Integration Tests Are Skipped
 
-### 4. Code Quality (Checkstyle)
-**Platform**: Ubuntu
-**Duration**: ~1-2 minutes
-**What it does**:
-- Runs checkstyle on all Java code
-- Enforces code style standards
-- Fails on any violations (maxWarnings=0)
+Integration tests require:
+1. **STT Models** (~200 MB download)
+   - Vosk model: 40 MB
+   - Whisper model: 147 MB
+2. **Whisper.cpp binary** (must be built from source)
+3. **Audio hardware** (some tests use real microphone)
 
-### 5. CI Success (Summary)
-**Platform**: Ubuntu
-**Duration**: <10 seconds
-**What it does**:
-- Aggregates results from all jobs
-- Single status check for branch protection
-- Fails if any upstream job fails
+Running these in CI would:
+- Take 8-10 minutes (vs 3-4 minutes now)
+- Download 200 MB on every run (costs, slow)
+- Be flaky (hardware dependencies)
 
----
-
-## Why CI Jobs Might Fail
-
-### Common Failures and Solutions
-
-#### 1. Unit Tests Fail
-**Symptom**: `unit-test` job fails with test failures
-**Common causes**:
-- Test assertions broken by code changes
-- Platform-specific issues (macOS vs Linux)
-- JNativeHook exceptions (usually harmless, check if tests actually passed)
-
-**How to debug**:
+**Solution**: Integration tests run locally before merging:
 ```bash
-# Download test reports artifact from failed CI run
-# Or run locally on same platform:
-./gradlew clean test
-```
-
-#### 2. Integration Tests Fail
-**Symptom**: `integration-test` job fails
-**Common causes**:
-- Models not downloaded correctly
-- Whisper binary not built
-- Absolute path configuration issues
-- Integration tests not properly tagged
-
-**How to debug**:
-```bash
-# Run integration tests locally
-./gradlew integrationTest
-
-# Check model paths
-ls -la models/
-ls -la tools/whisper.cpp/main
-```
-
-#### 3. Whisper Build Fails (macOS)
-**Symptom**: `verify-whisper-macos` job fails
-**Common causes**:
-- Build script changes broke macOS build
-- whisper.cpp repository changed
-- Xcode Command Line Tools missing
-
-**How to debug**:
-```bash
-# Test locally on macOS
+./setup-models.sh
 ./build-whisper.sh
-
-# Check for binary
-find tools/whisper.cpp -name "main" -o -name "whisper"
+./gradlew integrationTest
 ```
 
-#### 4. Checkstyle Fails
-**Symptom**: `code-quality` job fails
-**Common causes**:
-- Code style violations
-- Missing Javadoc
-- Line length exceeded
-- Unused imports
+## Current CI Configuration
 
-**How to debug**:
+**File**: `.github/workflows/ci.yml`
+
+```yaml
+jobs:
+  test:
+    runs-on: [ubuntu-latest, macos-14]
+    steps:
+      - Checkout code
+      - Setup Java 21
+      - Setup Gradle (with caching)
+      - Validate Gradle wrapper
+      - Build: ./gradlew clean build -x integrationTest
+      - Upload JAR (Ubuntu only)
+      - Upload test reports (on failure)
+```
+
+**Key flags**:
+- `-x integrationTest` - Skip integration tests
+- This still runs 280+ unit tests
+- This still runs checkstyle
+
+## Running CI Locally
+
+Exactly replicate what CI does:
+
 ```bash
-# Run checkstyle locally
+./gradlew clean build -x integrationTest
+```
+
+Expected output:
+```
+> Task :test
+> Task :integrationTest SKIPPED
+> Task :build
+
+BUILD SUCCESSFUL in 38s
+```
+
+## Common CI Failures
+
+### 1. Checkstyle Violations
+
+**Error**: `Checkstyle rule violations were found`
+
+**Fix**:
+```bash
+# See violations
 ./gradlew checkstyleMain checkstyleTest
 
 # View report
 open build/reports/checkstyle/main.html
 ```
 
----
+### 2. Unit Test Failures
 
-## CI Configuration Details
+**Error**: `280 tests completed, 1 failed`
 
-### File Location
-`.github/workflows/ci.yml`
-
-### Key Features
-
-**Gradle caching**: Uses `gradle/actions/setup-gradle@v3` for automatic caching of:
-- Gradle dependencies
-- Build cache
-- Wrapper distributions
-
-**Model caching**: STT models (~200 MB) are cached to avoid re-downloading:
-```yaml
-- uses: actions/cache@v4
-  with:
-    path: models/
-    key: stt-models-${{ hashFiles('setup-models.sh') }}
-```
-
-**Whisper.cpp caching**: Binary cached per platform:
-```yaml
-- uses: actions/cache@v4
-  with:
-    path: tools/whisper.cpp/
-    key: whisper-cpp-${{ runner.os }}-${{ hashFiles('build-whisper.sh') }}
-```
-
-**Artifact retention**:
-- Test reports: 7 days (failures only)
-- JAR artifacts: 30 days (Ubuntu builds)
-
----
-
-## Running CI Locally
-
-### Full CI simulation (all platforms)
-Not possible locally, but you can test each job:
-
-**Unit tests (all platforms)**:
+**Fix**:
 ```bash
-# macOS
+# Run specific test
+./gradlew test --tests FailingTestClass
+
+# View report
+open build/reports/tests/test/index.html
+```
+
+### 3. Compilation Errors
+
+**Error**: `Compilation failed; see the compiler error output for details`
+
+**Fix**: This means your code doesn't compile. Check the error messages.
+
+### 4. JNativeHook Exception
+
+**Not a failure**: The `RejectedExecutionException` at end of build is **harmless**.
+
+It's from the global hotkey library shutting down during test cleanup. If tests pass, ignore it.
+
+## Artifacts
+
+### Build Artifacts (Ubuntu only)
+- **File**: `build-artifacts/speakToMack-0.0.1-SNAPSHOT.jar`
+- **Size**: ~55 MB
+- **Retention**: 30 days
+- **How to download**: Actions tab → Workflow run → Artifacts section
+
+### Test Reports (On failure only)
+- **Files**: HTML reports and XML results
+- **Retention**: 7 days
+- **Contents**:
+  - `build/reports/tests/test/` - HTML test report
+  - `build/test-results/test/` - XML test results
+  - `build/reports/checkstyle/` - Checkstyle reports
+
+## Performance
+
+### Typical Run Times
+
+| Platform | Duration | Notes |
+|----------|----------|-------|
+| Ubuntu | 3-4 min | Faster platform |
+| macOS-14 | 4-5 min | ARM64 architecture |
+
+Both run in parallel, so total wall time is ~4-5 minutes.
+
+### What Takes Time
+
+1. **Download dependencies** (first run): ~30s
+2. **Compile Java**: ~10s
+3. **Run 280+ tests**: ~2-3 min
+4. **Checkstyle**: ~5s
+5. **Build JAR**: ~5s
+
+Gradle caching makes subsequent runs faster.
+
+## Gradle Caching
+
+CI uses `gradle/actions/setup-gradle@v3` which automatically caches:
+- Downloaded dependencies
+- Gradle wrapper
+- Build cache
+
+This makes subsequent runs **much faster** (no re-downloading dependencies).
+
+## Before You Push
+
+**Pre-flight checklist**:
+
+```bash
+# 1. Does it build?
 ./gradlew clean build -x integrationTest
 
-# Linux (use Docker)
-docker run --rm -v $(pwd):/workspace -w /workspace gradle:8-jdk21 \
-  ./gradlew clean build -x integrationTest
-```
-
-**Integration tests**:
-```bash
-# Download models
-./setup-models.sh
-
-# Build whisper.cpp
-./build-whisper.sh
-
-# Run integration tests
+# 2. Do integration tests pass? (recommended)
 ./gradlew integrationTest
-```
 
-**Checkstyle**:
-```bash
+# 3. Any style violations?
 ./gradlew checkstyleMain checkstyleTest
 ```
 
-### Testing CI changes
+If all three pass, CI will pass.
 
-**Before pushing**:
-1. Test locally: `./gradlew clean build integrationTest`
-2. Verify checkstyle: `./gradlew checkstyleMain checkstyleTest`
-3. Check whisper builds: `./build-whisper.sh`
+## Branch Protection
 
-**After pushing**:
-1. Watch CI runs in GitHub Actions tab
-2. Download artifacts if jobs fail
-3. Check logs for specific errors
+Recommended GitHub settings for `main` branch:
 
----
+**Status checks**:
+- ✅ Require status checks before merging
+- ✅ Require "Build & Test (ubuntu-latest)" to pass
+- ✅ Require "Build & Test (macos-14)" to pass
+- ✅ Require branches to be up to date
 
-## CI Performance
-
-### Typical run times (with cache)
-
-| Job | Duration | Notes |
-|-----|----------|-------|
-| unit-test (Ubuntu) | 2-3 min | Fastest platform |
-| unit-test (macOS-14) | 3-4 min | ARM64 architecture |
-| unit-test (macOS-13) | 3-4 min | Intel architecture |
-| integration-test | 3-5 min | With cached models |
-| verify-whisper-macos | 1-2 min | With cached binary |
-| code-quality | 1-2 min | Fast checkstyle |
-| **Total (parallel)** | **4-5 min** | All jobs run concurrently |
-
-### First run (no cache)
-
-| Job | Duration | Notes |
-|-----|----------|-------|
-| integration-test | 8-10 min | Downloads 200 MB models |
-| verify-whisper-macos | 5-7 min | Builds whisper.cpp |
-
----
-
-## Branch Protection Rules
-
-Recommended settings for `main` branch:
-
-**Required status checks**:
-- `CI Success` (summary job that depends on all others)
-
-**Settings**:
-- ✅ Require status checks to pass before merging
-- ✅ Require branches to be up to date before merging
-- ✅ Do not allow bypassing the above settings
-
----
-
-## Troubleshooting
-
-### Cache issues
-
-**Symptom**: CI is slow despite caching
-**Solution**: Clear cache manually
-
-Go to: Repository → Actions → Caches → Delete old caches
-
-### Out of disk space
-
-**Symptom**: Job fails with "No space left on device"
-**Solution**: Models + whisper.cpp + Gradle cache can exceed GitHub Actions limits
-
-Add cleanup step before job:
-```yaml
-- name: Free disk space
-  run: |
-    sudo rm -rf /usr/share/dotnet
-    sudo rm -rf /opt/ghc
-```
-
-### macOS runner issues
-
-**Symptom**: macOS jobs timeout or fail inconsistently
-**Solution**: macOS runners are slower and sometimes unreliable
-
-Options:
-1. Use `macos-latest` instead of specific versions
-2. Increase timeout: `timeout-minutes: 30`
-3. Skip macOS if not critical: Use matrix conditionals
-
----
+**Additional**:
+- ✅ Require pull request reviews (at least 1)
+- ✅ Dismiss stale reviews on new commits
 
 ## Future Improvements
 
-**Planned enhancements**:
-1. ✅ Add code coverage reporting (JaCoCo)
-2. ✅ Run security scans (OWASP dependency-check)
-3. ✅ Add performance benchmarks (JMH)
-4. ✅ Create release workflow (auto-publish JARs)
-5. ✅ Add Docker image builds
+**Possible enhancements** (not implemented):
 
-See: [DEPLOYMENT.md](../DEPLOYMENT.md) for production CI/CD strategy.
+1. **Add integration test job** (separate, optional)
+   - Cache models between runs
+   - Only run on main branch
+   - Make it non-blocking
+
+2. **Code coverage reporting**
+   - Add JaCoCo plugin
+   - Upload to Codecov
+   - Require minimum coverage
+
+3. **Security scanning**
+   - OWASP dependency-check
+   - Trivy container scanning
+   - Snyk vulnerability scanning
+
+4. **Performance benchmarks**
+   - JMH benchmarks
+   - Track latency trends
+   - Alert on regressions
+
+**Why not now?**
+- Keep CI fast and simple
+- Focus on reliability over features
+- Add complexity only when needed
+
+## Troubleshooting
+
+### "Action failed" but no error shown
+
+**Check**:
+1. Go to Actions tab
+2. Click the failed workflow run
+3. Click the failed job (Ubuntu or macOS)
+4. Expand the "Build with Gradle" step
+5. Scroll to see the actual error
+
+### Gradle daemon warnings
+
+**Warning**: `Deprecated Gradle features were used in this build`
+
+**Impact**: None. This is informational, not an error.
+
+**Fix** (optional):
+```bash
+./gradlew build --warning-mode all
+```
+
+### Out of disk space (rare)
+
+**Error**: `No space left on device`
+
+**Why**: GitHub Actions runners have limited space (~14 GB)
+
+**Fix**: Not needed currently (our build is small)
+
+## Getting Help
+
+- **CI issues**: Check [GitHub Actions docs](https://docs.github.com/en/actions)
+- **Build issues**: See [DEPLOYMENT.md](../DEPLOYMENT.md)
+- **Test failures**: See test output in artifacts
+- **Questions**: Open an issue with CI logs attached
