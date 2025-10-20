@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.stt.whisper;
 
+import com.phillippitts.speaktomack.service.stt.TokenizerUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -15,7 +16,9 @@ final class WhisperJsonParser {
     private WhisperJsonParser() {}
 
     static String extractText(String json) {
-        if (json == null || json.isBlank()) return "";
+        if (json == null || json.isBlank()) {
+            return "";
+        }
         try {
             JSONObject obj = new JSONObject(json);
             // Prefer top-level text if present
@@ -36,7 +39,9 @@ final class WhisperJsonParser {
                         if (seg != null) {
                             String t = seg.optString("text", "");
                             if (!t.isBlank()) {
-                                if (sb.length() > 0) sb.append(' ');
+                                if (sb.length() > 0) {
+                                    sb.append(' ');
+                                }
                                 sb.append(t.trim());
                             }
                         }
@@ -52,7 +57,9 @@ final class WhisperJsonParser {
 
     static List<String> extractTokens(String json) {
         List<String> tokens = new ArrayList<>();
-        if (json == null || json.isBlank()) return List.of();
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
         try {
             JSONObject obj = new JSONObject(json);
             // If words available, prefer them
@@ -61,31 +68,32 @@ final class WhisperJsonParser {
                 if (segs != null) {
                     for (int i = 0; i < segs.length(); i++) {
                         JSONObject seg = segs.optJSONObject(i);
-                        if (seg == null) continue;
+                        if (seg == null) {
+                            continue;
+                        }
                         JSONArray words = seg.optJSONArray("words");
                         if (words != null) {
                             for (int w = 0; w < words.length(); w++) {
                                 JSONObject word = words.optJSONObject(w);
-                                if (word == null) continue;
-                                String t = word.optString("word", "").toLowerCase();
+                                if (word == null) {
+                                    continue;
+                                }
+                                String t = word.optString("word", "");
                                 if (!t.isBlank()) {
                                     // Normalize to alpha tokens only for overlap consistency
-                                    String[] parts = t.split("[^\\p{Alpha}]+");
-                                    for (String p : parts) if (!p.isBlank()) tokens.add(p);
+                                    tokens.addAll(TokenizerUtil.tokenize(t));
                                 }
                             }
                         }
                     }
                 }
             }
-            if (!tokens.isEmpty()) return List.copyOf(tokens);
+            if (!tokens.isEmpty()) {
+                return List.copyOf(tokens);
+            }
             // Fallback to tokenizing text if no words available
             String text = extractText(json);
-            if (!text.isBlank()) {
-                String[] parts = text.toLowerCase().split("[^\\p{Alpha}]+");
-                for (String p : parts) if (!p.isBlank()) tokens.add(p);
-            }
-            return List.copyOf(tokens);
+            return TokenizerUtil.tokenize(text);
         } catch (Exception e) {
             return List.of();
         }

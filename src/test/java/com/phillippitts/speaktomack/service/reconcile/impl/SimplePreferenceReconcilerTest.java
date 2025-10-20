@@ -1,7 +1,6 @@
 package com.phillippitts.speaktomack.service.reconcile.impl;
 
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 import org.junit.jupiter.api.Test;
 

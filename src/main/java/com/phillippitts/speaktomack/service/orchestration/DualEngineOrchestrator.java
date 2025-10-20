@@ -119,7 +119,8 @@ public final class DualEngineOrchestrator {
                 TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
                 long ms = (System.nanoTime() - t0) / 1_000_000L;
                 String strategy = String.valueOf(recProps.getStrategy());
-                LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", ms, strategy, result.text().length());
+                LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})",
+                        ms, strategy, result.text().length());
                 publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), "reconciled"));
             } catch (TranscriptionException te) {
                 LOG.warn("Reconciled transcription failed: {}", te.getMessage());
@@ -154,10 +155,10 @@ public final class DualEngineOrchestrator {
         } finally {
             pcm = null; // Help GC reclaim potentially large buffer (up to ~2MB for 60s audio)
         }
-    }
-
-    /**
-     * Handles audio capture errors (e.g., microphone permission denied, device unavailable).
+        }
+        
+        /**
+         * Handles audio capture errors (e.g., microphone permission denied, device unavailable).
      *
      * <p>Cancels the active session if one exists. Phase 4.2 will add user notification.
      *

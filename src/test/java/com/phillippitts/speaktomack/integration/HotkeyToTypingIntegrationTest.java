@@ -8,7 +8,6 @@ import com.phillippitts.speaktomack.service.fallback.FallbackManager;
 import com.phillippitts.speaktomack.service.fallback.TypingService;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
-import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import org.junit.jupiter.api.Test;

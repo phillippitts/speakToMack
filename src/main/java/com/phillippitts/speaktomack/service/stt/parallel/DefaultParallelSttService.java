@@ -4,6 +4,7 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.TokenizerUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -90,7 +91,7 @@ public class DefaultParallelSttService implements ParallelSttService {
         try {
             TranscriptionResult tr = engine.transcribe(pcm);
             long ms = (System.nanoTime() - t0) / 1_000_000L;
-            List<String> tokens = tokenize(tr.text());
+            List<String> tokens = TokenizerUtil.tokenize(tr.text());
             String rawJson = null;
             // If this is the Whisper engine in JSON mode, prefer JSON-derived tokens/raw
             if (engine instanceof com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine w) {
@@ -108,20 +109,5 @@ public class DefaultParallelSttService implements ParallelSttService {
             LOG.error("{} unexpected error", engine.getEngineName(), re);
             return null;
         }
-    }
-
-    static List<String> tokenize(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of();
-        }
-        // simple alpha tokenization, lower-cased
-        String[] parts = text.toLowerCase().split("[^\\p{Alpha}]+");
-        List<String> out = new ArrayList<>();
-        for (String p : parts) {
-            if (!p.isBlank()) {
-                out.add(p);
-            }
-        }
-        return List.copyOf(out);
     }
 }

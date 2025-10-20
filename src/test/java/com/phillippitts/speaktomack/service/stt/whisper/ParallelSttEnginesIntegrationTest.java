@@ -4,8 +4,9 @@ import com.phillippitts.speaktomack.TestResourceLoader;
 import com.phillippitts.speaktomack.config.ThreadPoolConfig;
 import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
-import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.service.orchestration.ParallelTranscriptionService;
+import com.phillippitts.speaktomack.service.stt.EngineResult;
+import com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService;
+import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,8 +17,6 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.Executor;
 
 import static com.phillippitts.speaktomack.service.stt.whisper.WhisperTestDoubles.ProcessBehavior;
@@ -96,30 +95,30 @@ class ParallelSttEnginesIntegrationTest {
     @Test
     @EnabledIfSystemProperty(named = "vosk.model.available", matches = "true")
     void shouldRunVoskAndWhisperInParallel() throws IOException {
-        // Use a real 1s PCM silence test resource (validated by AudioValidator in service)
+        // Use a real 1s PCM silence test resource
         byte[] pcm = TestResourceLoader.loadPcm("/audio/silence-1s.pcm");
 
-        ParallelTranscriptionService.EngineConfig cfg =
-                new ParallelTranscriptionService.EngineConfig(vosk, whisper, sttExecutor);
-        var validator = new com.phillippitts.speaktomack.service.validation.AudioValidator(
-                new com.phillippitts.speaktomack.service.validation.AudioValidationProperties()
-        );
-        ParallelTranscriptionService svc = new ParallelTranscriptionService(validator, cfg);
+        // Use Phase 4 DefaultParallelSttService
+        ParallelSttService svc = new DefaultParallelSttService(vosk, whisper, sttExecutor, 10000);
 
         // Run 10 iterations to check for memory leaks (Task 2.6 requirement)
         long totalDurationMs = 0;
         for (int i = 0; i < MEMORY_LEAK_ITERATIONS; i++) {
             long t0 = System.nanoTime();
-            List<TranscriptionResult> results = svc.transcribeBoth(pcm, Duration.ofSeconds(10));
+            ParallelSttService.EnginePair pair = svc.transcribeBoth(pcm, 10000L);
             long durationMs = (System.nanoTime() - t0) / 1_000_000L;
             totalDurationMs += durationMs;
 
             // Verify results on each iteration
-            assertThat(results).hasSize(2);
-            assertThat(results.get(0).engineName()).isEqualTo("vosk");
-            assertThat(results.get(1).engineName()).isEqualTo("whisper");
-            assertThat(results.get(0).confidence()).isBetween(0.0, 1.0);
-            assertThat(results.get(1).confidence()).isBetween(0.0, 1.0);
+            EngineResult voskResult = pair.vosk();
+            EngineResult whisperResult = pair.whisper();
+
+            assertThat(voskResult).isNotNull();
+            assertThat(whisperResult).isNotNull();
+            assertThat(voskResult.engineName()).isEqualTo("vosk");
+            assertThat(whisperResult.engineName()).isEqualTo("whisper");
+            assertThat(voskResult.confidence()).isBetween(0.0, 1.0);
+            assertThat(whisperResult.confidence()).isBetween(0.0, 1.0);
 
             // Engines should remain healthy across all iterations
             assertThat(vosk.isHealthy()).isTrue();

@@ -56,7 +56,9 @@ public final class WhisperProcessManager implements AutoCloseable {
     ) {}
 
     @org.springframework.beans.factory.annotation.Autowired
-    public WhisperProcessManager(@org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}") String outputMode) {
+    public WhisperProcessManager(
+            @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
+            String outputMode) {
         this(new DefaultProcessFactory(), outputMode);
     }
 

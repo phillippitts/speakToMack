@@ -62,7 +62,8 @@ public final class WhisperSttEngine implements SttEngine {
                              com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
                              WhisperProcessManager manager,
                              ApplicationEventPublisher publisher,
-                             @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}") String outputMode) {
+                             @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
+                             String outputMode) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
