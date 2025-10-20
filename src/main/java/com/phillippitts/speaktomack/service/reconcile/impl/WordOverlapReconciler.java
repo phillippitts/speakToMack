@@ -9,12 +9,26 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Chooses the text whose tokens have higher Jaccard similarity to the union (simple heuristic).
- * If both empty, returns empty. If both have low overlap (< threshold), fall back to longer text.
+ * Reconciles two engine results using Jaccard word-overlap similarity.
+ *
+ * <p>Chooses the text whose tokens have higher Jaccard similarity to the union.
+ * If both results have low overlap (< threshold), falls back to selecting the longer text.
+ *
+ * <p>Jaccard similarity = |A ∩ B| / |A ∪ B|
+ *
+ * <p>This strategy is useful when both engines may produce slightly different but
+ * semantically similar transcriptions, and you want to prefer the one with better
+ * coverage of the shared vocabulary.
  */
 public final class WordOverlapReconciler implements TranscriptReconciler {
     private final double threshold;
 
+    /**
+     * Creates a word overlap reconciler with the given threshold.
+     *
+     * @param threshold minimum Jaccard similarity threshold (0.0 to 1.0)
+     * @throws IllegalArgumentException if threshold is not in [0,1]
+     */
     public WordOverlapReconciler(double threshold) {
         if (threshold < 0.0 || threshold > 1.0) {
             throw new IllegalArgumentException("threshold in [0,1]");
@@ -22,60 +36,91 @@ public final class WordOverlapReconciler implements TranscriptReconciler {
         this.threshold = threshold;
     }
 
+    /**
+     * Reconciles two engine results by comparing word overlap.
+     *
+     * @param vosk Vosk engine result (may be null if engine failed)
+     * @param whisper Whisper engine result (may be null if engine failed)
+     * @return reconciled transcription result with "reconciled" engine name
+     */
     @Override
     public TranscriptionResult reconcile(EngineResult vosk, EngineResult whisper) {
-        EngineResult a = vosk, b = whisper;
-        if (a == null && b == null) {
+        // Handle null cases early
+        if (vosk == null && whisper == null) {
             return TranscriptionResult.of("", 0.0, "reconciled");
         }
-        if (a == null) {
-            return TranscriptionResult.of(b.text(), b.confidence(), "reconciled");
+        if (vosk == null) {
+            return TranscriptionResult.of(whisper.text(), whisper.confidence(), "reconciled");
         }
-        if (b == null) {
-            return TranscriptionResult.of(a.text(), a.confidence(), "reconciled");
+        if (whisper == null) {
+            return TranscriptionResult.of(vosk.text(), vosk.confidence(), "reconciled");
         }
 
-        double simA = jaccard(a.tokens(), union(a.tokens(), b.tokens()));
-        double simB = jaccard(b.tokens(), union(a.tokens(), b.tokens()));
+        // Calculate Jaccard similarity for each result
+        Set<String> union = union(vosk.tokens(), whisper.tokens());
+        double voskSimilarity = jaccard(vosk.tokens(), union);
+        double whisperSimilarity = jaccard(whisper.tokens(), union);
 
+        // Pick result with higher similarity, or fall back to longer text if both are below threshold
         EngineResult pick;
-        if (Math.max(simA, simB) < threshold) {
-            // pick the longer non-empty text as a fallback
-            pick = (len(a.text()) >= len(b.text())) ? a : b;
+        if (Math.max(voskSimilarity, whisperSimilarity) < threshold) {
+            // Both have low overlap: pick the longer non-empty text as a fallback
+            pick = (len(vosk.text()) >= len(whisper.text())) ? vosk : whisper;
         } else {
-            pick = simA >= simB ? a : b;
+            pick = voskSimilarity >= whisperSimilarity ? vosk : whisper;
         }
-        double conf = pick.confidence();
-        return TranscriptionResult.of(pick.text(), conf, "reconciled");
+
+        return TranscriptionResult.of(pick.text(), pick.confidence(), "reconciled");
     }
 
+    /**
+     * Returns the length of a string, or 0 if null.
+     *
+     * @param s string to measure
+     * @return length of string, or 0 if null
+     */
     private static int len(String s) {
         return s == null ? 0 : s.length();
     }
 
-    private static Set<String> union(List<String> t1, List<String> t2) {
-        Set<String> u = new HashSet<>();
-        if (t1 != null) {
-            u.addAll(t1);
+    /**
+     * Creates the union of two token lists as a set.
+     *
+     * @param tokens1 first token list
+     * @param tokens2 second token list
+     * @return set containing all unique tokens from both lists
+     */
+    private static Set<String> union(List<String> tokens1, List<String> tokens2) {
+        Set<String> result = new HashSet<>();
+        if (tokens1 != null) {
+            result.addAll(tokens1);
         }
-        if (t2 != null) {
-            u.addAll(t2);
+        if (tokens2 != null) {
+            result.addAll(tokens2);
         }
-        return u;
+        return result;
     }
 
-    private static double jaccard(List<String> a, Set<String> union) {
+    /**
+     * Calculates Jaccard similarity between token list and union set.
+     *
+     * <p>Optimized using set intersection for O(n) performance.
+     *
+     * @param tokens token list to measure
+     * @param union union of all tokens
+     * @return Jaccard similarity (0.0 to 1.0)
+     */
+    private static double jaccard(List<String> tokens, Set<String> union) {
         if (union.isEmpty()) {
             return 0.0;
         }
-        int inter = 0;
-        if (a != null) {
-            for (String s : a) {
-                if (union.contains(s)) {
-                    inter++;
-                }
-            }
+        if (tokens == null || tokens.isEmpty()) {
+            return 0.0;
         }
-        return inter / (double) union.size();
+
+        // Use set intersection for efficient calculation
+        Set<String> tokenSet = new HashSet<>(tokens);
+        tokenSet.retainAll(union); // Set intersection: O(n)
+        return tokenSet.size() / (double) union.size();
     }
 }

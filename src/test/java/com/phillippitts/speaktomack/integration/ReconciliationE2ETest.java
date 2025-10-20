@@ -3,9 +3,6 @@ package com.phillippitts.speaktomack.integration;
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.config.stt.SttWatchdogProperties;
-import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.exception.TranscriptionException;
-import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
@@ -18,15 +15,15 @@ import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
+import com.phillippitts.speaktomack.testutil.EventCapturingPublisher;
+import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
+import com.phillippitts.speaktomack.testutil.FakeSttEngine;
+import com.phillippitts.speaktomack.testutil.SyncExecutor;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,111 +34,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * → ParallelSTT → Reconciliation → TranscriptionCompletedEvent
  *
  * <p>Validates each reconciliation strategy and memory leak prevention.
+ *
+ * <p>Uses test doubles from {@link com.phillippitts.speaktomack.testutil} package.
  */
 class ReconciliationE2ETest {
-
-    /** Event capturing publisher for test verification */
-    static class EventCapturingPublisher implements ApplicationEventPublisher {
-        final List<Object> events = new CopyOnWriteArrayList<>();
-
-        @Override
-        public void publishEvent(ApplicationEvent event) {
-            events.add(event);
-        }
-
-        @Override
-        public void publishEvent(Object event) {
-            events.add(event);
-        }
-
-        TranscriptionCompletedEvent findTranscriptionEvent() {
-            return events.stream()
-                    .filter(e -> e instanceof TranscriptionCompletedEvent)
-                    .map(e -> (TranscriptionCompletedEvent) e)
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        void clear() {
-            events.clear();
-        }
-    }
-
-    /** Fake audio capture service returning canned PCM data */
-    static class FakeAudioCaptureService implements AudioCaptureService {
-        UUID sessionId;
-        boolean sessionStopped;
-
-        @Override
-        public UUID startSession() {
-            sessionId = UUID.randomUUID();
-            sessionStopped = false;
-            return sessionId;
-        }
-
-        @Override
-        public void stopSession(UUID id) {
-            if (id.equals(sessionId)) {
-                sessionStopped = true;
-            }
-        }
-
-        @Override
-        public byte[] readAll(UUID id) {
-            if (id.equals(sessionId) && sessionStopped) {
-                // Return fake PCM data (16-bit, 16kHz, mono, 1 second = 32000 bytes)
-                return new byte[32000];
-            }
-            throw new IllegalStateException("Session not stopped or ID mismatch");
-        }
-
-        @Override
-        public void cancelSession(UUID id) {
-            sessionId = null;
-        }
-    }
-
-    /** Fake STT engine with configurable transcription output */
-    static class FakeSttEngine implements SttEngine {
-        private final String engineName;
-        private final String cannedText;
-        private final double cannedConfidence;
-        boolean healthy = true;
-
-        FakeSttEngine(String name, String text, double confidence) {
-            this.engineName = name;
-            this.cannedText = text;
-            this.cannedConfidence = confidence;
-        }
-
-        @Override
-        public void initialize() {
-            // No-op for fake
-        }
-
-        @Override
-        public TranscriptionResult transcribe(byte[] pcmData) throws TranscriptionException {
-            if (!healthy) {
-                throw new TranscriptionException("Engine unhealthy", engineName);
-            }
-            return new TranscriptionResult(cannedText, cannedConfidence, Instant.now(), engineName);
-        }
-
-        @Override
-        public boolean isHealthy() {
-            return healthy;
-        }
-
-        @Override
-        public String getEngineName() {
-            return engineName;
-        }
-
-        @Override
-        public void close() {
-            // No-op for fake
-        }
-    }
 
     /** Helper to create a real watchdog for testing */
     static SttEngineWatchdog createWatchdog(SttEngine vosk, SttEngine whisper,
@@ -152,14 +48,6 @@ class ReconciliationE2ETest {
         props.setMaxRestartsPerWindow(3);
         props.setCooldownMinutes(10);
         return new SttEngineWatchdog(List.of(vosk, whisper), props, publisher);
-    }
-
-    /** Synchronous executor for predictable test execution */
-    static class SyncExecutor implements Executor {
-        @Override
-        public void execute(Runnable command) {
-            command.run();
-        }
     }
 
     @Test

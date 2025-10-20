@@ -33,6 +33,14 @@ public final class DualEngineOrchestrator {
 
     private static final Logger LOG = LogManager.getLogger(DualEngineOrchestrator.class);
 
+    // Engine name constants
+    private static final String ENGINE_VOSK = "vosk";
+    private static final String ENGINE_WHISPER = "whisper";
+    private static final String ENGINE_RECONCILED = "reconciled";
+
+    // Timeout value indicating "use service default"
+    private static final long USE_DEFAULT_TIMEOUT = 0L;
+
     private final AudioCaptureService captureService;
     private final SttEngine vosk;
     private final SttEngine whisper;
@@ -91,74 +99,126 @@ public final class DualEngineOrchestrator {
 
     @EventListener
     public void onHotkeyReleased(HotkeyReleasedEvent evt) {
-        UUID session;
-        synchronized (lock) {
-            session = activeSession;
-            if (session == null) {
-                LOG.debug("No active capture session on release; ignoring");
-                return;
-            }
-            captureService.stopSession(session);
-            activeSession = null;
+        UUID session = stopCaptureSession();
+        if (session == null) {
+            return; // No active session
         }
 
-        byte[] pcm = null;
-        try {
-            pcm = captureService.readAll(session);
-        } catch (Exception e) {
-            LOG.warn("Failed to finalize capture session {}: {}", session, e.toString());
-            captureService.cancelSession(session); // Explicit cleanup on failure
-            return;
+        byte[] pcm = finalizeCaptureSession(session);
+        if (pcm == null) {
+            return; // Capture failed
         }
 
         // If reconciliation is enabled and services are present, run both engines and reconcile
-        if (recProps != null && recProps.isEnabled() && parallel != null && reconciler != null) {
-            try {
-                long t0 = System.nanoTime();
-                var pair = parallel.transcribeBoth(pcm, 0L); // use default timeout from service
-                TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
-                long ms = (System.nanoTime() - t0) / 1_000_000L;
-                String strategy = String.valueOf(recProps.getStrategy());
-                LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})",
-                        ms, strategy, result.text().length());
-                publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), "reconciled"));
-            } catch (TranscriptionException te) {
-                LOG.warn("Reconciled transcription failed: {}", te.getMessage());
-            } catch (RuntimeException re) {
-                LOG.error("Unexpected error during reconciled transcription", re);
-            } finally {
-                pcm = null;
+        if (isReconciliationEnabled()) {
+            transcribeWithReconciliation(pcm);
+        } else {
+            transcribeWithSingleEngine(pcm);
+        }
+    }
+
+    /**
+     * Stops the active capture session and returns the session ID.
+     *
+     * @return session ID if an active session exists, null otherwise
+     */
+    private UUID stopCaptureSession() {
+        synchronized (lock) {
+            UUID session = activeSession;
+            if (session == null) {
+                LOG.debug("No active capture session on release; ignoring");
+                return null;
             }
-            return;
+            captureService.stopSession(session);
+            activeSession = null;
+            return session;
         }
+    }
 
-        // Otherwise, single-engine routing based on watchdog state
-        SttEngine engine;
+    /**
+     * Reads captured audio data from the session and handles cleanup on failure.
+     *
+     * @param session the capture session ID
+     * @return PCM audio data, or null if finalization failed
+     */
+    private byte[] finalizeCaptureSession(UUID session) {
         try {
-            engine = selectEngine();
+            return captureService.readAll(session);
+        } catch (Exception e) {
+            LOG.warn("Failed to finalize capture session {}: {}", session, e.toString());
+            captureService.cancelSession(session);
+            return null;
+        }
+    }
+
+    /**
+     * Checks if reconciliation mode is enabled with all required dependencies.
+     *
+     * @return true if reconciliation is enabled and all services are available
+     */
+    private boolean isReconciliationEnabled() {
+        return recProps != null && recProps.isEnabled() && parallel != null && reconciler != null;
+    }
+
+    /**
+     * Transcribes audio using both engines in parallel and reconciles the results.
+     *
+     * @param pcm PCM audio data to transcribe
+     */
+    private void transcribeWithReconciliation(byte[] pcm) {
+        try {
+            long startTime = System.nanoTime();
+            var pair = parallel.transcribeBoth(pcm, USE_DEFAULT_TIMEOUT);
+            TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
+            String strategy = String.valueOf(recProps.getStrategy());
+            logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
+            publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), ENGINE_RECONCILED));
         } catch (TranscriptionException te) {
-            pcm = null; // Help GC before rethrowing
-            throw te; // Propagate "both engines unavailable" to caller
+            LOG.warn("Reconciled transcription failed: {}", te.getMessage());
+        } catch (RuntimeException re) {
+            LOG.error("Unexpected error during reconciled transcription", re);
         }
+    }
+
+    /**
+     * Transcribes audio using a single engine selected based on watchdog state.
+     *
+     * @param pcm PCM audio data to transcribe
+     */
+    private void transcribeWithSingleEngine(byte[] pcm) {
+        SttEngine engine = selectEngine(); // May throw TranscriptionException if both engines unavailable
 
         try {
-            long t0 = System.nanoTime();
+            long startTime = System.nanoTime();
             TranscriptionResult result = engine.transcribe(pcm);
-            long ms = (System.nanoTime() - t0) / 1_000_000L;
-            LOG.info("Transcription completed by {} in {} ms (chars={})",
-                    engine.getEngineName(), ms, result.text().length());
+            logTranscriptionSuccess(engine.getEngineName(), startTime, result.text().length(), null);
             publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engine.getEngineName()));
         } catch (TranscriptionException te) {
             LOG.warn("Transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
             LOG.error("Unexpected error during transcription", re);
-        } finally {
-            pcm = null; // Help GC reclaim potentially large buffer (up to ~2MB for 60s audio)
         }
+    }
+
+    /**
+     * Logs successful transcription with timing and metadata.
+     *
+     * @param engineName name of the engine used
+     * @param startTimeNanos start time in nanoseconds
+     * @param textLength length of transcribed text
+     * @param strategy reconciliation strategy (nullable for single-engine)
+     */
+    private void logTranscriptionSuccess(String engineName, long startTimeNanos, int textLength, String strategy) {
+        long durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+        if (strategy != null) {
+            LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", durationMs, strategy, textLength);
+        } else {
+            LOG.info("Transcription completed by {} in {} ms (chars={})", engineName, durationMs, textLength);
         }
-        
-        /**
-         * Handles audio capture errors (e.g., microphone permission denied, device unavailable).
+    }
+
+    /**
+     * Handles audio capture errors (e.g., microphone permission denied, device unavailable).
      *
      * <p>Cancels the active session if one exists. Phase 4.2 will add user notification.
      *
@@ -178,10 +238,16 @@ public final class DualEngineOrchestrator {
         // Phase 4.2: Publish user notification event for UI display
     }
 
+    /**
+     * Selects the best available engine based on primary preference and health status.
+     *
+     * @return selected STT engine
+     * @throws TranscriptionException if both engines are unavailable
+     */
     private SttEngine selectEngine() {
         PrimaryEngine primary = props.getPrimaryEngine();
-        boolean voskReady = watchdog.isEngineEnabled("vosk") && vosk.isHealthy();
-        boolean whisperReady = watchdog.isEngineEnabled("whisper") && whisper.isHealthy();
+        boolean voskReady = watchdog.isEngineEnabled(ENGINE_VOSK) && vosk.isHealthy();
+        boolean whisperReady = watchdog.isEngineEnabled(ENGINE_WHISPER) && whisper.isHealthy();
 
         if (primary == PrimaryEngine.VOSK) {
             if (voskReady) {
@@ -198,10 +264,15 @@ public final class DualEngineOrchestrator {
                 return vosk;
             }
         }
-        throw new TranscriptionException(
-                "Both engines unavailable (vosk.enabled=" + watchdog.isEngineEnabled("vosk")
-                + ", vosk.healthy=" + vosk.isHealthy()
-                + ", whisper.enabled=" + watchdog.isEngineEnabled("whisper")
-                + ", whisper.healthy=" + whisper.isHealthy() + ")");
+
+        // Both engines unavailable - construct detailed error message
+        String errorMsg = String.format(
+                "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, whisper.enabled=%s, whisper.healthy=%s)",
+                watchdog.isEngineEnabled(ENGINE_VOSK),
+                vosk.isHealthy(),
+                watchdog.isEngineEnabled(ENGINE_WHISPER),
+                whisper.isHealthy()
+        );
+        throw new TranscriptionException(errorMsg);
     }
 }

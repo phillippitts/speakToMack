@@ -112,10 +112,45 @@ public final class WhisperSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        boolean acquired = false;
+        boolean acquired = acquireConcurrencyPermit();
         try {
-            // Try to acquire with bounded wait to handle brief spikes gracefully
-            acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
+            checkEngineInitialized();
+            Path wav = null;
+            long t0 = System.nanoTime();
+            try {
+                wav = createTempWavFile(audioData);
+                String stdout = manager.transcribe(wav, cfg);
+                String text = extractTranscriptionText(stdout);
+                double confidence = 1.0;
+
+                long ms = (System.nanoTime() - t0) / 1_000_000L;
+                LOG.info("Whisper transcribed clip in {} ms (chars={})", ms, text.length());
+                return TranscriptionResult.of(text, confidence, ENGINE);
+            } catch (Exception e) {
+                publishTranscribeFailureEvent(e);
+                if (e instanceof TranscriptionException te) {
+                    throw te;
+                }
+                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
+            } finally {
+                cleanupTempFile(wav);
+            }
+        } finally {
+            if (acquired) {
+                concurrencySemaphore.release();
+            }
+        }
+    }
+
+    /**
+     * Acquires concurrency permit with timeout.
+     *
+     * @return true if permit was acquired
+     * @throws TranscriptionException if permit cannot be acquired or interrupted
+     */
+    private boolean acquireConcurrencyPermit() {
+        try {
+            boolean acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
             if (!acquired) {
                 if (publisher != null) {
                     Map<String, String> ctx = new HashMap<>();
@@ -127,71 +162,86 @@ public final class WhisperSttEngine implements SttEngine {
                 throw new TranscriptionException("Whisper concurrency limit reached after "
                         + acquireTimeoutMs + "ms wait", ENGINE);
             }
+            return true;
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restore interrupt status
+            Thread.currentThread().interrupt();
             throw new TranscriptionException("Whisper transcription interrupted while waiting for semaphore",
                     ENGINE, e);
         }
-        try {
-            synchronized (lock) {
-                if (!initialized || closed) {
-                    throw new TranscriptionException("Whisper engine not initialized", ENGINE);
-                }
+    }
+
+    /**
+     * Checks if engine is initialized and not closed.
+     *
+     * @throws TranscriptionException if engine is not ready
+     */
+    private void checkEngineInitialized() {
+        synchronized (lock) {
+            if (!initialized || closed) {
+                throw new TranscriptionException("Whisper engine not initialized", ENGINE);
             }
-            Path wav = null;
-            long t0 = System.nanoTime();
+        }
+    }
+
+    /**
+     * Creates a temporary WAV file from PCM audio data.
+     *
+     * @param audioData PCM16LE mono 16kHz audio data
+     * @return path to temporary WAV file
+     * @throws Exception if file creation or write fails
+     */
+    private Path createTempWavFile(byte[] audioData) throws Exception {
+        Path wav = Files.createTempFile("whisper-", ".wav");
+        WavWriter.writePcm16LeMono16kHz(audioData, wav);
+        return wav;
+    }
+
+    /**
+     * Extracts transcription text from whisper.cpp output (JSON or plain text mode).
+     *
+     * @param stdout raw output from whisper.cpp process
+     * @return extracted transcription text
+     */
+    private String extractTranscriptionText(String stdout) {
+        if (jsonMode) {
+            // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
+            String text = WhisperJsonParser.extractText(stdout);
+            this.lastRawJson = stdout;
+            this.lastTokens = WhisperJsonParser.extractTokens(stdout);
+            return text;
+        } else {
+            this.lastRawJson = null;
+            this.lastTokens = null;
+            return stdout == null ? "" : stdout.trim();
+        }
+    }
+
+    /**
+     * Publishes transcription failure event with context.
+     *
+     * @param cause the exception that caused the failure
+     */
+    private void publishTranscribeFailureEvent(Exception cause) {
+        if (publisher != null) {
+            Map<String, String> ctx = new HashMap<>();
+            ctx.put("binaryPath", cfg.binaryPath());
+            ctx.put("modelPath", cfg.modelPath());
+            publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                    "transcribe failure", cause, ctx));
+        }
+    }
+
+    /**
+     * Cleans up temporary WAV file, ignoring any errors.
+     *
+     * @param wav path to temporary WAV file (may be null)
+     */
+    private void cleanupTempFile(Path wav) {
+        if (wav != null) {
             try {
-                wav = Files.createTempFile("whisper-", ".wav");
-                WavWriter.writePcm16LeMono16kHz(audioData, wav);
-
-                String stdout = manager.transcribe(wav, cfg); // may throw TranscriptionException
-                String text;
-                if (jsonMode) {
-                    // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
-                    text = WhisperJsonParser.extractText(stdout);
-                    this.lastRawJson = stdout;
-                    this.lastTokens = WhisperJsonParser.extractTokens(stdout);
-                } else {
-                    text = stdout == null ? "" : stdout.trim();
-                    this.lastRawJson = null;
-                    this.lastTokens = null;
-                }
-                double confidence = 1.0; // Unknown in text mode
-
-                long ms = (System.nanoTime() - t0) / 1_000_000L;
-                LOG.info("Whisper transcribed clip in {} ms (chars={})", ms, text.length());
-                return TranscriptionResult.of(text, confidence, ENGINE);
-            } catch (Exception e) {
-                if (e instanceof TranscriptionException te) {
-                    if (publisher != null) {
-                        Map<String, String> ctx = new HashMap<>();
-                        ctx.put("binaryPath", cfg.binaryPath());
-                        ctx.put("modelPath", cfg.modelPath());
-                        publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                                "transcribe failure", e, ctx));
-                    }
-                    throw te; // already enriched by manager
-                }
-                if (publisher != null) {
-                    Map<String, String> ctx = new HashMap<>();
-                    ctx.put("binaryPath", cfg.binaryPath());
-                    ctx.put("modelPath", cfg.modelPath());
-                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                            "transcribe failure", e, ctx));
-                }
-                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
-            } finally {
-                if (wav != null) {
-                    try {
-                        Files.deleteIfExists(wav);
-                    } catch (Exception ignore) {
-                        // Cleanup failure is non-critical
-                    }
-                }
-            }
-        } finally {
-            if (acquired) {
-                concurrencySemaphore.release();
+                Files.deleteIfExists(wav);
+            } catch (Exception ignore) {
+                // Cleanup failure is non-critical
             }
         }
     }
