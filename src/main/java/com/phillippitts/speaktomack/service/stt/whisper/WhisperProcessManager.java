@@ -175,7 +175,35 @@ public final class WhisperProcessManager implements AutoCloseable {
     }
 
     private Thread startGobbler(InputStream inputStream, StringBuilder sink, String name, int maxBytes) {
-        Thread gobbler = new Thread(() -> {
+        StreamGobbler gobbler = new StreamGobbler(inputStream, sink, name, maxBytes);
+        Thread thread = new Thread(gobbler, name);
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    /**
+     * Encapsulates stream gobbling logic with capacity limits and drain behavior.
+     *
+     * <p>Reads lines from an input stream into a StringBuilder until capacity is reached.
+     * Once the cap is hit, continues draining the stream without accumulating to prevent
+     * deadlock, but logs a warning to indicate data loss.
+     */
+    private static final class StreamGobbler implements Runnable {
+        private final InputStream inputStream;
+        private final StringBuilder sink;
+        private final String name;
+        private final int maxBytes;
+
+        StreamGobbler(InputStream inputStream, StringBuilder sink, String name, int maxBytes) {
+            this.inputStream = inputStream;
+            this.sink = sink;
+            this.name = name;
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public void run() {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
                 String line;
                 boolean capReached = false;
@@ -204,10 +232,7 @@ public final class WhisperProcessManager implements AutoCloseable {
             } catch (IOException e) {
                 LOG.debug("Stream gobbler '{}' stopped: {}", name, e.toString());
             }
-        }, name);
-        gobbler.setDaemon(true);
-        gobbler.start();
-        return gobbler;
+        }
     }
 
     private void joinQuietly(Thread thread, Duration timeout) {

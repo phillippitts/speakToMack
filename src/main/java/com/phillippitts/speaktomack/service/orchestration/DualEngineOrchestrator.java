@@ -293,7 +293,7 @@ public final class DualEngineOrchestrator {
             TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
             String strategy = String.valueOf(recProps.getStrategy());
             logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
-            publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), ENGINE_RECONCILED));
+            publishResult(result, ENGINE_RECONCILED);
         } catch (TranscriptionException te) {
             LOG.warn("Reconciled transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
@@ -307,13 +307,13 @@ public final class DualEngineOrchestrator {
      * @param pcm PCM audio data to transcribe
      */
     private void transcribeWithSingleEngine(byte[] pcm) {
-        SttEngine engine = selectEngine(); // May throw TranscriptionException if both engines unavailable
+        SttEngine engine = selectSingleEngine();
 
         try {
             long startTime = System.nanoTime();
             TranscriptionResult result = engine.transcribe(pcm);
             logTranscriptionSuccess(engine.getEngineName(), startTime, result.text().length(), null);
-            publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engine.getEngineName()));
+            publishResult(result, engine.getEngineName());
         } catch (TranscriptionException te) {
             LOG.warn("Transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
@@ -336,6 +336,16 @@ public final class DualEngineOrchestrator {
         } else {
             LOG.info("Transcription completed by {} in {} ms (chars={})", engineName, durationMs, textLength);
         }
+    }
+
+    /**
+     * Publishes transcription result as an event for downstream processing.
+     *
+     * @param result the transcription result
+     * @param engineName name of the engine that produced the result
+     */
+    private void publishResult(TranscriptionResult result, String engineName) {
+        publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engineName));
     }
 
     /**
@@ -365,7 +375,7 @@ public final class DualEngineOrchestrator {
      * @return selected STT engine
      * @throws TranscriptionException if both engines are unavailable
      */
-    private SttEngine selectEngine() {
+    private SttEngine selectSingleEngine() {
         PrimaryEngine primary = props.getPrimaryEngine();
         boolean voskReady = watchdog.isEngineEnabled(ENGINE_VOSK) && vosk.isHealthy();
         boolean whisperReady = watchdog.isEngineEnabled(ENGINE_WHISPER) && whisper.isHealthy();
