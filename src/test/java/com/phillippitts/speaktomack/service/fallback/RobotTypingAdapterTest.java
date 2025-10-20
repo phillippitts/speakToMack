@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.fallback;
 
 import com.phillippitts.speaktomack.config.typing.TypingProperties;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("integration") // Requires AWT/display system (Toolkit.getDefaultToolkit)
 class RobotTypingAdapterTest {
 
     static class FakeRobot implements RobotTypingAdapter.RobotFacade {
