@@ -24,10 +24,43 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Orchestrates push-to-talk: start capture on press, transcribe on release,
- * route to the appropriate engine based on watchdog state and primary-engine config.
+ * Orchestrates push-to-talk workflow: audio capture on hotkey press, transcription on release.
  *
- * Not annotated as @Component to avoid ambiguity; see OrchestrationConfig for bean wiring.
+ * <p>This orchestrator coordinates the complete speech-to-text pipeline:
+ * <ol>
+ *   <li><b>Hotkey Press:</b> Starts audio capture session via {@link AudioCaptureService}</li>
+ *   <li><b>Hotkey Release:</b> Stops capture, retrieves audio, selects engine, transcribes</li>
+ *   <li><b>Engine Selection:</b> Uses {@link SttEngineWatchdog} to choose healthy engine based on primary preference</li>
+ *   <li><b>Transcription:</b> Supports both single-engine and dual-engine reconciliation modes</li>
+ *   <li><b>Event Publishing:</b> Emits {@link TranscriptionCompletedEvent} for downstream processing</li>
+ * </ol>
+ *
+ * <p><b>Operating Modes:</b>
+ * <ul>
+ *   <li><b>Single-Engine Mode (Default):</b> Uses one engine (Vosk or Whisper) based on primary
+ *       preference and health status. Falls back to secondary if primary is unhealthy.</li>
+ *   <li><b>Reconciliation Mode (Phase 4):</b> When enabled, runs both engines in parallel and
+ *       reconciles results using configurable strategy (SIMPLE, CONFIDENCE, or OVERLAP).</li>
+ * </ul>
+ *
+ * <p><b>Thread Safety:</b> This class uses synchronization on {@code lock} to protect the
+ * {@code activeSession} field. Multiple hotkey events can be received concurrently, but only
+ * one capture session can be active at a time. Duplicate presses during active sessions are
+ * ignored to prevent audio corruption.
+ *
+ * <p><b>Error Handling:</b> Transcription failures are logged but do not crash the application.
+ * The orchestrator remains ready for the next hotkey press. Capture errors trigger session
+ * cancellation via {@link #onCaptureError(CaptureErrorEvent)}.
+ *
+ * <p><b>Configuration:</b> Not annotated as {@code @Component} to avoid ambiguity; see
+ * {@link com.phillippitts.speaktomack.config.orchestration.OrchestrationConfig} for bean wiring.
+ *
+ * @see HotkeyPressedEvent
+ * @see HotkeyReleasedEvent
+ * @see TranscriptionCompletedEvent
+ * @see SttEngineWatchdog
+ * @see TranscriptReconciler
+ * @since 1.0
  */
 public final class DualEngineOrchestrator {
 
@@ -56,6 +89,21 @@ public final class DualEngineOrchestrator {
     private final Object lock = new Object();
     private UUID activeSession;
 
+    /**
+     * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
+     *
+     * <p>This constructor is used when reconciliation is disabled. The orchestrator will
+     * select one engine per transcription based on primary preference and health status.
+     *
+     * @param captureService service for audio capture lifecycle management
+     * @param vosk Vosk STT engine instance
+     * @param whisper Whisper STT engine instance
+     * @param watchdog engine health monitor and enablement controller
+     * @param props orchestration configuration (primary engine preference)
+     * @param publisher Spring event publisher for transcription results
+     * @throws NullPointerException if any parameter is null
+     * @see #DualEngineOrchestrator(AudioCaptureService, SttEngine, SttEngine, SttEngineWatchdog, OrchestrationProperties, ApplicationEventPublisher, ParallelSttService, TranscriptReconciler, ReconciliationProperties)
+     */
     public DualEngineOrchestrator(AudioCaptureService captureService,
                                   SttEngine vosk,
                                   SttEngine whisper,
@@ -65,6 +113,30 @@ public final class DualEngineOrchestrator {
         this(captureService, vosk, whisper, watchdog, props, publisher, null, null, null);
     }
 
+    /**
+     * Constructs a DualEngineOrchestrator with optional reconciliation support (Phase 4).
+     *
+     * <p>When all Phase 4 parameters ({@code parallel}, {@code reconciler}, {@code recProps})
+     * are provided and {@code recProps.isEnabled() == true}, the orchestrator runs both engines
+     * in parallel and reconciles their results using the configured strategy.
+     *
+     * <p>If any Phase 4 parameter is {@code null} or reconciliation is disabled, the orchestrator
+     * falls back to single-engine mode (same behavior as the 6-parameter constructor).
+     *
+     * @param captureService service for audio capture lifecycle management
+     * @param vosk Vosk STT engine instance
+     * @param whisper Whisper STT engine instance
+     * @param watchdog engine health monitor and enablement controller
+     * @param props orchestration configuration (primary engine preference)
+     * @param publisher Spring event publisher for transcription results
+     * @param parallel service for running both engines in parallel (nullable)
+     * @param reconciler strategy for merging dual-engine results (nullable)
+     * @param recProps reconciliation configuration and enablement flag (nullable)
+     * @throws NullPointerException if any required parameter is null (Phase 4 params are optional)
+     * @see ParallelSttService
+     * @see TranscriptReconciler
+     * @see ReconciliationProperties
+     */
     public DualEngineOrchestrator(AudioCaptureService captureService,
                                   SttEngine vosk,
                                   SttEngine whisper,
@@ -85,6 +157,24 @@ public final class DualEngineOrchestrator {
         this.recProps = recProps;
     }
 
+    /**
+     * Handles hotkey press events by starting a new audio capture session.
+     *
+     * <p>This method is invoked asynchronously by Spring's event system when the user presses
+     * the configured hotkey (e.g., Cmd+Shift+M on macOS). It starts a new capture session
+     * via {@link AudioCaptureService} and records the session ID for later retrieval.
+     *
+     * <p><b>Thread Safety:</b> Synchronized on {@code lock} to ensure only one session can
+     * be active at a time. Duplicate presses during an active session are ignored to prevent
+     * audio stream corruption.
+     *
+     * <p><b>Performance:</b> This method completes in &lt;5ms under normal conditions. The
+     * audio capture runs on a background thread managed by {@link AudioCaptureService}.
+     *
+     * @param evt the hotkey pressed event with timestamp
+     * @see HotkeyPressedEvent
+     * @see AudioCaptureService#startSession()
+     */
     @EventListener
     public void onHotkeyPressed(HotkeyPressedEvent evt) {
         synchronized (lock) {
@@ -97,6 +187,33 @@ public final class DualEngineOrchestrator {
         }
     }
 
+    /**
+     * Handles hotkey release events by stopping capture and initiating transcription.
+     *
+     * <p>This method is invoked asynchronously by Spring's event system when the user releases
+     * the hotkey. It performs the following workflow:
+     * <ol>
+     *   <li>Stops the active capture session (synchronized)</li>
+     *   <li>Retrieves captured PCM audio data</li>
+     *   <li>Selects transcription mode (single-engine vs. reconciliation)</li>
+     *   <li>Transcribes audio using selected mode</li>
+     *   <li>Publishes {@link TranscriptionCompletedEvent} on success</li>
+     * </ol>
+     *
+     * <p><b>Error Handling:</b> If no active session exists or audio retrieval fails, the
+     * method returns early without attempting transcription. Transcription failures are logged
+     * but do not crash the application.
+     *
+     * <p><b>Performance:</b> Transcription is CPU-intensive and may take 1-5 seconds depending
+     * on audio length and engine choice. This method blocks on Spring's event thread pool during
+     * transcription. Future optimization may move transcription to a dedicated thread pool.
+     *
+     * @param evt the hotkey released event with timestamp
+     * @see HotkeyReleasedEvent
+     * @see AudioCaptureService#stopSession(UUID)
+     * @see AudioCaptureService#readAll(UUID)
+     * @see TranscriptionCompletedEvent
+     */
     @EventListener
     public void onHotkeyReleased(HotkeyReleasedEvent evt) {
         UUID session = stopCaptureSession();

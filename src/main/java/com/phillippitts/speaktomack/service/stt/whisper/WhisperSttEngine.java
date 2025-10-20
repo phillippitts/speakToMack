@@ -23,10 +23,41 @@ import java.util.concurrent.TimeUnit;
 /**
  * Whisper-based implementation of {@link SttEngine} using the external whisper.cpp binary.
  *
- * <p>MVP model: whole-buffer processing. The engine expects validated PCM16LE mono 16kHz input
- * and converts it to a temporary WAV file, then executes whisper.cpp via {@link WhisperProcessManager}.
+ * <p>This engine provides high-accuracy offline speech-to-text transcription by invoking
+ * the whisper.cpp command-line binary as a subprocess. It supports both text and JSON output
+ * modes, with JSON mode enabling advanced features like word-level tokens for reconciliation.
  *
- * <p>Privacy: Never logs full transcription at INFO level. Only duration and character count are logged.
+ * <p><b>Architecture:</b>
+ * <ul>
+ *   <li>Converts PCM audio to temporary WAV file using {@link WavWriter}</li>
+ *   <li>Invokes whisper.cpp via {@link WhisperProcessManager} with configured timeout</li>
+ *   <li>Parses output (plain text or JSON) and cleans up temporary files</li>
+ *   <li>Supports concurrency limiting via semaphore to prevent CPU saturation</li>
+ * </ul>
+ *
+ * <p><b>Output Modes:</b>
+ * <ul>
+ *   <li><b>Text Mode (default):</b> Simple text output from whisper.cpp (stdout)</li>
+ *   <li><b>JSON Mode:</b> Structured JSON output with word-level tokens and timestamps.
+ *       Enabled via {@code stt.whisper.output=json}. Provides enhanced accuracy for
+ *       {@link com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler}.</li>
+ * </ul>
+ *
+ * <p><b>Thread Safety:</b> This engine is thread-safe. Concurrent transcriptions are
+ * protected by a semaphore (configurable max). Each transcription runs in isolation with
+ * its own temporary WAV file and subprocess.
+ *
+ * <p><b>Privacy:</b> Never logs full transcription text at INFO level. Only duration
+ * and character count are logged to protect user privacy.
+ *
+ * <p><b>Audio Contract:</b> Expects raw PCM audio in the format defined by
+ * {@link com.phillippitts.speaktomack.service.audio.AudioFormat} (16kHz, 16-bit, mono, little-endian).
+ * Callers must validate/convert inputs before invoking {@link #transcribe(byte[])}.
+ *
+ * @see WhisperProcessManager
+ * @see WhisperConfig
+ * @see WhisperJsonParser
+ * @since 1.0
  */
 @Component
 public final class WhisperSttEngine implements SttEngine {
@@ -247,8 +278,20 @@ public final class WhisperSttEngine implements SttEngine {
     }
 
     /**
-     * Consume and clear the last raw JSON captured in JSON mode.
-     * Returns null if JSON mode is disabled or no JSON available.
+     * Consumes and clears the last raw JSON output captured from whisper.cpp (JSON mode only).
+     *
+     * <p>This method is used by {@link com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService}
+     * to access the raw JSON output for advanced reconciliation strategies.
+     *
+     * <p><b>Side Effect:</b> Clears the cached JSON after returning it (one-time consumption).
+     * Subsequent calls will return {@code null} until the next transcription.
+     *
+     * <p><b>JSON Mode Only:</b> Returns {@code null} if JSON mode is disabled
+     * ({@code stt.whisper.output=text}) or if no transcription has occurred yet.
+     *
+     * @return raw JSON output from whisper.cpp, or null if unavailable
+     * @see #consumeLastTokens()
+     * @see WhisperJsonParser
      */
     public String consumeLastRawJson() {
         String v = this.lastRawJson;
@@ -257,8 +300,24 @@ public final class WhisperSttEngine implements SttEngine {
     }
 
     /**
-     * Consume and clear the last parsed tokens captured in JSON mode.
-     * Returns an empty list if JSON mode is disabled or no tokens available.
+     * Consumes and clears the last parsed word tokens from whisper.cpp (JSON mode only).
+     *
+     * <p>This method is used by {@link com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService}
+     * to access word-level tokens for overlap-based reconciliation strategies like
+     * {@link com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler}.
+     *
+     * <p>Word tokens provide more accurate overlap calculation than simple space-splitting,
+     * especially for multi-word phrases and punctuation handling.
+     *
+     * <p><b>Side Effect:</b> Clears the cached tokens after returning them (one-time consumption).
+     * Subsequent calls will return an empty list until the next transcription.
+     *
+     * <p><b>JSON Mode Only:</b> Returns an empty list if JSON mode is disabled
+     * ({@code stt.whisper.output=text}) or if no transcription has occurred yet.
+     *
+     * @return list of word tokens from last transcription, or empty list if unavailable
+     * @see #consumeLastRawJson()
+     * @see WhisperJsonParser#extractTokens(String)
      */
     public java.util.List<String> consumeLastTokens() {
         java.util.List<String> v = this.lastTokens;
