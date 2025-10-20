@@ -8,8 +8,8 @@ speakToMack lets you dictate text into any macOS application using a configurabl
 
 ## Status: 🚧 In Development
 
-Current phase: Phases 0–4 complete (Environment, Core Abstractions, STT Engines, Parallel + Reconciliation) ✅
-Next: Phase 5 – Documentation (user/operator/dev guides) and Phase 6 – Production Hardening
+Current phase: **Phases 0–5 complete** (Environment, Core Abstractions, STT Engines, Parallel + Reconciliation, Documentation) ✅
+Next: Phase 6 – Production Hardening (Monitoring, Security, Performance)
 See: [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
 Current capabilities (implemented):
