@@ -134,7 +134,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
 
     @Override
     public void stopSession(UUID sessionId) {
-        Thread captureThread = null;
+        Thread captureThread;
         synchronized (lock) {
             ensureSession(sessionId);
             current.active.set(false);
@@ -205,7 +205,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             line = provider.open(fmt, Optional.ofNullable(props.getDeviceName()));
             line.start();
             byte[] buf = new byte[bytesPerChunk];
-            final long hardStopBytes = (props.getMaxDurationMs() * 1L * REQUIRED_BYTE_RATE) / 1000L;
+            final long hardStopBytes = ((long) props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000L;
             long written = 0;
             while (s.active.get()) {
                 int n = line.read(buf, 0, buf.length);
