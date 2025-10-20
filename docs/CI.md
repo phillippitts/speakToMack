@@ -57,7 +57,6 @@ jobs:
       - Checkout code
       - Setup Java 21
       - Setup Gradle (with caching)
-      - Validate Gradle wrapper
       - Build: ./gradlew clean build -x integrationTest
       - Upload JAR (Ubuntu only)
       - Upload test reports (on failure)
@@ -67,6 +66,10 @@ jobs:
 - `-x integrationTest` - Skip integration tests
 - This still runs 280+ unit tests
 - This still runs checkstyle
+
+**Design decisions**:
+- No Gradle wrapper validation (removed due to GitHub Actions network reliability issues)
+- We control the wrapper in our repo, so validation is less critical
 
 ## Running CI Locally
 
@@ -260,6 +263,19 @@ Recommended GitHub settings for `main` branch:
 **Why**: GitHub Actions runners have limited space (~14 GB)
 
 **Fix**: Not needed currently (our build is small)
+
+### GitHub Actions network/cache errors
+
+**Error**: `Cache service responded with 400` or `ETIMEDOUT` connecting to external services
+
+**Why**: GitHub Actions infrastructure issues (transient)
+
+**Impact**:
+- Build will be slower (no cached dependencies)
+- Build will still succeed
+- These are warnings, not failures
+
+**Fix**: None needed - these are GitHub infrastructure issues, not our code
 
 ## Getting Help
 

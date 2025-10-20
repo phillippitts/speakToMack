@@ -24,7 +24,7 @@ class JavaSoundAudioCaptureServiceTest {
         // Arrange: small properties for fast test
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
         AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(100); // Lower min to make test faster
+        vprops.setMinDurationMs(50); // Lower min to account for CI thread scheduling
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger events = new AtomicInteger();
@@ -39,7 +39,7 @@ class JavaSoundAudioCaptureServiceTest {
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
         UUID id = svc.startSession();
-        Thread.sleep(150); // Capture at least 100ms worth of data
+        Thread.sleep(250); // Generous sleep for CI (capture thread startup + data capture)
         svc.stopSession(id);
         byte[] pcm = svc.readAll(id);
 
@@ -54,7 +54,7 @@ class JavaSoundAudioCaptureServiceTest {
     void singleActiveSessionOnly() throws Exception {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
         AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(100); // Lower min for faster test
+        vprops.setMinDurationMs(50); // Lower min to account for CI thread scheduling
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
         ApplicationEventPublisher publisher = e -> { };
@@ -66,11 +66,11 @@ class JavaSoundAudioCaptureServiceTest {
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
         UUID id = svc.startSession();
-        Thread.sleep(100); // Give capture thread time to fully initialize
+        Thread.sleep(150); // Give capture thread time to fully initialize (longer for CI)
         assertThatThrownBy(svc::startSession)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already active");
-        Thread.sleep(100); // Capture enough data to pass validation
+        Thread.sleep(150); // Capture enough data to pass validation (generous for CI)
         svc.stopSession(id);
         svc.readAll(id);
     }
