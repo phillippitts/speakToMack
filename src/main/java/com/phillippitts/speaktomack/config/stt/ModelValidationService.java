@@ -105,7 +105,8 @@ class ModelValidationService {
         }
         try {
             long sizeBytes = Files.size(model);
-            LOG.debug("Whisper model stats: size={} bytes, lastModified={}", sizeBytes, Files.getLastModifiedTime(model));
+            LOG.debug("Whisper model stats: size={} bytes, lastModified={}", sizeBytes,
+                    Files.getLastModifiedTime(model));
             if (sizeBytes < SttModelConstants.MIN_WHISPER_MODEL_SIZE_BYTES) {
                 throw new ModelNotFoundException("Whisper model too small (" + sizeBytes + " bytes) at: " + model);
             }

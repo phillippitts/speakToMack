@@ -35,8 +35,11 @@ class DualEngineOrchestratorReconciledTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
-        ReconciliationProperties rprops = new ReconciliationProperties(true, ReconciliationProperties.Strategy.SIMPLE, 0.6);
+        OrchestrationProperties props =
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        ReconciliationProperties rprops =
+                new ReconciliationProperties(true,
+                        ReconciliationProperties.Strategy.SIMPLE, 0.6);
 
         // Parallel service returns two engine results
         ParallelSttService.EnginePair pair = new ParallelSttService.EnginePair(
@@ -46,12 +49,14 @@ class DualEngineOrchestratorReconciledTest {
         ParallelSttService parallel = (pcm, timeoutMs) -> pair;
 
         // Reconciler picks whisper text "b"
-        TranscriptReconciler reconciler = (v, w) -> TranscriptionResult.of(w.text(), w.confidence(), "reconciled");
+        TranscriptReconciler reconciler =
+                (v, w) -> TranscriptionResult.of(w.text(), w.confidence(), "reconciled");
 
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub, parallel, reconciler, rprops);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
+                wd, props, pub, parallel, reconciler, rprops);
 
         // Act
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -72,8 +77,11 @@ class DualEngineOrchestratorReconciledTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
-        ReconciliationProperties rprops = new ReconciliationProperties(true, ReconciliationProperties.Strategy.SIMPLE, 0.6);
+        OrchestrationProperties props =
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        ReconciliationProperties rprops =
+                new ReconciliationProperties(true,
+                        ReconciliationProperties.Strategy.SIMPLE, 0.6);
 
         // Only whisper succeeds
         ParallelSttService.EnginePair pair = new ParallelSttService.EnginePair(
@@ -83,12 +91,15 @@ class DualEngineOrchestratorReconciledTest {
         ParallelSttService parallel = (pcm, timeoutMs) -> pair;
 
         // Reconciler returns whisper when vosk null
-        TranscriptReconciler reconciler = (v, w) -> TranscriptionResult.of(w == null ? "" : w.text(), w == null ? 0.0 : w.confidence(), "reconciled");
+        TranscriptReconciler reconciler =
+                (v, w) -> TranscriptionResult.of(w == null ? "" : w.text(),
+                        w == null ? 0.0 : w.confidence(), "reconciled");
 
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub, parallel, reconciler, rprops);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
+                wd, props, pub, parallel, reconciler, rprops);
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
@@ -102,30 +113,63 @@ class DualEngineOrchestratorReconciledTest {
     // ---- Test fakes reused ----
 
     static class FakeCapture implements AudioCaptureService {
-        byte[] pcm; UUID id = UUID.randomUUID(); boolean stopped;
-        @Override public UUID startSession() { return id; }
-        @Override public void stopSession(UUID sessionId) { stopped = true; }
-        @Override public void cancelSession(UUID sessionId) { }
-        @Override public byte[] readAll(UUID sessionId) { return pcm; }
+        byte[] pcm;
+        UUID id = UUID.randomUUID();
+        boolean stopped;
+        @Override
+        public UUID startSession() {
+            return id;
+        }
+        @Override
+        public void stopSession(UUID sessionId) {
+            stopped = true;
+        }
+        @Override
+        public void cancelSession(UUID sessionId) {
+        }
+        @Override
+        public byte[] readAll(UUID sessionId) {
+            return pcm;
+        }
     }
 
     static class StubEngine implements SttEngine {
         final String name;
-        StubEngine(String n) { this.name = n; }
-        @Override public void initialize() { }
-        @Override public TranscriptionResult transcribe(byte[] audioData) { return TranscriptionResult.of(name+"-text", 1.0, name); }
-        @Override public String getEngineName() { return name; }
-        @Override public boolean isHealthy() { return true; }
-        @Override public void close() { }
+        StubEngine(String n) {
+            this.name = n;
+        }
+        @Override
+        public void initialize() {
+        }
+        @Override
+        public TranscriptionResult transcribe(byte[] audioData) {
+            return TranscriptionResult.of(name + "-text", 1.0, name);
+        }
+        @Override
+        public String getEngineName() {
+            return name;
+        }
+        @Override
+        public boolean isHealthy() {
+            return true;
+        }
+        @Override
+        public void close() {
+        }
     }
 
     static class FakeWatchdog extends SttEngineWatchdog {
-        final boolean voskEnabled; final boolean whisperEnabled;
+        final boolean voskEnabled;
+        final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
-            super(java.util.List.of(), new com.phillippitts.speaktomack.config.stt.SttWatchdogProperties(), e -> {});
-            this.voskEnabled = voskEnabled; this.whisperEnabled = whisperEnabled;
+            super(java.util.List.of(),
+                    new com.phillippitts.speaktomack.config.stt.SttWatchdogProperties(),
+                    e -> { });
+            this.voskEnabled = voskEnabled;
+            this.whisperEnabled = whisperEnabled;
         }
-        @Override public boolean isEngineEnabled(String engine) {
+        @Override
+        public boolean isEngineEnabled(String engine) {
             return switch (engine) {
                 case "vosk" -> voskEnabled;
                 case "whisper" -> whisperEnabled;

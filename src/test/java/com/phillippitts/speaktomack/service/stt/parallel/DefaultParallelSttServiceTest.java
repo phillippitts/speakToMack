@@ -46,16 +46,38 @@ class DefaultParallelSttServiceTest {
     }
 
     static class StubEngine implements SttEngine {
-        final String name; final long delayMs; final boolean fail;
-        StubEngine(String name, long delayMs, boolean fail) { this.name=name; this.delayMs=delayMs; this.fail=fail; }
-        @Override public void initialize() {}
-        @Override public TranscriptionResult transcribe(byte[] audioData) {
-            try { Thread.sleep(delayMs); } catch (InterruptedException ignored){}
-            if (fail) throw new TranscriptionException("fail", name);
-            return TranscriptionResult.of(name+"-text", 1.0, name);
+        final String name;
+        final long delayMs;
+        final boolean fail;
+        StubEngine(String name, long delayMs, boolean fail) {
+            this.name = name;
+            this.delayMs = delayMs;
+            this.fail = fail;
         }
-        @Override public String getEngineName() { return name; }
-        @Override public boolean isHealthy() { return true; }
-        @Override public void close() {}
+        @Override
+        public void initialize() {
+        }
+        @Override
+        public TranscriptionResult transcribe(byte[] audioData) {
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException ignored) {
+            }
+            if (fail) {
+                throw new TranscriptionException("fail", name);
+            }
+            return TranscriptionResult.of(name + "-text", 1.0, name);
+        }
+        @Override
+        public String getEngineName() {
+            return name;
+        }
+        @Override
+        public boolean isHealthy() {
+            return true;
+        }
+        @Override
+        public void close() {
+        }
     }
 }

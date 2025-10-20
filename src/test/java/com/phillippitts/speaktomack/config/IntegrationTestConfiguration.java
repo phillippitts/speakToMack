@@ -5,7 +5,6 @@ import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.JavaSoundAudioCaptureService;
 import com.phillippitts.speaktomack.service.validation.AudioValidationProperties;
 import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;

@@ -64,7 +64,8 @@ public class AudioValidator {
      */
     private void validateWav(byte[] wav) {
         if (wav.length < WavFormat.RIFF_HEADER_SIZE) {
-            throw new InvalidAudioException("Audio too small for RIFF header (" + WavFormat.RIFF_HEADER_SIZE + " bytes)");
+            throw new InvalidAudioException("Audio too small for RIFF header ("
+                    + WavFormat.RIFF_HEADER_SIZE + " bytes)");
         }
 
         // Parse chunks to find fmt and data

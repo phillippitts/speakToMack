@@ -80,7 +80,7 @@ class DualEngineOrchestratorTest {
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, false);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
-        ApplicationEventPublisher pub = e -> {};
+        ApplicationEventPublisher pub = e -> { };
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -97,7 +97,7 @@ class DualEngineOrchestratorTest {
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
-        ApplicationEventPublisher pub = e -> {};
+        ApplicationEventPublisher pub = e -> { };
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
 
         // Start session, then receive capture error
@@ -115,30 +115,62 @@ class DualEngineOrchestratorTest {
         byte[] pcm;
         UUID id;
         UUID canceledSession;
-        @Override public UUID startSession() { id = UUID.randomUUID(); return id; }
-        @Override public void stopSession(UUID sessionId) { /* no-op */ }
-        @Override public void cancelSession(UUID sessionId) { canceledSession = sessionId; }
-        @Override public byte[] readAll(UUID sessionId) { return pcm; }
+        @Override
+        public UUID startSession() {
+            id = UUID.randomUUID();
+            return id;
+        }
+        @Override
+        public void stopSession(UUID sessionId) {
+            /* no-op */
+        }
+        @Override
+        public void cancelSession(UUID sessionId) {
+            canceledSession = sessionId;
+        }
+        @Override
+        public byte[] readAll(UUID sessionId) {
+            return pcm;
+        }
     }
 
     static class StubEngine implements SttEngine {
         final String name;
-        StubEngine(String n) { this.name = n; }
-        @Override public void initialize() { }
-        @Override public TranscriptionResult transcribe(byte[] audioData) { return TranscriptionResult.of("text", 1.0, name); }
-        @Override public String getEngineName() { return name; }
-        @Override public boolean isHealthy() { return true; }
-        @Override public void close() { }
+        StubEngine(String n) {
+            this.name = n;
+        }
+        @Override
+        public void initialize() {
+        }
+        @Override
+        public TranscriptionResult transcribe(byte[] audioData) {
+            return TranscriptionResult.of("text", 1.0, name);
+        }
+        @Override
+        public String getEngineName() {
+            return name;
+        }
+        @Override
+        public boolean isHealthy() {
+            return true;
+        }
+        @Override
+        public void close() {
+        }
     }
 
     static class FakeWatchdog extends SttEngineWatchdog {
         final boolean voskEnabled;
         final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
-            super(java.util.List.of(), new com.phillippitts.speaktomack.config.stt.SttWatchdogProperties(), e -> {});
-            this.voskEnabled = voskEnabled; this.whisperEnabled = whisperEnabled;
+            super(java.util.List.of(),
+                    new com.phillippitts.speaktomack.config.stt.SttWatchdogProperties(),
+                    e -> { });
+            this.voskEnabled = voskEnabled;
+            this.whisperEnabled = whisperEnabled;
         }
-        @Override public boolean isEngineEnabled(String engine) {
+        @Override
+        public boolean isEngineEnabled(String engine) {
             return switch (engine) {
                 case "vosk" -> voskEnabled;
                 case "whisper" -> whisperEnabled;

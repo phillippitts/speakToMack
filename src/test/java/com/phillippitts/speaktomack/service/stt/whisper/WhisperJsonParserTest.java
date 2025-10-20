@@ -9,60 +9,61 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WhisperJsonParserTest {
 
     @Test
-    void extractText_prefersTopLevelText() {
+    void extractTextPrefersTopLevelText() {
         String json = "{\n  \"text\": \"hello world\",\n  \"segments\": [{\"text\": \"ignored\"}]\n}";
         String text = WhisperJsonParser.extractText(json);
         assertThat(text).isEqualTo("hello world");
     }
 
     @Test
-    void extractText_concatenatesSegmentsWhenNoTopLevel() {
+    void extractTextConcatenatesSegmentsWhenNoTopLevel() {
         String json = "{\n  \"segments\": [\n    {\"text\": \"hello\"},\n    {\"text\": \"world\"}\n  ]\n}";
         String text = WhisperJsonParser.extractText(json);
         assertThat(text).isEqualTo("hello world");
     }
 
     @Test
-    void extractTokens_prefersWordsWhenAvailable() {
-        String json = "{\n  \"segments\": [\n    {\"words\": [\n      {\"word\": \"Hello\"},\n      {\"word\": \"WORLD!\"}\n    ]}\n  ]\n}";
+    void extractTokensPrefersWordsWhenAvailable() {
+        String json = "{\n  \"segments\": [\n    {\"words\": [\n      {\"word\": \"Hello\"},"
+                + "\n      {\"word\": \"WORLD!\"}\n    ]}\n  ]\n}";
         List<String> tokens = WhisperJsonParser.extractTokens(json);
         assertThat(tokens).containsExactly("hello", "world");
     }
 
     @Test
-    void extractTokens_fallsBackToTextTokenization() {
+    void extractTokensFallsBackToTextTokenization() {
         String json = "{\n  \"text\": \"Alpha, beta. GAMMA!\"\n}";
         List<String> tokens = WhisperJsonParser.extractTokens(json);
         assertThat(tokens).containsExactly("alpha", "beta", "gamma");
     }
 
     @Test
-    void extractText_handlesMalformedGracefully() {
+    void extractTextHandlesMalformedGracefully() {
         String text = WhisperJsonParser.extractText("{ not-json");
         assertThat(text).isEmpty();
     }
 
     @Test
-    void extractTokens_handlesMalformedGracefully() {
+    void extractTokensHandlesMalformedGracefully() {
         List<String> tokens = WhisperJsonParser.extractTokens("{ not-json");
         assertThat(tokens).isEmpty();
     }
 
     @Test
-    void extractText_emptyWhenNoContent() {
+    void extractTextEmptyWhenNoContent() {
         assertThat(WhisperJsonParser.extractText(null)).isEmpty();
         assertThat(WhisperJsonParser.extractText("")).isEmpty();
     }
 
     @Test
-    void extractText_handlesWhitespaceOnly() {
+    void extractTextHandlesWhitespaceOnly() {
         String json = "{\n  \"text\": \"   \"\n}";
         String text = WhisperJsonParser.extractText(json);
         assertThat(text).isEmpty();
     }
 
     @Test
-    void extractText_multipleSegmentsWithMixedContent() {
+    void extractTextMultipleSegmentsWithMixedContent() {
         String json = """
             {
               "segments": [
@@ -78,7 +79,7 @@ class WhisperJsonParserTest {
     }
 
     @Test
-    void extractTokens_multipleSegmentsWithWords() {
+    void extractTokensMultipleSegmentsWithWords() {
         String json = """
             {
               "segments": [
@@ -92,7 +93,7 @@ class WhisperJsonParserTest {
     }
 
     @Test
-    void extractTokens_segmentsWithoutWords_fallsBackToSegmentText() {
+    void extractTokensSegmentsWithoutWordsFallsBackToSegmentText() {
         String json = """
             {
               "segments": [
@@ -106,7 +107,7 @@ class WhisperJsonParserTest {
     }
 
     @Test
-    void extractTokens_handlesSpecialCharacters() {
+    void extractTokensHandlesSpecialCharacters() {
         String json = """
             {
               "segments": [
@@ -124,14 +125,14 @@ class WhisperJsonParserTest {
     }
 
     @Test
-    void extractTokens_emptyWhenNoContent() {
+    void extractTokensEmptyWhenNoContent() {
         assertThat(WhisperJsonParser.extractTokens(null)).isEmpty();
         assertThat(WhisperJsonParser.extractTokens("")).isEmpty();
         assertThat(WhisperJsonParser.extractTokens("{}")).isEmpty();
     }
 
     @Test
-    void extractTokens_filtersBlankWords() {
+    void extractTokensFiltersBlankWords() {
         String json = """
             {
               "segments": [
@@ -149,14 +150,14 @@ class WhisperJsonParserTest {
     }
 
     @Test
-    void extractText_emptySegmentsArray() {
+    void extractTextEmptySegmentsArray() {
         String json = "{\"segments\": []}";
         String text = WhisperJsonParser.extractText(json);
         assertThat(text).isEmpty();
     }
 
     @Test
-    void extractTokens_emptySegmentsArray() {
+    void extractTokensEmptySegmentsArray() {
         String json = "{\"segments\": []}";
         List<String> tokens = WhisperJsonParser.extractTokens(json);
         assertThat(tokens).isEmpty();

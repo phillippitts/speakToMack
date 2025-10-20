@@ -5,7 +5,6 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.PayloadApplicationEvent;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,7 +31,8 @@ class SttEngineWatchdogTest {
         SttEngineWatchdog watchdog = new SttEngineWatchdog(List.of(engine), props, publisher);
 
         // Act: simulate failure
-        watchdog.onFailure(new EngineFailureEvent("vosk", Instant.now(), "test fail", null, java.util.Map.of()));
+        watchdog.onFailure(new EngineFailureEvent("vosk", Instant.now(), "test fail",
+                null, java.util.Map.of()));
 
         // Manually deliver EngineRecoveredEvent that was published
         Optional<EngineRecoveredEvent> recovery = publishedEvents.stream()
@@ -62,14 +62,17 @@ class SttEngineWatchdogTest {
         SttEngineWatchdog watchdog = new SttEngineWatchdog(List.of(engine), props, publisher);
 
         // First failure -> restart allowed
-        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail1", null, java.util.Map.of()));
+        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail1",
+                null, java.util.Map.of()));
         // Second failure within window -> should disable
-        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail2", null, java.util.Map.of()));
+        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail2",
+                null, java.util.Map.of()));
 
         assertThat(watchdog.getState("whisper")).isEqualTo(SttEngineWatchdog.EngineState.DISABLED);
         // When disabled, additional failures should not trigger more restarts
         int initAfterDisable = engine.initCount;
-        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail3", null, java.util.Map.of()));
+        watchdog.onFailure(new EngineFailureEvent("whisper", Instant.now(), "fail3",
+                null, java.util.Map.of()));
         assertThat(engine.initCount).isEqualTo(initAfterDisable);
     }
 
@@ -79,12 +82,29 @@ class SttEngineWatchdogTest {
         int initCount = 0;
         int closedCount = 0;
 
-        RecordingEngine(String name) { this.name = name; }
+        RecordingEngine(String name) {
+            this.name = name;
+        }
 
-        @Override public void initialize() { initCount++; }
-        @Override public TranscriptionResult transcribe(byte[] audioData) { return TranscriptionResult.of("", 1.0, name); }
-        @Override public String getEngineName() { return name; }
-        @Override public boolean isHealthy() { return true; }
-        @Override public void close() { closedCount++; }
+        @Override
+        public void initialize() {
+            initCount++;
+        }
+        @Override
+        public TranscriptionResult transcribe(byte[] audioData) {
+            return TranscriptionResult.of("", 1.0, name);
+        }
+        @Override
+        public String getEngineName() {
+            return name;
+        }
+        @Override
+        public boolean isHealthy() {
+            return true;
+        }
+        @Override
+        public void close() {
+            closedCount++;
+        }
     }
 }

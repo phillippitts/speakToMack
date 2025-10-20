@@ -16,9 +16,12 @@ class HotkeyTriggerTests {
     void singleKeyIgnoresRepeatsAndMatchesRelease() {
         HotkeyTrigger t = new SingleKeyTrigger("RIGHT_META", List.of());
         long now = System.currentTimeMillis();
-        var press = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "RIGHT_META", Set.of(), now);
-        var repeat = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "RIGHT_META", Set.of(), now+10);
-        var release = new NormalizedKeyEvent(NormalizedKeyEvent.Type.RELEASED, "RIGHT_META", Set.of(), now+20);
+        var press = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "RIGHT_META",
+                Set.of(), now);
+        var repeat = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "RIGHT_META",
+                Set.of(), now + 10);
+        var release = new NormalizedKeyEvent(NormalizedKeyEvent.Type.RELEASED, "RIGHT_META",
+                Set.of(), now + 20);
         assertThat(t.onKeyPressed(press)).isTrue();
         assertThat(t.onKeyPressed(repeat)).isFalse();
         assertThat(t.onKeyReleased(release)).isTrue();
@@ -28,9 +31,12 @@ class HotkeyTriggerTests {
     void modifierCombinationRequiresAllModifiers() {
         HotkeyTrigger t = new ModifierCombinationTrigger(List.of("META", "SHIFT"), "D");
         long now = System.currentTimeMillis();
-        var pressWrong = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "D", Set.of("META"), now);
-        var pressOk = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "D", Set.of("META","SHIFT"), now);
-        var releaseOk = new NormalizedKeyEvent(NormalizedKeyEvent.Type.RELEASED, "D", Set.of("META","SHIFT"), now+5);
+        var pressWrong = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "D",
+                Set.of("META"), now);
+        var pressOk = new NormalizedKeyEvent(NormalizedKeyEvent.Type.PRESSED, "D",
+                Set.of("META", "SHIFT"), now);
+        var releaseOk = new NormalizedKeyEvent(NormalizedKeyEvent.Type.RELEASED, "D",
+                Set.of("META", "SHIFT"), now + 5);
         assertThat(t.onKeyPressed(pressWrong)).isFalse();
         assertThat(t.onKeyPressed(pressOk)).isTrue();
         assertThat(t.onKeyReleased(releaseOk)).isTrue();

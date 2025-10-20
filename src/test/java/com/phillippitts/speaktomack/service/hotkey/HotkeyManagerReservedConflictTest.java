@@ -17,7 +17,10 @@ class HotkeyManagerReservedConflictTest {
     @Test
     void publishesConflictEventWhenReservedMatches() {
         // Configure hotkey META+TAB and reserved contains META+TAB
-        HotkeyProperties props = new HotkeyProperties(com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO, "TAB", 300, List.of("META"), List.of("META+TAB"));
+        HotkeyProperties props =
+                new HotkeyProperties(
+                        com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
+                        "TAB", 300, List.of("META"), List.of("META+TAB"));
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher publisher = events::add;
         FakeHook hook = new FakeHook();
@@ -33,8 +36,17 @@ class HotkeyManagerReservedConflictTest {
     static class FakeHook implements GlobalKeyHook {
         private final AtomicBoolean reg = new AtomicBoolean();
         private volatile Consumer<NormalizedKeyEvent> listener;
-        @Override public void register() { reg.set(true); }
-        @Override public void unregister() { reg.set(false); }
-        @Override public void addListener(Consumer<NormalizedKeyEvent> listener) { this.listener = listener; }
+        @Override
+        public void register() {
+            reg.set(true);
+        }
+        @Override
+        public void unregister() {
+            reg.set(false);
+        }
+        @Override
+        public void addListener(Consumer<NormalizedKeyEvent> listener) {
+            this.listener = listener;
+        }
     }
 }

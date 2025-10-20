@@ -29,15 +29,33 @@ class DefaultParallelSttServiceTimeoutTest {
     }
 
     static class SleepyEngine implements SttEngine {
-        final String name; final long delayMs;
-        SleepyEngine(String name, long delayMs) { this.name = name; this.delayMs = delayMs; }
-        @Override public void initialize() {}
-        @Override public TranscriptionResult transcribe(byte[] audioData) {
-            try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
-            return TranscriptionResult.of(name+"-text", 1.0, name);
+        final String name;
+        final long delayMs;
+        SleepyEngine(String name, long delayMs) {
+            this.name = name;
+            this.delayMs = delayMs;
         }
-        @Override public String getEngineName() { return name; }
-        @Override public boolean isHealthy() { return true; }
-        @Override public void close() {}
+        @Override
+        public void initialize() {
+        }
+        @Override
+        public TranscriptionResult transcribe(byte[] audioData) {
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException ignored) {
+            }
+            return TranscriptionResult.of(name + "-text", 1.0, name);
+        }
+        @Override
+        public String getEngineName() {
+            return name;
+        }
+        @Override
+        public boolean isHealthy() {
+            return true;
+        }
+        @Override
+        public void close() {
+        }
     }
 }

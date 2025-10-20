@@ -6,9 +6,11 @@ import com.phillippitts.speaktomack.service.validation.AudioValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
-import javax.sound.sampled.*;
-import java.time.Instant;
-import java.util.Optional;
+import javax.sound.sampled.Control;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineListener;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.TargetDataLine;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -55,7 +57,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(100); // Lower min for faster test
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -81,7 +83,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(10000); // 10 seconds minimum
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -124,7 +126,10 @@ class JavaSoundAudioCaptureServiceTest {
 
         // Act: start session (capture thread will fail with SecurityException)
         UUID id = svc.startSession();
-        try { Thread.sleep(100); } catch (InterruptedException ignore) {}
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignore) {
+        }
         svc.stopSession(id);
 
         // Assert: CaptureErrorEvent with MIC_PERMISSION_DENIED published
@@ -155,7 +160,10 @@ class JavaSoundAudioCaptureServiceTest {
 
         // Act
         UUID id = svc.startSession();
-        try { Thread.sleep(100); } catch (InterruptedException ignore) {}
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignore) {
+        }
         svc.stopSession(id);
 
         // Assert
@@ -170,7 +178,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(100); // Allow shorter durations for testing
         vprops.setMaxDurationMs(60000); // Validator max higher than capture max
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -199,7 +207,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(250);
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -226,7 +234,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(250);
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -255,7 +263,7 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMinDurationMs(250);
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> {};
+        ApplicationEventPublisher publisher = e -> { };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -297,16 +305,29 @@ class JavaSoundAudioCaptureServiceTest {
         RepeatingTargetDataLine(javax.sound.sampled.AudioFormat fmt) {
             this.fmt = fmt;
             this.pattern = new byte[320]; // ~10ms at 16k mono 16-bit
-            for (int i = 0; i < pattern.length; i++) pattern[i] = (byte) (i & 0xFF);
+            for (int i = 0; i < pattern.length; i++) {
+                pattern[i] = (byte) (i & 0xFF);
+            }
         }
 
-        @Override public javax.sound.sampled.AudioFormat getFormat() { return fmt; }
-        @Override public void open(javax.sound.sampled.AudioFormat format, int bufferSize) { open = true; }
-        @Override public void open(javax.sound.sampled.AudioFormat format) { open = true; }
+        @Override public javax.sound.sampled.AudioFormat getFormat() {
+            return fmt;
+        }
+        @Override public void open(javax.sound.sampled.AudioFormat format, int bufferSize) {
+            open = true;
+        }
+        @Override public void open(javax.sound.sampled.AudioFormat format) {
+            open = true;
+        }
         @Override public int read(byte[] b, int off, int len) {
-            if (!started || !open) return 0;
+            if (!started || !open) {
+                return 0;
+            }
             // Throttle to simulate real-time audio capture (~10ms per read)
-            try { Thread.sleep(10); } catch (InterruptedException ignore) {}
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException ignore) {
+            }
             int n = Math.min(len, pattern.length);
             // copy from pattern cyclically
             if (pos + n <= pattern.length) {
@@ -320,26 +341,64 @@ class JavaSoundAudioCaptureServiceTest {
             }
             return n;
         }
-        @Override public void start() { started = true; }
-        @Override public void stop() { started = false; }
-        @Override public void close() { open = false; }
-        @Override public boolean isOpen() { return open; }
-        @Override public int available() { return 0; }
-        @Override public void drain() { }
-        @Override public void flush() { }
-        @Override public int getBufferSize() { return 0; }
-        @Override public int getFramePosition() { return 0; }
-        @Override public float getLevel() { return 0; }
-        @Override public long getLongFramePosition() { return 0; }
-        @Override public Control getControl(Control.Type control) { throw new IllegalArgumentException(); }
-        @Override public Control[] getControls() { return new Control[0]; }
-        @Override public boolean isControlSupported(Control.Type control) { return false; }
-        @Override public void addLineListener(LineListener listener) { }
-        @Override public void removeLineListener(LineListener listener) { }
-        @Override public javax.sound.sampled.Line.Info getLineInfo() { return new DataLine.Info(TargetDataLine.class, fmt); }
-        @Override public void open() { open = true; }
-        @Override public boolean isActive() { return started; }
-        @Override public boolean isRunning() { return started; }
-        @Override public long getMicrosecondPosition() { return 0L; }
+        @Override public void start() {
+            started = true;
+        }
+        @Override public void stop() {
+            started = false;
+        }
+        @Override public void close() {
+            open = false;
+        }
+        @Override public boolean isOpen() {
+            return open;
+        }
+        @Override public int available() {
+            return 0;
+        }
+        @Override public void drain() {
+        }
+        @Override public void flush() {
+        }
+        @Override public int getBufferSize() {
+            return 0;
+        }
+        @Override public int getFramePosition() {
+            return 0;
+        }
+        @Override public float getLevel() {
+            return 0;
+        }
+        @Override public long getLongFramePosition() {
+            return 0;
+        }
+        @Override public Control getControl(Control.Type control) {
+            throw new IllegalArgumentException();
+        }
+        @Override public Control[] getControls() {
+            return new Control[0];
+        }
+        @Override public boolean isControlSupported(Control.Type control) {
+            return false;
+        }
+        @Override public void addLineListener(LineListener listener) {
+        }
+        @Override public void removeLineListener(LineListener listener) {
+        }
+        @Override public javax.sound.sampled.Line.Info getLineInfo() {
+            return new DataLine.Info(TargetDataLine.class, fmt);
+        }
+        @Override public void open() {
+            open = true;
+        }
+        @Override public boolean isActive() {
+            return started;
+        }
+        @Override public boolean isRunning() {
+            return started;
+        }
+        @Override public long getMicrosecondPosition() {
+            return 0L;
+        }
     }
 }

@@ -115,8 +115,10 @@ public final class WhisperProcessManager implements AutoCloseable {
 
             // Start gobblers before waiting to avoid deadlock
             // Cap stdout to prevent pathological memory usage; stderr capped for diagnostics
-            outGobbler = startGobbler(whisperProcess.getInputStream(), stdout, "whisper-out", cfg.maxStdoutBytes());
-            errGobbler = startGobbler(whisperProcess.getErrorStream(), stderr, "whisper-err", WhisperConstants.STDERR_MAX_BYTES);
+            outGobbler = startGobbler(whisperProcess.getInputStream(), stdout, "whisper-out",
+                    cfg.maxStdoutBytes());
+            errGobbler = startGobbler(whisperProcess.getErrorStream(), stderr, "whisper-err",
+                    WhisperConstants.STDERR_MAX_BYTES);
 
             boolean finished = whisperProcess.waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
             if (!finished) {
@@ -223,7 +225,8 @@ public final class WhisperProcessManager implements AutoCloseable {
         try {
             process.destroy();
             // Wait briefly for graceful shutdown
-            boolean exited = process.waitFor(ProcessTimeouts.GRACEFUL_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            boolean exited = process.waitFor(ProcessTimeouts.GRACEFUL_SHUTDOWN_TIMEOUT.toMillis(),
+                    TimeUnit.MILLISECONDS);
             if (!exited && process.isAlive()) {
                 process.destroyForcibly();
                 // Wait for forcible termination
@@ -242,7 +245,8 @@ public final class WhisperProcessManager implements AutoCloseable {
 
     private TranscriptionException whisperError(String msg, ErrorContext ctx) {
         long durationMs = TimeUtils.nanosToMillis(System.nanoTime() - ctx.startNano());
-        String stderrSnippet = ctx.stderr() == null ? "" : snippet(ctx.stderr(), WhisperConstants.ERROR_SNIPPET_MAX_CHARS);
+        String stderrSnippet = ctx.stderr() == null ? ""
+                : snippet(ctx.stderr(), WhisperConstants.ERROR_SNIPPET_MAX_CHARS);
         String detail = String.format(
                 "%s (engine=whisper, exit=%d, durationMs=%d, bin=%s, model=%s, stderr=%s)",
                 msg, ctx.exitCode(), durationMs, ctx.cfg().binaryPath(), ctx.cfg().modelPath(), stderrSnippet

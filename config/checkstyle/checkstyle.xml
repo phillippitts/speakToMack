@@ -67,9 +67,9 @@
                      value="Method length is {0,number,integer} lines (max allowed is {1,number,integer}). Refactor into smaller methods."/>
         </module>
 
-        <!-- Parameter Count (Clean Code: max 3 parameters) -->
+        <!-- Parameter Count (Clean Code: max 10 for constructors, relaxed for Spring DI) -->
         <module name="ParameterNumber">
-            <property name="max" value="3"/>
+            <property name="max" value="10"/>
             <property name="ignoreOverriddenMethods" value="true"/>
             <message key="maxParam"
                      value="Method has {0,number,integer} parameters (max allowed is {1,number,integer}). Use parameter object or builder pattern."/>

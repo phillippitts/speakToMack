@@ -19,7 +19,9 @@ class ReconcilerStrategiesTest {
     }
 
     private static List<String> tokenize(String text) {
-        if (text == null || text.isBlank()) return List.of();
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
         return List.of(text.toLowerCase().split("\\s+"));
     }
 

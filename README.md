@@ -349,11 +349,12 @@ After starting the app, you can verify that structured Log4j 2 logs (with MDC va
 
 ## Architecture
 
-- **3-Tier Spring Boot Application** (Presentation → Service → Repository)
+- **2-Tier Event-Driven Desktop Application** (Presentation + Service layers)
 - **Dual-Engine Processing:** Vosk and Whisper run concurrently
-- **PostgreSQL Database:** Transcription history, user preferences, audit logs
+- **No Database Yet:** Persistence planned for Phase 6 (currently in-memory only)
 - **Log4j 2 Logging:** Structured logging with MDC for request correlation
-- **Strategy Pattern:** Pluggable reconciliation strategies (5 implementations)
+- **Strategy Pattern:** Pluggable reconciliation strategies (3 implementations)
+- **Spring ApplicationEventPublisher:** Event-driven coordination (hotkeys, errors, transcription)
 
 See: [Architecture Overview](docs/diagrams/architecture-overview.md) and [Data Flow](docs/diagrams/data-flow-diagram.md)
 
@@ -517,17 +518,18 @@ Notes:
 ```
 src/main/java/com/phillippitts/speaktomack/
 ├── presentation/       # Controllers, DTOs, exception handlers
-├── service/           # Business logic, STT engines, orchestration
-├── repository/        # Data access layer (PostgreSQL)
-├── domain/           # Domain entities
-└── config/           # Spring configuration
+├── service/           # Business logic, STT engines, orchestration, audio capture
+├── domain/           # Domain entities (TranscriptionResult, etc.)
+├── config/           # Spring configuration and typed properties
+├── exception/        # Custom exceptions and global handlers
+└── util/             # Utility classes (TimeUtils, ProcessTimeouts)
 ```
 
 ## Contributing
 
 This project follows:
 - **Clean Code Principles** (Robert C. Martin) - Mandatory naming conventions
-- **3-Tier Architecture** - Strict layer separation
+- **Event-Driven Architecture** - Spring ApplicationEventPublisher for loose coupling
 - **SOLID Principles** - Enforced via Checkstyle
 - **Always Working Code** - Incremental development (15-45 min tasks)
 

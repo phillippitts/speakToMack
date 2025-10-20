@@ -8,7 +8,6 @@ import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.reconcile.impl.ConfidenceReconciler;
 import com.phillippitts.speaktomack.service.reconcile.impl.SimplePreferenceReconciler;
 import com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler;
-import com.phillippitts.speaktomack.service.stt.EngineResult;
 import com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.testutil.FakeSttEngine;
@@ -313,7 +312,8 @@ class ReconciliationEndToEndIntegrationTest {
         return new DefaultParallelSttService(vosk, whisper, executor, 10000L);
     }
 
-    private TranscriptReconciler createReconciler(ReconciliationProperties props, OrchestrationProperties.PrimaryEngine primaryEngine) {
+    private TranscriptReconciler createReconciler(ReconciliationProperties props,
+                                                   OrchestrationProperties.PrimaryEngine primaryEngine) {
         return switch (props.getStrategy()) {
             case SIMPLE -> new SimplePreferenceReconciler(primaryEngine);
             case CONFIDENCE -> new ConfidenceReconciler();

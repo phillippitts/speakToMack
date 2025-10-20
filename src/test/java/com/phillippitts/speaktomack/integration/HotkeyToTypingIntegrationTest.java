@@ -180,8 +180,10 @@ class HotkeyToTypingIntegrationTest {
     /**
      * Simplified orchestrator for integration testing without full watchdog wiring.
      *
-     * <p><b>Why this exists:</b> The real {@link com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator}
-     * requires a fully configured {@link com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog},
+     * <p><b>Why this exists:</b> The real
+     * {@link com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator}
+     * requires a fully configured
+     * {@link com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog},
      * which is a complex Spring component with its own lifecycle and dependencies. For integration
      * testing the happy path, we use this simplified version that checks engine health directly.
      *
