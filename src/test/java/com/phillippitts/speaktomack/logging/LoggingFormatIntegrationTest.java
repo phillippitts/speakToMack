@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.logging;
 
+import com.phillippitts.speaktomack.config.IntegrationTestConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -38,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * - The Log4j2 MDC contains requestId and userId propagated by MdcFilter
  */
 @Tag("integration")
+@Import(IntegrationTestConfiguration.class)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {

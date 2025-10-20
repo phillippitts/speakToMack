@@ -19,10 +19,16 @@ import org.springframework.context.annotation.Configuration;
 public class OrchestrationConfig {
 
     /**
-     * Default orchestrator (no reconciliation). Active when stt.reconciliation.enabled is false or missing.
+     * Default orchestrator (no reconciliation).
+     * Active when stt.reconciliation.enabled is false or missing.
      */
     @Bean
-    @ConditionalOnProperty(prefix = "stt.reconciliation", name = "enabled", havingValue = "false", matchIfMissing = true)
+    @ConditionalOnProperty(
+            prefix = "stt.reconciliation",
+            name = "enabled",
+            havingValue = "false",
+            matchIfMissing = true
+    )
     public DualEngineOrchestrator dualEngineOrchestrator(AudioCaptureService captureService,
                                                          SttEngine voskSttEngine,
                                                          SttEngine whisperSttEngine,

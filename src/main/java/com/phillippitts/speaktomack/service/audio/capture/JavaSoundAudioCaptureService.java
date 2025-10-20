@@ -5,6 +5,7 @@ import com.phillippitts.speaktomack.service.audio.AudioFormat;
 import com.phillippitts.speaktomack.service.validation.AudioValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -26,8 +27,13 @@ import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_BY
 /**
  * Java Sound based microphone capture that produces raw PCM16LE mono @16kHz.
  * Thread-safe for single active session. Designed for push-to-talk UX.
+ *
+ * <p>This service is conditionally created only when no other {@link AudioCaptureService}
+ * bean exists in the context. This allows test configurations to provide alternative
+ * implementations (e.g., {@code FakeAudioCaptureService}) that don't require microphone hardware.
  */
 @Service
+@ConditionalOnMissingBean(AudioCaptureService.class)
 public class JavaSoundAudioCaptureService implements AudioCaptureService {
 
     private static final Logger LOG = LogManager.getLogger(JavaSoundAudioCaptureService.class);

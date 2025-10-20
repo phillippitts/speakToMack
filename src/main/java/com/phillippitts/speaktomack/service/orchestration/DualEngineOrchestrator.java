@@ -30,7 +30,8 @@ import java.util.UUID;
  * <ol>
  *   <li><b>Hotkey Press:</b> Starts audio capture session via {@link AudioCaptureService}</li>
  *   <li><b>Hotkey Release:</b> Stops capture, retrieves audio, selects engine, transcribes</li>
- *   <li><b>Engine Selection:</b> Uses {@link SttEngineWatchdog} to choose healthy engine based on primary preference</li>
+ *   <li><b>Engine Selection:</b> Uses {@link SttEngineWatchdog} to choose healthy engine
+ *       based on primary preference</li>
  *   <li><b>Transcription:</b> Supports both single-engine and dual-engine reconciliation modes</li>
  *   <li><b>Event Publishing:</b> Emits {@link TranscriptionCompletedEvent} for downstream processing</li>
  * </ol>
@@ -102,7 +103,9 @@ public final class DualEngineOrchestrator {
      * @param props orchestration configuration (primary engine preference)
      * @param publisher Spring event publisher for transcription results
      * @throws NullPointerException if any parameter is null
-     * @see #DualEngineOrchestrator(AudioCaptureService, SttEngine, SttEngine, SttEngineWatchdog, OrchestrationProperties, ApplicationEventPublisher, ParallelSttService, TranscriptReconciler, ReconciliationProperties)
+     * @see #DualEngineOrchestrator(AudioCaptureService, SttEngine, SttEngine, SttEngineWatchdog,
+     *      OrchestrationProperties, ApplicationEventPublisher, ParallelSttService,
+     *      TranscriptReconciler, ReconciliationProperties)
      */
     public DualEngineOrchestrator(AudioCaptureService captureService,
                                   SttEngine vosk,

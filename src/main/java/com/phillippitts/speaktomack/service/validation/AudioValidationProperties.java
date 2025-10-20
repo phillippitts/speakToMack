@@ -1,7 +1,6 @@
 package com.phillippitts.speaktomack.service.validation;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.Positive;
@@ -9,8 +8,9 @@ import jakarta.validation.constraints.Positive;
 /**
  * Configurable audio validation thresholds.
  * Defaults target good UX: minimum ~250 ms; maximum 5 minutes.
+ *
+ * <p>Note: Bean created via {@link com.phillippitts.speaktomack.SpeakToMackApplication#EnableConfigurationProperties}.
  */
-@Component
 @ConfigurationProperties(prefix = "audio.validation")
 @Validated
 public class AudioValidationProperties {
