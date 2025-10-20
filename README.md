@@ -8,8 +8,8 @@ speakToMack lets you dictate text into any macOS application using a configurabl
 
 ## Status: 🚧 In Development
 
-Current phase: Phases 0–2 complete (Environment, Core Abstractions, STT Engine Integration) ✅
-Next: Phase 3 – Parallel Development (Audio capture, hotkeys) and Phase 4–5 integration/docs
+Current phase: Phases 0–4 complete (Environment, Core Abstractions, STT Engines, Parallel + Reconciliation) ✅
+Next: Phase 5 – Documentation (user/operator/dev guides) and Phase 6 – Production Hardening
 See: [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 
 Current capabilities (implemented):
@@ -18,26 +18,29 @@ Current capabilities (implemented):
 - ✅ Domain model: TranscriptionResult
 - ✅ Exception hierarchy and global REST exception handler
 - ✅ SttEngine interface (Adapter pattern target)
-- ✅ Typed configuration records (VoskConfig, WhisperConfig) bound via @EnableConfigurationProperties
+- ✅ Typed configuration properties (VoskConfig, WhisperConfig, Audio/Hotkey/Typing/Orchestration/Reconciliation, Concurrency, Watchdog)
 - ✅ Thread pool configuration with MDC task decoration
-- ✅ Vosk STT engine (JNI) with JSON parsing and per-call recognizer (thread-safe)
-- ✅ Whisper STT engine via whisper.cpp process (temp WAV + robust manager with timeouts)
-- ✅ Parallel execution test scaffolding and lightweight bulkheads (semaphores)
+- ✅ Vosk STT engine (JNI) with per-call recognizer (thread-safe)
+- ✅ Whisper STT engine via whisper.cpp (temp WAV + robust process manager with timeouts and stdout caps)
+- ✅ Parallel execution (Vosk + Whisper) with reconciled path behind a flag
+- ✅ Reconciliation strategies: simple, confidence, word-overlap (configurable)
+- ✅ Whisper JSON mode (opt-in) with token extraction for better overlap
+- ✅ Audio Capture Service (Java Sound, PCM16LE mono @16kHz) with ring buffer, validation, and hermetic tests
+- ✅ Hotkey detection (single-key, double-tap, modifier-combo) with reserved-shortcut detection and permission events
+- ✅ Fallback typing chain (Robot → Clipboard → Notify), chunked paste, privacy-safe logging
 - ✅ Event-driven watchdog with bounded auto-restart and cooldown
-- ✅ Audio Capture Service (Java Sound, PCM16LE mono @ 16kHz) with ring buffer, validation, and hermetic tests
+- ✅ Metrics (Micrometer): engine latency/success/failure; reconciliation strategy/selected (PII-safe)
 
-Not yet implemented (planned in later phases):
-- ❌ Hotkey orchestration
-- ❌ Reconciliation strategies
-- ❌ Typing/paste service and fallbacks
+Planned (later phases):
 - ❌ Database persistence and search
+- ❌ Security hardening (auth for Actuator, TLS, OWASP scanning)
 
 ## Key Features (Planned)
 
 - **Push-to-Talk Dictation:** Press/hold hotkey → speak → release → text appears
 - **Dual-Engine Transcription:** Vosk (speed) + Whisper (accuracy) run in parallel
 - **100% Local:** No cloud APIs, no internet required after setup
-- **Configurable Hotkeys:** YAML configuration for keyboard shortcuts
+- **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties or application.yml)
 - **Graceful Fallback:** Works even if Accessibility permission denied
 - **GDPR Compliant:** 90-day retention, right to erasure, IP anonymization
 
