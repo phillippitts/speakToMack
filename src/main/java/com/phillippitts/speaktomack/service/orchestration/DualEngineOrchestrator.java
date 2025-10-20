@@ -14,6 +14,7 @@ import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
+import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -329,7 +330,7 @@ public final class DualEngineOrchestrator {
      * @param strategy reconciliation strategy (nullable for single-engine)
      */
     private void logTranscriptionSuccess(String engineName, long startTimeNanos, int textLength, String strategy) {
-        long durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+        long durationMs = TimeUtils.elapsedMillis(startTimeNanos);
         if (strategy != null) {
             LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", durationMs, strategy, textLength);
         } else {

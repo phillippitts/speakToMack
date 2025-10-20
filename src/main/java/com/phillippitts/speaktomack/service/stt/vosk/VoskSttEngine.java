@@ -276,12 +276,7 @@ public class VoskSttEngine implements SttEngine {
         if (json == null || json.isBlank()) {
             return new VoskTranscription("", 1.0);
         }
-        // Protect against malicious Vosk builds returning huge JSON
-        if (json.length() > MAX_JSON_SIZE) {
-            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
-                    MAX_JSON_SIZE, json.length());
-            json = json.substring(0, MAX_JSON_SIZE);
-        }
+        json = truncateJsonIfNeeded(json);
         try {
             JSONObject obj = new JSONObject(json);
             String text = obj.optString("text", "").trim();
@@ -291,6 +286,23 @@ public class VoskSttEngine implements SttEngine {
             LOG.warn("Failed to parse Vosk JSON response: {}", json, e);
             return new VoskTranscription("", 1.0);
         }
+    }
+
+    /**
+     * Truncates JSON string to MAX_JSON_SIZE if needed to prevent OOM attacks.
+     *
+     * <p>Protects against malicious/custom Vosk builds returning unbounded output.
+     *
+     * @param json JSON string to validate
+     * @return original string if within limit, truncated string otherwise
+     */
+    private static String truncateJsonIfNeeded(String json) {
+        if (json.length() > MAX_JSON_SIZE) {
+            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
+                    MAX_JSON_SIZE, json.length());
+            return json.substring(0, MAX_JSON_SIZE);
+        }
+        return json;
     }
 
     /**
@@ -361,12 +373,7 @@ public class VoskSttEngine implements SttEngine {
         if (json == null || json.isBlank()) {
             return "";
         }
-        // Protect against malicious Vosk builds returning huge JSON
-        if (json.length() > MAX_JSON_SIZE) {
-            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
-                    MAX_JSON_SIZE, json.length());
-            json = json.substring(0, MAX_JSON_SIZE);
-        }
+        json = truncateJsonIfNeeded(json);
         try {
             JSONObject obj = new JSONObject(json);
             return obj.optString("text", "").trim();
@@ -412,35 +419,10 @@ public class VoskSttEngine implements SttEngine {
         if (json == null || json.isBlank()) {
             return 1.0;
         }
-        // Protect against malicious Vosk builds returning huge JSON
-        if (json.length() > MAX_JSON_SIZE) {
-            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
-                    MAX_JSON_SIZE, json.length());
-            json = json.substring(0, MAX_JSON_SIZE);
-        }
+        json = truncateJsonIfNeeded(json);
         try {
             JSONObject obj = new JSONObject(json);
-            if (!obj.has("result")) {
-                return 1.0; // No result array, assume perfect confidence
-            }
-            org.json.JSONArray results = obj.getJSONArray("result");
-            if (results.length() == 0) {
-                return 1.0; // Empty result, no words recognized
-            }
-
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < results.length(); i++) {
-                JSONObject wordObj = results.getJSONObject(i);
-                if (wordObj.has("conf")) {
-                    sum += wordObj.getDouble("conf");
-                    count++;
-                }
-            }
-
-            double rawConfidence = count > 0 ? sum / count : 1.0;
-            // Clamp to [0.0, 1.0] to satisfy TranscriptionResult contract
-            return Math.min(1.0, Math.max(0.0, rawConfidence));
+            return extractConfidenceFromJson(obj);
         } catch (Exception e) {
             LOG.warn("Failed to parse confidence from Vosk JSON: {}", json, e);
             return 1.0; // Default to perfect confidence on parse error

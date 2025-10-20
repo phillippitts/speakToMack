@@ -34,15 +34,15 @@ Current capabilities (implemented):
 Planned (later phases):
 - ❌ Database persistence and search
 - ❌ Security hardening (auth for Actuator, TLS, OWASP scanning)
+- ❌ GDPR compliance features (90‑day retention, right to erasure, IP anonymization)
 
-## Key Features (Planned)
+## Key Features
 
 - **Push-to-Talk Dictation:** Press/hold hotkey → speak → release → text appears
 - **Dual-Engine Transcription:** Vosk (speed) + Whisper (accuracy) run in parallel
 - **100% Local:** No cloud APIs, no internet required after setup
 - **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties or application.yml)
 - **Graceful Fallback:** Works even if Accessibility permission denied
-- **GDPR Compliant:** 90-day retention, right to erasure, IP anonymization
 
 ## Key Terms & Acronyms
 
@@ -558,3 +558,24 @@ See [Guidelines](.junie/guidelines.md) for comprehensive development standards.
 ---
 
 **Grade: 99.5/100** - Production-ready planning with Phase 2 optimization, MVP implementation in progress.
+
+
+---
+
+## Documentation
+- User Guide: docs/user-guide.md
+- Operator Guide: docs/operator-guide.md
+- Developer Guide: docs/developer-guide.md
+- Reconciliation Guide: docs/reconciliation.md
+- Changelog: CHANGELOG.md
+- Runbooks:
+  - Engine Failures: docs/runbooks/engine-failures.md
+  - Permissions & Hotkeys: docs/runbooks/permissions-and-hotkeys.md
+
+## Operational notices & error events
+Certain issues are surfaced as throttled WARN logs and corresponding events (privacy‑safe):
+- HotkeyPermissionDeniedEvent: Accessibility permission not granted
+- HotkeyConflictEvent: Configured hotkey conflicts with OS‑reserved shortcuts (e.g., META+TAB)
+- CaptureErrorEvent: Microphone permission/device issues
+
+See the Runbooks above for steps to resolve.

@@ -2,6 +2,8 @@ package com.phillippitts.speaktomack.service.stt.whisper;
 
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.util.ProcessTimeouts;
+import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -68,7 +70,20 @@ public final class WhisperProcessManager implements AutoCloseable {
 
     WhisperProcessManager(ProcessFactory processFactory, String outputMode) {
         this.processFactory = Objects.requireNonNull(processFactory, "processFactory");
-        this.outputMode = (outputMode == null || outputMode.isBlank()) ? "text" : outputMode.toLowerCase();
+        this.outputMode = normalizeOutputMode(outputMode);
+    }
+
+    /**
+     * Normalizes output mode string to lowercase, defaulting to "text" if null or blank.
+     *
+     * @param mode raw output mode string (may be null)
+     * @return normalized mode ("text" or lowercase input)
+     */
+    private static String normalizeOutputMode(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return "text";
+        }
+        return mode.toLowerCase();
     }
 
     /**
@@ -92,43 +107,43 @@ public final class WhisperProcessManager implements AutoCloseable {
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
 
-        long t0 = System.nanoTime();
-        Process p = null;
+        long startTime = System.nanoTime();
+        Process whisperProcess = null;
         try {
-            p = processFactory.start(command, wavPath.getParent());
-            this.current = p;
+            whisperProcess = processFactory.start(command, wavPath.getParent());
+            this.current = whisperProcess;
 
             // Start gobblers before waiting to avoid deadlock
-            // Cap stdout to prevent pathological memory usage; stderr capped at 256KB for diagnostics
-            outGobbler = startGobbler(p.getInputStream(), stdout, "whisper-out", cfg.maxStdoutBytes());
-            errGobbler = startGobbler(p.getErrorStream(), stderr, "whisper-err", 262144);
+            // Cap stdout to prevent pathological memory usage; stderr capped for diagnostics
+            outGobbler = startGobbler(whisperProcess.getInputStream(), stdout, "whisper-out", cfg.maxStdoutBytes());
+            errGobbler = startGobbler(whisperProcess.getErrorStream(), stderr, "whisper-err", WhisperConstants.STDERR_MAX_BYTES);
 
-            boolean finished = p.waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
+            boolean finished = whisperProcess.waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
             if (!finished) {
-                destroyProcess(p);
-                ErrorContext ctx = new ErrorContext(cfg, -1, stderr, t0, null);
+                destroyProcess(whisperProcess);
+                ErrorContext ctx = new ErrorContext(cfg, -1, stderr, startTime, null);
                 throw whisperError("Timeout after " + cfg.timeoutSeconds() + "s", ctx);
             }
 
             // Ensure gobblers have a moment to flush
-            joinQuietly(outGobbler, Duration.ofMillis(500));
-            joinQuietly(errGobbler, Duration.ofMillis(500));
+            joinQuietly(outGobbler, ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
+            joinQuietly(errGobbler, ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
 
-            int exit = p.exitValue();
-            if (exit != 0) {
-                ErrorContext ctx = new ErrorContext(cfg, exit, stderr, t0, null);
-                throw whisperError("Non-zero exit: " + exit, ctx);
+            int exitCode = whisperProcess.exitValue();
+            if (exitCode != 0) {
+                ErrorContext ctx = new ErrorContext(cfg, exitCode, stderr, startTime, null);
+                throw whisperError("Non-zero exit: " + exitCode, ctx);
             }
 
-            String out = stdout.toString();
-            LOG.debug("Whisper stdout size={} bytes", out.length());
-            return out;
+            String output = stdout.toString();
+            LOG.debug("Whisper stdout size={} bytes", output.length());
+            return output;
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            int exit = (p != null && !p.isAlive()) ? p.exitValue() : -1;
-            ErrorContext ctx = new ErrorContext(cfg, exit, null, t0, e);
+            int exitCode = (whisperProcess != null && !whisperProcess.isAlive()) ? whisperProcess.exitValue() : -1;
+            ErrorContext ctx = new ErrorContext(cfg, exitCode, null, startTime, e);
             throw whisperError("I/O failure: " + e.getMessage(), ctx);
         } finally {
             close();
@@ -157,9 +172,9 @@ public final class WhisperProcessManager implements AutoCloseable {
         return cmd;
     }
 
-    private Thread startGobbler(InputStream is, StringBuilder sink, String name, int maxBytes) {
-        Thread t = new Thread(() -> {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+    private Thread startGobbler(InputStream inputStream, StringBuilder sink, String name, int maxBytes) {
+        Thread gobbler = new Thread(() -> {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
                 String line;
                 boolean capReached = false;
                 while ((line = br.readLine()) != null) {
@@ -188,32 +203,32 @@ public final class WhisperProcessManager implements AutoCloseable {
                 LOG.debug("Stream gobbler '{}' stopped: {}", name, e.toString());
             }
         }, name);
-        t.setDaemon(true);
-        t.start();
-        return t;
+        gobbler.setDaemon(true);
+        gobbler.start();
+        return gobbler;
     }
 
-    private void joinQuietly(Thread t, Duration timeout) {
-        if (t == null) {
+    private void joinQuietly(Thread thread, Duration timeout) {
+        if (thread == null) {
             return;
         }
         try {
-            t.join(timeout.toMillis());
+            thread.join(timeout.toMillis());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    private void destroyProcess(Process p) {
+    private void destroyProcess(Process process) {
         try {
-            p.destroy();
+            process.destroy();
             // Wait briefly for graceful shutdown
-            boolean exited = p.waitFor(500, TimeUnit.MILLISECONDS);
-            if (!exited && p.isAlive()) {
-                p.destroyForcibly();
+            boolean exited = process.waitFor(ProcessTimeouts.GRACEFUL_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            if (!exited && process.isAlive()) {
+                process.destroyForcibly();
                 // Wait for forcible termination
-                p.waitFor(1000, TimeUnit.MILLISECONDS);
-                if (p.isAlive()) {
+                process.waitFor(ProcessTimeouts.FORCEFUL_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                if (process.isAlive()) {
                     LOG.warn("Process still alive after destroyForcibly");
                 }
             }
@@ -226,8 +241,8 @@ public final class WhisperProcessManager implements AutoCloseable {
     }
 
     private TranscriptionException whisperError(String msg, ErrorContext ctx) {
-        long durationMs = (System.nanoTime() - ctx.startNano()) / 1_000_000L;
-        String stderrSnippet = ctx.stderr() == null ? "" : snippet(ctx.stderr(), 2048);
+        long durationMs = TimeUtils.nanosToMillis(System.nanoTime() - ctx.startNano());
+        String stderrSnippet = ctx.stderr() == null ? "" : snippet(ctx.stderr(), WhisperConstants.ERROR_SNIPPET_MAX_CHARS);
         String detail = String.format(
                 "%s (engine=whisper, exit=%d, durationMs=%d, bin=%s, model=%s, stderr=%s)",
                 msg, ctx.exitCode(), durationMs, ctx.cfg().binaryPath(), ctx.cfg().modelPath(), stderrSnippet
@@ -246,14 +261,14 @@ public final class WhisperProcessManager implements AutoCloseable {
      */
     @Override
     public void close() {
-        Process p = this.current;
+        Process process = this.current;
         this.current = null;
-        if (p != null && p.isAlive()) {
-            destroyProcess(p);
+        if (process != null && process.isAlive()) {
+            destroyProcess(process);
         }
         // Join gobblers quietly
-        joinQuietly(outGobbler, Duration.ofMillis(100));
-        joinQuietly(errGobbler, Duration.ofMillis(100));
+        joinQuietly(outGobbler, ProcessTimeouts.GOBBLER_CLEANUP_TIMEOUT);
+        joinQuietly(errGobbler, ProcessTimeouts.GOBBLER_CLEANUP_TIMEOUT);
         outGobbler = null;
         errGobbler = null;
     }

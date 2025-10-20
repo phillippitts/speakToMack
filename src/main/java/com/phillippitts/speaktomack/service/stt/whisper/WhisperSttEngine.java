@@ -5,6 +5,7 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -147,15 +148,15 @@ public final class WhisperSttEngine implements SttEngine {
         try {
             checkEngineInitialized();
             Path wav = null;
-            long t0 = System.nanoTime();
+            long startTime = System.nanoTime();
             try {
                 wav = createTempWavFile(audioData);
                 String stdout = manager.transcribe(wav, cfg);
                 String text = extractTranscriptionText(stdout);
                 double confidence = 1.0;
 
-                long ms = (System.nanoTime() - t0) / 1_000_000L;
-                LOG.info("Whisper transcribed clip in {} ms (chars={})", ms, text.length());
+                long elapsedMs = TimeUtils.elapsedMillis(startTime);
+                LOG.info("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
                 return TranscriptionResult.of(text, confidence, ENGINE);
             } catch (Exception e) {
                 publishTranscribeFailureEvent(e);

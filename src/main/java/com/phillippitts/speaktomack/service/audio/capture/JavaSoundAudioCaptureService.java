@@ -3,6 +3,7 @@ package com.phillippitts.speaktomack.service.audio.capture;
 import com.phillippitts.speaktomack.config.audio.AudioCaptureProperties;
 import com.phillippitts.speaktomack.service.audio.AudioFormat;
 import com.phillippitts.speaktomack.service.validation.AudioValidator;
+import com.phillippitts.speaktomack.util.ProcessTimeouts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -94,7 +95,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
         }
         // Join thread outside lock to avoid deadlock
         if (captureThread != null) {
-            joinThread(captureThread, 500);
+            joinThread(captureThread, ProcessTimeouts.CAPTURE_THREAD_SHUTDOWN_TIMEOUT.toMillis());
         }
     }
 
@@ -142,7 +143,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
         }
         // Join thread outside lock to ensure clean termination before readAll()
         if (captureThread != null) {
-            joinThread(captureThread, 1000); // Longer timeout for normal stop
+            joinThread(captureThread, ProcessTimeouts.CAPTURE_THREAD_STOP_TIMEOUT.toMillis());
         }
     }
 

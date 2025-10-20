@@ -5,6 +5,7 @@ import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.TokenizerUtil;
+import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -156,10 +157,10 @@ public class DefaultParallelSttService implements ParallelSttService {
     }
 
     private EngineResult runEngine(SttEngine engine, byte[] pcm) {
-        long t0 = System.nanoTime();
+        long startTime = System.nanoTime();
         try {
             TranscriptionResult tr = engine.transcribe(pcm);
-            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            long elapsedMs = TimeUtils.elapsedMillis(startTime);
             List<String> tokens = TokenizerUtil.tokenize(tr.text());
             String rawJson = null;
             // If this is the Whisper engine in JSON mode, prefer JSON-derived tokens/raw
@@ -170,7 +171,7 @@ public class DefaultParallelSttService implements ParallelSttService {
                 }
                 rawJson = w.consumeLastRawJson();
             }
-            return new EngineResult(tr.text(), tr.confidence(), tokens, ms, engine.getEngineName(), rawJson);
+            return new EngineResult(tr.text(), tr.confidence(), tokens, elapsedMs, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
             LOG.warn("{} failed: {}", engine.getEngineName(), te.getMessage());
             return null;

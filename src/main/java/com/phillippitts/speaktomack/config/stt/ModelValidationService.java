@@ -28,6 +28,12 @@ class ModelValidationService {
 
     private static final Logger LOG = LogManager.getLogger(ModelValidationService.class);
 
+    // Audio format constants for validation
+    private static final double SILENCE_DURATION_SECONDS = 0.02; // 20ms
+    private static final int VOSK_SAMPLE_RATE = 16000; // Hz
+    private static final int BYTES_PER_SAMPLE = 2; // 16-bit = 2 bytes
+    private static final long BYTES_PER_MB = 1024 * 1024;
+
     private final VoskConfig vosk;
     private final WhisperConfig whisper;
 
@@ -59,8 +65,10 @@ class ModelValidationService {
             try {
                 org.vosk.Recognizer rec = new org.vosk.Recognizer(model, vosk.sampleRate());
                 try {
-                    // ~20ms of silence at 16kHz, 16-bit mono
-                    byte[] silence20ms = new byte[(int) (0.02 * 16000) * 2];
+                    // Generate ~20ms of silence at 16kHz, 16-bit mono for smoke test
+                    int sampleCount = (int) (SILENCE_DURATION_SECONDS * VOSK_SAMPLE_RATE);
+                    int bufferSize = sampleCount * BYTES_PER_SAMPLE;
+                    byte[] silence20ms = new byte[bufferSize];
                     // Allow any result; just ensure JNI path works
                     rec.acceptWaveForm(silence20ms, silence20ms.length);
                 } finally {
@@ -96,14 +104,14 @@ class ModelValidationService {
             throw new ModelNotFoundException("Whisper model is not a regular file: " + model);
         }
         try {
-            long size = Files.size(model);
-            LOG.debug("Whisper model stats: size={} bytes, lastModified={}", size, Files.getLastModifiedTime(model));
-            if (size < SttModelConstants.MIN_WHISPER_MODEL_SIZE_BYTES) {
-                throw new ModelNotFoundException("Whisper model too small (" + size + " bytes) at: " + model);
+            long sizeBytes = Files.size(model);
+            LOG.debug("Whisper model stats: size={} bytes, lastModified={}", sizeBytes, Files.getLastModifiedTime(model));
+            if (sizeBytes < SttModelConstants.MIN_WHISPER_MODEL_SIZE_BYTES) {
+                throw new ModelNotFoundException("Whisper model too small (" + sizeBytes + " bytes) at: " + model);
             }
-            LOG.info("Whisper model size: {} MB (threshold: {} MB)",
-                size / (1024 * 1024),
-                SttModelConstants.MIN_WHISPER_MODEL_SIZE_BYTES / (1024 * 1024));
+            long sizeInMB = sizeBytes / BYTES_PER_MB;
+            long thresholdInMB = SttModelConstants.MIN_WHISPER_MODEL_SIZE_BYTES / BYTES_PER_MB;
+            LOG.info("Whisper model size: {} MB (threshold: {} MB)", sizeInMB, thresholdInMB);
         } catch (IOException e) {
             throw new ModelNotFoundException("Failed to read Whisper model metadata at: " + model, e);
         }
