@@ -1,7 +1,36 @@
 # ADR-002: PostgreSQL for MVP Database
 
 ## Status
-Accepted (2025-01-14)
+**Rejected** (2025-01-20) — Database layer removed; application is stateless
+~~Accepted (2025-01-14)~~
+
+## Rejection Rationale (2025-01-20)
+
+**Decision:** Remove database layer entirely. Application operates as **stateless desktop tool**.
+
+**Why Rejected:**
+1. **MVP scope reduced** - Desktop app doesn't need transcription history persistence
+2. **JAR bloat** - Database dependencies added 38MB (93MB → 55MB after removal)
+3. **Operational complexity** - No need for database setup/maintenance for local desktop tool
+4. **YAGNI violation** - Transcription history, user preferences, audit logs not required for MVP
+
+**Current Architecture:**
+- Event-driven service layer (ApplicationEvents)
+- In-memory processing only
+- Actuator endpoints for monitoring (health, metrics, prometheus)
+- No persistence layer
+
+**Future Consideration:**
+If persistence needed later (cloud version, history feature), revisit with:
+- SQLite for local desktop (single-user)
+- PostgreSQL for cloud/multi-tenant deployment
+- S3/blob storage for transcription archive
+
+See ADR-006 for current 2-tier event-driven architecture.
+
+---
+
+## Original Decision (Superseded - Historical Reference)
 
 ## Context
 Need to persist:
