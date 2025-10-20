@@ -186,7 +186,7 @@ public final class DualEngineOrchestrator {
                 return; // Ignore duplicate presses
             }
             activeSession = captureService.startSession();
-            LOG.info("Capture session started at {} (session={})", Instant.now(), activeSession);
+            LOG.info("Capture session started at {} (session={})", evt.at(), activeSession);
         }
     }
 
