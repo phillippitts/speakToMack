@@ -56,7 +56,9 @@ class DualEngineOrchestratorReconciledTest {
         ApplicationEventPublisher pub = events::add;
 
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, pub, parallel, reconciler, rprops);
+                wd, props, pub, parallel, reconciler, rprops,
+                null  // metrics
+        );
 
         // Act
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -99,7 +101,9 @@ class DualEngineOrchestratorReconciledTest {
         ApplicationEventPublisher pub = events::add;
 
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, pub, parallel, reconciler, rprops);
+                wd, props, pub, parallel, reconciler, rprops,
+                null  // metrics
+        );
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 

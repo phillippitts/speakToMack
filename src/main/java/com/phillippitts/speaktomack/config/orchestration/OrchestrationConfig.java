@@ -2,6 +2,7 @@ package com.phillippitts.speaktomack.config.orchestration;
 
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
+import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
@@ -34,8 +35,10 @@ public class OrchestrationConfig {
                                                          SttEngine whisperSttEngine,
                                                          SttEngineWatchdog watchdog,
                                                          OrchestrationProperties props,
-                                                         ApplicationEventPublisher publisher) {
-        return new DualEngineOrchestrator(captureService, voskSttEngine, whisperSttEngine, watchdog, props, publisher);
+                                                         ApplicationEventPublisher publisher,
+                                                         TranscriptionMetrics metrics) {
+        return new DualEngineOrchestrator(captureService, voskSttEngine, whisperSttEngine,
+                watchdog, props, publisher, null, null, null, metrics);
     }
 
     /**
@@ -51,7 +54,8 @@ public class OrchestrationConfig {
                                                                    ApplicationEventPublisher publisher,
                                                                    ParallelSttService parallelSttService,
                                                                    TranscriptReconciler transcriptReconciler,
-                                                                   ReconciliationProperties reconciliationProperties) {
+                                                                   ReconciliationProperties reconciliationProperties,
+                                                                   TranscriptionMetrics metrics) {
         return new DualEngineOrchestrator(
                 captureService,
                 voskSttEngine,
@@ -61,7 +65,8 @@ public class OrchestrationConfig {
                 publisher,
                 parallelSttService,
                 transcriptReconciler,
-                reconciliationProperties
+                reconciliationProperties,
+                metrics
         );
     }
 }

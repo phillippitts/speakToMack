@@ -12,6 +12,7 @@ import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCom
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.util.TimeUtils;
@@ -88,6 +89,9 @@ public final class DualEngineOrchestrator {
     private final TranscriptReconciler reconciler;
     private final ReconciliationProperties recProps;
 
+    // Optional metrics (nullable for tests)
+    private final TranscriptionMetrics metrics;
+
     private final Object lock = new Object();
     private UUID activeSession;
 
@@ -114,11 +118,11 @@ public final class DualEngineOrchestrator {
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
                                   ApplicationEventPublisher publisher) {
-        this(captureService, vosk, whisper, watchdog, props, publisher, null, null, null);
+        this(captureService, vosk, whisper, watchdog, props, publisher, null, null, null, null);
     }
 
     /**
-     * Constructs a DualEngineOrchestrator with optional reconciliation support (Phase 4).
+     * Constructs a DualEngineOrchestrator with optional reconciliation and metrics support.
      *
      * <p>When all Phase 4 parameters ({@code parallel}, {@code reconciler}, {@code recProps})
      * are provided and {@code recProps.isEnabled() == true}, the orchestrator runs both engines
@@ -136,6 +140,7 @@ public final class DualEngineOrchestrator {
      * @param parallel service for running both engines in parallel (nullable)
      * @param reconciler strategy for merging dual-engine results (nullable)
      * @param recProps reconciliation configuration and enablement flag (nullable)
+     * @param metrics metrics tracking service (nullable)
      * @throws NullPointerException if any required parameter is null (Phase 4 params are optional)
      * @see ParallelSttService
      * @see TranscriptReconciler
@@ -149,7 +154,8 @@ public final class DualEngineOrchestrator {
                                   ApplicationEventPublisher publisher,
                                   ParallelSttService parallel,
                                   TranscriptReconciler reconciler,
-                                  ReconciliationProperties recProps) {
+                                  ReconciliationProperties recProps,
+                                  TranscriptionMetrics metrics) {
         this.captureService = Objects.requireNonNull(captureService);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);
@@ -159,6 +165,7 @@ public final class DualEngineOrchestrator {
         this.parallel = parallel;
         this.reconciler = reconciler;
         this.recProps = recProps;
+        this.metrics = metrics;
     }
 
     /**
@@ -287,16 +294,31 @@ public final class DualEngineOrchestrator {
      * @param pcm PCM audio data to transcribe
      */
     private void transcribeWithReconciliation(byte[] pcm) {
+        long startTime = System.nanoTime();
         try {
-            long startTime = System.nanoTime();
             var pair = parallel.transcribeBoth(pcm, USE_DEFAULT_TIMEOUT);
             TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
             String strategy = String.valueOf(recProps.getStrategy());
+
+            // Record metrics
+            if (metrics != null) {
+                long duration = System.nanoTime() - startTime;
+                metrics.recordLatency(ENGINE_RECONCILED, duration);
+                metrics.incrementSuccess(ENGINE_RECONCILED);
+                metrics.recordReconciliation(strategy, result.engineName());
+            }
+
             logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
             publishResult(result, ENGINE_RECONCILED);
         } catch (TranscriptionException te) {
+            if (metrics != null) {
+                metrics.incrementFailure(ENGINE_RECONCILED, "transcription_error");
+            }
             LOG.warn("Reconciled transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
+            if (metrics != null) {
+                metrics.incrementFailure(ENGINE_RECONCILED, "unexpected_error");
+            }
             LOG.error("Unexpected error during reconciled transcription", re);
         }
     }
@@ -308,15 +330,30 @@ public final class DualEngineOrchestrator {
      */
     private void transcribeWithSingleEngine(byte[] pcm) {
         SttEngine engine = selectSingleEngine();
+        long startTime = System.nanoTime();
 
         try {
-            long startTime = System.nanoTime();
             TranscriptionResult result = engine.transcribe(pcm);
-            logTranscriptionSuccess(engine.getEngineName(), startTime, result.text().length(), null);
-            publishResult(result, engine.getEngineName());
+            String engineName = engine.getEngineName();
+
+            // Record metrics
+            if (metrics != null) {
+                long duration = System.nanoTime() - startTime;
+                metrics.recordLatency(engineName, duration);
+                metrics.incrementSuccess(engineName);
+            }
+
+            logTranscriptionSuccess(engineName, startTime, result.text().length(), null);
+            publishResult(result, engineName);
         } catch (TranscriptionException te) {
+            if (metrics != null) {
+                metrics.incrementFailure(engine.getEngineName(), "transcription_error");
+            }
             LOG.warn("Transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
+            if (metrics != null) {
+                metrics.incrementFailure(engine.getEngineName(), "unexpected_error");
+            }
             LOG.error("Unexpected error during transcription", re);
         }
     }

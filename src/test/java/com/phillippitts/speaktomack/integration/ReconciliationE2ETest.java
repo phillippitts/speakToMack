@@ -69,7 +69,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act: Full hotkey flow
@@ -103,7 +104,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act
@@ -139,7 +141,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act
@@ -175,7 +178,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act
@@ -210,7 +214,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act
@@ -242,7 +247,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Measure memory before
@@ -295,7 +301,8 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                publisher, parallel, reconciler, recProps
+                publisher, parallel, reconciler, recProps,
+                null  // metrics
         );
 
         // Act
