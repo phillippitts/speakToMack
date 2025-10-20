@@ -41,7 +41,7 @@ dependencies {
 
     // STT engines
     implementation 'net.java.dev.jna:jna:5.13.0'           // Required by Vosk
-    implementation 'com.alphacephei:vosk:0.3.45'          // Vosk STT
+    implementation 'com.alphacephei:vosk:0.3.38'          // Vosk STT (0.3.45 has native lib issue on macOS)
 
     // Hotkey support
     implementation 'com.github.kwhat:jnativehook:2.2.2'    // Global hotkeys
