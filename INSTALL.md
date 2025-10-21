@@ -2,14 +2,20 @@
 
 This guide helps end users install and run speakToMack without needing Java development tools.
 
+## ⚠️ Important: Permission Requirements
+
+**Before running the app for the first time, you MUST grant Accessibility permission in System Settings.**
+
+Without Accessibility permission, the app will crash with a fatal JVM error. See Step 6 below for detailed instructions.
+
 ## System Requirements
 
 - **Operating System**: macOS 12+ (Monterey or later)
 - **Java Runtime**: Java 21 (JRE is sufficient, JDK not required)
 - **Disk Space**: ~300 MB (~200 MB for models + ~100 MB for application)
-- **Permissions**:
-  - Microphone (for voice capture)
-  - Accessibility (for typing transcribed text)
+- **Permissions** (MUST be granted before first run):
+  - **Accessibility** (REQUIRED - for global hotkey capture and text typing)
+  - **Microphone** (REQUIRED - for voice capture)
 
 ---
 
@@ -131,27 +137,40 @@ EOF
 sed -i '' "s/YOUR_USERNAME/$(whoami)/g" application-local.properties
 ```
 
-### Step 6: Run the Application
+### Step 6: Grant Permissions (REQUIRED - Do This First!)
+
+**⚠️ CRITICAL**: You MUST grant Accessibility permission BEFORE starting the app for the first time. Without this permission, the app will crash with a JVM segmentation fault.
+
+1. **Accessibility Permission** (for hotkey and typing):
+   - Open: **System Settings → Privacy & Security → Accessibility**
+   - Click the lock icon to make changes (enter your password)
+   - Click **"+"** button
+   - Navigate to and select: `/Applications/Utilities/Terminal.app`
+   - Enable the checkbox next to Terminal
+   - **Verify**: The checkbox should be checked with Terminal in the list
+
+2. **Microphone Permission** (will prompt on first audio capture):
+   - The app will prompt automatically when you first use dictation
+   - Or manually grant: **System Settings → Privacy & Security → Microphone**
+   - Enable for "java"
+
+**Why this order matters**:
+- JNativeHook (the hotkey library) crashes the JVM if Accessibility permission is denied
+- You cannot grant permission after the crash - you must grant it BEFORE first run
+- If you forget and the app crashes, just grant the permission and restart
+
+### Step 7: Run the Application
 
 ```bash
 cd ~/Applications/speakToMack
 java -jar speakToMack.jar --spring.config.additional-location=./application-local.properties
 ```
 
-### Step 7: Grant Permissions
-
-When you first run the app, macOS will prompt you for permissions:
-
-1. **Microphone Permission**:
-   - Click "OK" when prompted
-   - Or go to: System Settings → Privacy & Security → Microphone
-   - Enable for "java"
-
-2. **Accessibility Permission** (for typing):
-   - Go to: System Settings → Privacy & Security → Accessibility
-   - Click the lock to make changes
-   - Click "+" and add the Terminal or the app you're running from
-   - Enable the checkbox
+You should see log output indicating the app started successfully:
+```
+INFO  c.p.s.SpeakToMackApplication - Started SpeakToMackApplication in 3.3 seconds
+INFO  c.p.s.h.HotkeyManager - HotkeyManager started with trigger=...
+```
 
 ### Step 8: Test Dictation
 
@@ -294,6 +313,30 @@ hotkey.modifiers=META,SHIFT
 
 ## Troubleshooting
 
+### JVM Crash: SIGSEGV / Fatal Error on Startup
+
+**Symptoms**:
+```
+ERROR com.github.kwhat.jnativehook - Failed to create event port!
+# A fatal error has been detected by the Java Runtime Environment:
+# SIGSEGV (0xb) at pc=0x...
+# Problematic frame: C [CoreFoundation+0x...]
+```
+
+**Cause**: Accessibility permission was not granted before first run. JNativeHook (the global hotkey library) crashes the JVM when it cannot create an event port due to missing permissions.
+
+**Solution**:
+1. Grant Accessibility permission:
+   - System Settings → Privacy & Security → Accessibility
+   - Click lock icon (enter password)
+   - Click "+" button
+   - Add `/Applications/Utilities/Terminal.app`
+   - Enable checkbox
+2. Restart the application
+3. The app should start without crashing
+
+**Prevention**: Always grant Accessibility permission BEFORE running the app for the first time (see Step 6).
+
 ### "java: command not found"
 
 **Problem**: Java is not installed or not in PATH.
@@ -310,13 +353,18 @@ source ~/.zshrc
 
 ### Hotkey Not Working
 
-**Problem**: Accessibility permission not granted.
+**Problem**: Accessibility permission not granted or app didn't start hotkey manager.
 
 **Solution**:
-1. Go to: System Settings → Privacy & Security → Accessibility
-2. Find "java" or "Terminal" in the list
-3. Enable the checkbox
-4. Restart the application
+1. Check logs for permission errors:
+   ```bash
+   tail -50 ~/Applications/speakToMack/logs/speakToMack.log | grep -i "hotkey\|permission"
+   ```
+2. If you see "Global key hook permission denied":
+   - System Settings → Privacy & Security → Accessibility
+   - Verify Terminal is in the list and enabled
+   - Restart the application
+3. If no errors, verify hotkey configuration in `application-local.properties`
 
 ### No Text Appears When Speaking
 
