@@ -50,6 +50,7 @@
 
         <Logger name="org.springframework" level="info"/>
         <Logger name="org.springframework.web" level="info"/>
+        <Logger name="com.github.kwhat.jnativehook" level="debug"/>
 
         <Root level="info">
             <AppenderRef ref="Console"/>

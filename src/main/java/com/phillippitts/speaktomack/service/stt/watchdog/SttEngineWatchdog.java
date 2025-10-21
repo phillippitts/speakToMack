@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.PostConstruct;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -62,6 +63,22 @@ public class SttEngineWatchdog {
             restartWindow.put(e.getEngineName(), new ArrayDeque<>());
         }
         LOG.info("Watchdog initialized for engines={}", enginesByName.keySet());
+    }
+
+    @PostConstruct
+    public void initializeEngines() {
+        LOG.info("Initializing STT engines at startup...");
+        for (Map.Entry<String, SttEngine> entry : enginesByName.entrySet()) {
+            String name = entry.getKey();
+            SttEngine engine = entry.getValue();
+            try {
+                engine.initialize();
+                LOG.info("Engine {} initialized successfully", name);
+            } catch (Exception ex) {
+                LOG.error("Failed to initialize engine {} at startup: {}", name, ex.toString());
+                state.put(name, EngineState.DISABLED);
+            }
+        }
     }
 
     /** Visible for tests */

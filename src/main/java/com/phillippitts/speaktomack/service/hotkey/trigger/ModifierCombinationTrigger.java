@@ -2,6 +2,8 @@ package com.phillippitts.speaktomack.service.hotkey.trigger;
 
 import com.phillippitts.speaktomack.service.hotkey.HotkeyTrigger;
 import com.phillippitts.speaktomack.service.hotkey.NormalizedKeyEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Set;
 
@@ -10,6 +12,8 @@ import java.util.Set;
  * to be present along with the primary key.
  */
 public final class ModifierCombinationTrigger implements HotkeyTrigger {
+
+    private static final Logger LOG = LogManager.getLogger(ModifierCombinationTrigger.class);
 
     private final String primaryKey;
     private final Set<String> requiredModifiers;

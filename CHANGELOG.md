@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning as it evolves.
 
+## [v0.5.1] - 2025-10-21
+### Changed
+- **BREAKING**: Upgraded Vosk STT model from `vosk-model-small-en-us-0.15` (40 MB) to `vosk-model-en-us-0.22` (1.8 GB) for significantly improved transcription accuracy
+- Removed hardcoded default constructor in `VoskConfig` - now properly uses Spring Boot `@ConfigurationProperties` binding from `application.properties`
+- Updated disk space requirement from ~300 MB to ~2 GB in installation documentation
+
+### Fixed
+- Fixed VoskConfig always loading old model path regardless of application.properties configuration
+
+### Migration Notes
+For existing installations:
+1. Download new model: `curl -L "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip" -o models/vosk.zip && unzip models/vosk.zip -d models/`
+2. Update `application.properties`: `stt.vosk.model-path=models/vosk-model-en-us-0.22`
+3. Restart application
+
+[v0.5.1]: https://github.com/your-org/speakToMack/releases/tag/v0.5.1
+
 ## [v0.5.0] - 2025-10-20
 ### Added
 - Phase 4 complete: Dual‑engine reconciliation path (feature‑flagged via `stt.reconciliation.enabled`).

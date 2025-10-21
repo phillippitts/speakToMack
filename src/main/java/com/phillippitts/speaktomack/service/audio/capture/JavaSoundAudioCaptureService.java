@@ -213,12 +213,14 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
                 }
                 s.buffer.write(buf, 0, n);
                 written += n;
+                LOG.debug("Audio capture: read {} bytes, total written {} bytes", n, written);
                 if (written >= hardStopBytes) {
                     LOG.info("Max capture duration reached ({} ms)", props.getMaxDurationMs());
                     s.active.set(false);
                     break;
                 }
             }
+            LOG.info("Audio capture completed: total {} bytes captured", written);
         } catch (LineUnavailableException e) {
             LOG.warn("Microphone unavailable: {}", e.getMessage());
             publisher.publishEvent(new CaptureErrorEvent("MIC_UNAVAILABLE", Instant.now()));

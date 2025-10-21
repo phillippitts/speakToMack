@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Positive;
  *
  * <p>Example application.properties:
  * <pre>
- * stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+ * stt.vosk.model-path=models/vosk-model-en-us-0.22
  * stt.vosk.sample-rate=16000
  * stt.vosk.max-alternatives=1
  * </pre>
@@ -33,10 +33,6 @@ public record VoskConfig(
         @Positive(message = "Max alternatives must be positive")
         int maxAlternatives
 ) {
-    /**
-     * Default constructor with standard values.
-     */
-    public VoskConfig() {
-        this("models/vosk-model-small-en-us-0.15", 16_000, 1);
-    }
+    // No default constructor needed - Spring Boot @ConfigurationProperties
+    // automatically binds properties from application.properties
 }

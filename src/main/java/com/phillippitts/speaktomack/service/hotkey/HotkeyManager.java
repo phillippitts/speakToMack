@@ -98,6 +98,7 @@ public class HotkeyManager implements SmartLifecycle {
                 case PRESSED -> trigger.onKeyPressed(e);
                 case RELEASED -> trigger.onKeyReleased(e);
             };
+
             if (matched) {
                 if (e.type() == NormalizedKeyEvent.Type.PRESSED) {
                     publisher.publishEvent(new HotkeyPressedEvent(Instant.now()));

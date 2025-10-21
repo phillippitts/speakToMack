@@ -4,8 +4,8 @@
 Accepted (2025-01-14)
 
 ## Context
-Vosk and Whisper require pre-trained model files (~200 MB total):
-- Vosk: `vosk-model-small-en-us-0.15.zip` (~50 MB)
+Vosk and Whisper require pre-trained model files (~2 GB total):
+- Vosk: `vosk-model-en-us-0.22.zip` (~1.8 GB) - upgraded from small model for better accuracy
 - Whisper: `ggml-base.en.bin` (~150 MB)
 
 Models needed before first transcription. Must balance:
@@ -30,8 +30,8 @@ set -e
 MODELS_DIR="./models"
 mkdir -p "$MODELS_DIR"
 
-# Download Vosk (50 MB)
-curl -L "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" -o "$MODELS_DIR/vosk.zip"
+# Download Vosk (1.8 GB)
+curl -L "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip" -o "$MODELS_DIR/vosk.zip"
 # Verify checksum
 shasum -a 256 -c <<< "expected_hash *$MODELS_DIR/vosk.zip"
 unzip -q "$MODELS_DIR/vosk.zip" -d "$MODELS_DIR"
@@ -56,7 +56,7 @@ public void validateModels() {
 ## Consequences
 
 ### Positive
-- ✅ **Fast clones**: Repository ~5 MB (vs 205 MB with models)
+- ✅ **Fast clones**: Repository ~5 MB (vs 2 GB with models)
 - ✅ **Clear errors**: Startup fails with actionable message
 - ✅ **CI-friendly**: Cache `./models/` directory between runs
 - ✅ **Offline capable**: Works after initial setup
@@ -76,7 +76,7 @@ public void validateModels() {
 ## Alternatives Considered
 
 ### Git LFS (Large File Storage)
-- **Rejected**: Large clones (205 MB), GitHub LFS costs ($5/50GB)
+- **Rejected**: Large clones (2 GB), GitHub LFS costs ($5/50GB)
 - **Advantage**: One-command setup (`git clone`)
 - **Disadvantage**: Slow clones, paid service, no offline mode
 
@@ -86,7 +86,7 @@ public void validateModels() {
 - **Disadvantage**: First transcription takes 3+ minutes, error-prone
 
 ### Bundled in JAR
-- **Rejected**: 200 MB JAR file, slow builds
+- **Rejected**: 2 GB JAR file, slow builds
 - **Advantage**: No external dependencies
 - **Disadvantage**: Every rebuild requires model copy
 

@@ -114,3 +114,11 @@ checkstyle {
     // Fail build on violations
     maxWarnings = 0
 }
+
+// Configure bootRun to disable headless mode (required for Robot/Clipboard APIs)
+tasks.named('bootRun') {
+    jvmArgs = [
+        '-XX:+EnableDynamicAgentLoading',
+        '-Djava.awt.headless=false'
+    ]
+}

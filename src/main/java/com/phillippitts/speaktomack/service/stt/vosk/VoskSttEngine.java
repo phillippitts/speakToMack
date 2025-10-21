@@ -143,6 +143,7 @@ public class VoskSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
+        LOG.info("VoskSttEngine.transcribe: received {} bytes of audio data", audioData.length);
         boolean acquired = false;
         try {
             // Try to acquire with bounded wait to handle brief spikes gracefully
@@ -180,9 +181,13 @@ public class VoskSttEngine implements SttEngine {
                     // ignore
                 }
                 // Feed full buffer (whole-clip MVP) and finalize
+                LOG.debug("VoskSttEngine: feeding {} bytes to Vosk recognizer", audioData.length);
                 localRecognizer.acceptWaveForm(audioData, audioData.length);
                 String json = localRecognizer.getFinalResult();
+                LOG.info("VoskSttEngine: Vosk returned JSON (length={} chars): {}", json.length(), json);
                 VoskTranscription transcription = parseVoskJson(json);
+                LOG.info("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
+                         transcription.text(), transcription.text().length(), transcription.confidence());
                 // Empty text is valid (e.g., silence or unclear audio)
                 return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
             } catch (Throwable t) {
@@ -281,8 +286,33 @@ public class VoskSttEngine implements SttEngine {
         json = truncateJsonIfNeeded(json);
         try {
             JSONObject obj = new JSONObject(json);
-            String text = obj.optString("text", "").trim();
-            double confidence = extractConfidenceFromJson(obj);
+
+            // Vosk can return two formats:
+            // 1. Final result: {"text": "...", "result": [...]}
+            // 2. Alternatives format: {"alternatives": [{"text": "...", "confidence": ...}]}
+            String text;
+            double confidence;
+
+            if (obj.has("alternatives")) {
+                // Extract from alternatives[0]
+                // Note: Vosk returns unnormalized confidence scores in alternatives format
+                org.json.JSONArray alternatives = obj.getJSONArray("alternatives");
+                if (alternatives.length() > 0) {
+                    JSONObject firstAlt = alternatives.getJSONObject(0);
+                    text = firstAlt.optString("text", "").trim();
+                    double rawConfidence = firstAlt.optDouble("confidence", 1.0);
+                    // Normalize to [0.0, 1.0] range - Vosk alternatives may return values > 1.0
+                    confidence = Math.min(1.0, Math.max(0.0, rawConfidence));
+                } else {
+                    text = "";
+                    confidence = 1.0;
+                }
+            } else {
+                // Extract from root level (original format)
+                text = obj.optString("text", "").trim();
+                confidence = extractConfidenceFromJson(obj);
+            }
+
             return new VoskTranscription(text, confidence);
         } catch (Exception e) {
             LOG.warn("Failed to parse Vosk JSON response: {}", json, e);

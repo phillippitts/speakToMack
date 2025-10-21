@@ -12,7 +12,7 @@ Without Accessibility permission, the app will crash with a fatal JVM error. See
 
 - **Operating System**: macOS 12+ (Monterey or later)
 - **Java Runtime**: Java 21 (JRE is sufficient, JDK not required)
-- **Disk Space**: ~300 MB (~200 MB for models + ~100 MB for application)
+- **Disk Space**: ~2 GB (~1.95 GB for models + ~50 MB for application)
 - **Permissions** (MUST be granted before first run):
   - **Accessibility** (REQUIRED - for global hotkey capture and text typing)
   - **Microphone** (REQUIRED - for voice capture)
@@ -101,7 +101,7 @@ chmod +x setup-models.sh
 ```
 
 This downloads:
-- Vosk model (~40 MB)
+- Vosk model (~1.8 GB)
 - Whisper model (~147 MB)
 
 ### Step 4: Download Whisper Binary
@@ -125,7 +125,7 @@ Create `application-local.properties` in the same directory as the JAR:
 cd ~/Applications/speakToMack
 cat > application-local.properties << 'EOF'
 # Model paths (absolute paths for production)
-stt.vosk.model-path=/Users/YOUR_USERNAME/Applications/speakToMack/models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=/Users/YOUR_USERNAME/Applications/speakToMack/models/vosk-model-en-us-0.22
 stt.whisper.model-path=/Users/YOUR_USERNAME/Applications/speakToMack/models/ggml-base.en.bin
 stt.whisper.binary-path=/Users/YOUR_USERNAME/Applications/speakToMack/tools/whisper.cpp/main
 
@@ -401,7 +401,7 @@ java -jar speakToMack.jar --logging.level.com.phillippitts.speaktomack=DEBUG
 ls -lh ~/Applications/speakToMack/models/
 
 # Expected output:
-# drwxr-xr-x vosk-model-small-en-us-0.15/
+# drwxr-xr-x vosk-model-en-us-0.22/
 # -rw-r--r-- ggml-base.en.bin (~147 MB)
 
 # If missing, download again:

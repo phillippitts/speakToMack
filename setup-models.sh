@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # speakToMack model setup script
-# - Downloads Vosk small English model (~50 MB)
+# - Downloads Vosk English model 0.22 (~1.8 GB) - higher accuracy than small model
 # - Downloads Whisper ggml base.en model (~150 MB)
 #
 # Models are saved to ./models (git-ignored)
 # Re-run anytime to refresh models.
 
 MODELS_DIR="./models"
-VOSK_ZIP="$MODELS_DIR/vosk-model-small-en-us-0.15.zip"
-VOSK_DIR="$MODELS_DIR/vosk-model-small-en-us-0.15"
+VOSK_ZIP="$MODELS_DIR/vosk-model-en-us-0.22.zip"
+VOSK_DIR="$MODELS_DIR/vosk-model-en-us-0.22"
 WHISPER_BIN="$MODELS_DIR/ggml-base.en.bin"
 CHECKSUMS_FILE="$MODELS_DIR/checksums.sha256"
 
@@ -85,8 +85,8 @@ mkdir -p "$MODELS_DIR"
 if [ -d "$VOSK_DIR" ]; then
   ok "Vosk model already present: $VOSK_DIR"
 else
-  step "Downloading Vosk model (~50 MB)"
-  curl -L "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" -o "$VOSK_ZIP.part"
+  step "Downloading Vosk model (~1.8 GB - this may take a while)"
+  curl -L "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip" -o "$VOSK_ZIP.part"
   mv "$VOSK_ZIP.part" "$VOSK_ZIP"
 
   # Resolve expected checksum (env var > locked file > none)
