@@ -7,7 +7,6 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseMotionListener;
 import com.github.kwhat.jnativehook.NativeInputEvent;
-import com.github.kwhat.jnativehook.dispatcher.SwingDispatchService;
 import com.phillippitts.speaktomack.service.hotkey.GlobalKeyHook;
 import com.phillippitts.speaktomack.service.hotkey.KeyNameMapper;
 import com.phillippitts.speaktomack.service.hotkey.NormalizedKeyEvent;
@@ -15,8 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import java.awt.Toolkit;
-import java.awt.event.KeyEvent;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -237,7 +234,12 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
         if (stateChanged) {
             modifierStates.put(keyName, isPressed);
-            NormalizedKeyEvent.Type type = isPressed ? NormalizedKeyEvent.Type.PRESSED : NormalizedKeyEvent.Type.RELEASED;
+            NormalizedKeyEvent.Type type;
+            if (isPressed) {
+                type = NormalizedKeyEvent.Type.PRESSED;
+            } else {
+                type = NormalizedKeyEvent.Type.RELEASED;
+            }
             Set<String> mods = extractModifiers(sourceEvent);
             NormalizedKeyEvent e = new NormalizedKeyEvent(type, keyName, mods, System.currentTimeMillis());
 

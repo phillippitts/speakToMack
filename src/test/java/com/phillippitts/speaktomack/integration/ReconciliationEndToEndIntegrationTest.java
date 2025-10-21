@@ -287,7 +287,8 @@ class ReconciliationEndToEndIntegrationTest {
         ReconciliationProperties props1 = new ReconciliationProperties(
                 true,
                 ReconciliationProperties.Strategy.SIMPLE,
-                0.6
+                0.6,
+                0.7
         );
         TranscriptReconciler reconciler1 = createReconciler(props1, OrchestrationProperties.PrimaryEngine.VOSK);
         ParallelSttService.EnginePair results = parallelService.transcribeBoth(DUMMY_PCM, TIMEOUT_MS);
@@ -298,7 +299,8 @@ class ReconciliationEndToEndIntegrationTest {
         ReconciliationProperties props2 = new ReconciliationProperties(
                 true,
                 ReconciliationProperties.Strategy.CONFIDENCE,
-                0.6
+                0.6,
+                0.7
         );
         TranscriptReconciler reconciler2 = createReconciler(props2, OrchestrationProperties.PrimaryEngine.VOSK);
         TranscriptionResult result2 = reconciler2.reconcile(results.vosk(), results.whisper());

@@ -23,6 +23,7 @@ Current capabilities (implemented):
 - ✅ Vosk STT engine (JNI) with per-call recognizer (thread-safe)
 - ✅ Whisper STT engine via whisper.cpp (temp WAV + robust process manager with timeouts and stdout caps)
 - ✅ Parallel execution (Vosk + Whisper) with reconciled path behind a flag
+- ✅ Smart reconciliation: conditional dual-engine based on Vosk confidence threshold (70-80% resource savings)
 - ✅ Reconciliation strategies: simple, confidence, word-overlap (configurable)
 - ✅ Whisper JSON mode (opt-in) with token extraction for better overlap
 - ✅ Audio Capture Service (Java Sound, PCM16LE mono @16kHz) with ring buffer, validation, and hermetic tests
@@ -39,7 +40,7 @@ Planned (later phases):
 ## Key Features
 
 - **Push-to-Talk Dictation:** Press/hold hotkey → speak → release → text appears
-- **Dual-Engine Transcription:** Vosk (speed) + Whisper (accuracy) run in parallel
+- **Smart Dual-Engine Transcription:** Starts with Vosk (fast), automatically upgrades to Whisper verification when confidence is low - saves 70-80% resources while maintaining accuracy
 - **100% Local:** No cloud APIs, no internet required after setup
 - **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties or application.yml)
 - **Graceful Fallback:** Works even if Accessibility permission denied

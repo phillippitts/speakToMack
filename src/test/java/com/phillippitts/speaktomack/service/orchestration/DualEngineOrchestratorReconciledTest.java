@@ -39,7 +39,7 @@ class DualEngineOrchestratorReconciledTest {
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
-                        ReconciliationProperties.Strategy.SIMPLE, 0.6);
+                        ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
 
         // Parallel service returns two engine results
         ParallelSttService.EnginePair pair = new ParallelSttService.EnginePair(
@@ -83,7 +83,7 @@ class DualEngineOrchestratorReconciledTest {
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
-                        ReconciliationProperties.Strategy.SIMPLE, 0.6);
+                        ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
 
         // Only whisper succeeds
         ParallelSttService.EnginePair pair = new ParallelSttService.EnginePair(

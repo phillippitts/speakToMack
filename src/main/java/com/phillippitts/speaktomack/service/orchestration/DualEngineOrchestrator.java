@@ -325,6 +325,8 @@ public final class DualEngineOrchestrator {
 
     /**
      * Transcribes audio using a single engine selected based on watchdog state.
+     * Implements smart reconciliation: if Vosk confidence is below threshold,
+     * automatically upgrades to dual-engine mode for better accuracy.
      *
      * @param pcm PCM audio data to transcribe
      */
@@ -336,7 +338,21 @@ public final class DualEngineOrchestrator {
             TranscriptionResult result = engine.transcribe(pcm);
             String engineName = engine.getEngineName();
 
-            // Record metrics
+            // Smart reconciliation: Check if we should upgrade to dual-engine
+            // based on Vosk confidence threshold
+            if (isReconciliationEnabled() &&
+                ENGINE_VOSK.equals(engineName) &&
+                result.confidence() < recProps.getConfidenceThreshold()) {
+
+                LOG.info("Vosk confidence {:.3f} < threshold {:.3f}, upgrading to dual-engine reconciliation",
+                         result.confidence(), recProps.getConfidenceThreshold());
+
+                // Upgrade to dual-engine mode for this transcription
+                transcribeWithReconciliation(pcm);
+                return; // Exit early - reconciliation handles metrics & publishing
+            }
+
+            // Record metrics for successful single-engine transcription
             if (metrics != null) {
                 long duration = System.nanoTime() - startTime;
                 metrics.recordLatency(engineName, duration);

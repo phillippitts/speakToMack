@@ -29,8 +29,8 @@ class VoskConfigTest {
     }
 
     @Test
-    void shouldUseDefaultValues() {
-        VoskConfig config = new VoskConfig();
+    void shouldAcceptExplicitDefaults() {
+        VoskConfig config = new VoskConfig("models/vosk-model-small-en-us-0.15", 16_000, 1);
 
         assertThat(config.modelPath()).isEqualTo("models/vosk-model-small-en-us-0.15");
         assertThat(config.sampleRate()).isEqualTo(16_000);

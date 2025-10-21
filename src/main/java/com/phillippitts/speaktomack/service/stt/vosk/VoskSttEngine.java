@@ -173,26 +173,7 @@ public class VoskSttEngine implements SttEngine {
                 localModel = this.model;
             }
             // Recognizer per call for thread-safety
-            try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
-                // Some Vosk versions expose this method; guard against NoSuchMethodError
-                try {
-                    localRecognizer.setMaxAlternatives(config.maxAlternatives());
-                } catch (NoSuchMethodError ignored) {
-                    // ignore
-                }
-                // Feed full buffer (whole-clip MVP) and finalize
-                LOG.debug("VoskSttEngine: feeding {} bytes to Vosk recognizer", audioData.length);
-                localRecognizer.acceptWaveForm(audioData, audioData.length);
-                String json = localRecognizer.getFinalResult();
-                LOG.info("VoskSttEngine: Vosk returned JSON (length={} chars): {}", json.length(), json);
-                VoskTranscription transcription = parseVoskJson(json);
-                LOG.info("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
-                         transcription.text(), transcription.text().length(), transcription.confidence());
-                // Empty text is valid (e.g., silence or unclear audio)
-                return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
-            } catch (Throwable t) {
-                throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
-            }
+            return transcribeWithModel(localModel, audioData);
         } finally {
             if (acquired) {
                 concurrencySemaphore.release();
@@ -205,6 +186,29 @@ public class VoskSttEngine implements SttEngine {
      *
      * @return "vosk"
      */
+    private TranscriptionResult transcribeWithModel(org.vosk.Model localModel, byte[] audioData) {
+        try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
+            // Some Vosk versions expose this method; guard against NoSuchMethodError
+            try {
+                localRecognizer.setMaxAlternatives(config.maxAlternatives());
+            } catch (NoSuchMethodError ignored) {
+                // ignore
+            }
+            // Feed full buffer (whole-clip MVP) and finalize
+            LOG.debug("VoskSttEngine: feeding {} bytes to Vosk recognizer", audioData.length);
+            localRecognizer.acceptWaveForm(audioData, audioData.length);
+            String json = localRecognizer.getFinalResult();
+            LOG.info("VoskSttEngine: Vosk returned JSON (length={} chars): {}", json.length(), json);
+            VoskTranscription transcription = parseVoskJson(json);
+            LOG.info("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
+                     transcription.text(), transcription.text().length(), transcription.confidence());
+            // Empty text is valid (e.g., silence or unclear audio)
+            return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());
+        } catch (Throwable t) {
+            throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
+        }
+    }
+
     @Override
     public String getEngineName() {
         return ENGINE_NAME;
