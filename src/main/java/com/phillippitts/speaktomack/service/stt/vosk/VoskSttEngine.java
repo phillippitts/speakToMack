@@ -42,6 +42,16 @@ public class VoskSttEngine implements SttEngine {
      */
     private static final int MAX_JSON_SIZE = 1_048_576; // 1MB
 
+    /**
+     * Default concurrency limit for Vosk transcription when no configuration provided.
+     */
+    private static final int DEFAULT_CONCURRENCY_LIMIT = 4;
+
+    /**
+     * Default semaphore acquire timeout in milliseconds.
+     */
+    private static final int DEFAULT_ACQUIRE_TIMEOUT_MS = 1000;
+
     private final VoskConfig config;
     private final Object lock = new Object();
 
@@ -66,8 +76,8 @@ public class VoskSttEngine implements SttEngine {
 
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
-        this.concurrencySemaphore = new java.util.concurrent.Semaphore(4);
-        this.acquireTimeoutMs = 1000; // Default 1 second
+        this.concurrencySemaphore = new java.util.concurrent.Semaphore(DEFAULT_CONCURRENCY_LIMIT);
+        this.acquireTimeoutMs = DEFAULT_ACQUIRE_TIMEOUT_MS;
     }
 
     /**

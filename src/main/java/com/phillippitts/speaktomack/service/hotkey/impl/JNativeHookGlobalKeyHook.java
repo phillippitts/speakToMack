@@ -36,6 +36,16 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     private static final Logger LOG = LogManager.getLogger(JNativeHookGlobalKeyHook.class);
     private static final long POLL_INTERVAL_MS = 50; // Poll every 50ms for modifier changes
 
+    /**
+     * macOS raw key code for right Command key.
+     */
+    private static final int MACOS_RIGHT_CMD_KEYCODE = 0x36;
+
+    /**
+     * macOS raw key code for left Command key.
+     */
+    private static final int MACOS_LEFT_CMD_KEYCODE = 0x37;
+
     private volatile Consumer<NormalizedKeyEvent> listener;
     private final AtomicBoolean registered = new AtomicBoolean(false);
 
@@ -140,39 +150,24 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
      * Checks for modifier state changes from key events.
      */
     private void checkModifierChanges(NativeKeyEvent ne) {
-        Consumer<NormalizedKeyEvent> l = this.listener;
-        if (l == null) {
-            return;
-        }
-
-        int modifiers = ne.getModifiers();
-
-        // Check each modifier key state
-        checkModifierState("LEFT_SHIFT", (modifiers & NativeInputEvent.SHIFT_L_MASK) != 0, ne);
-        checkModifierState("RIGHT_SHIFT", (modifiers & NativeInputEvent.SHIFT_R_MASK) != 0, ne);
-        checkModifierState("LEFT_CONTROL", (modifiers & NativeInputEvent.CTRL_L_MASK) != 0, ne);
-        checkModifierState("RIGHT_CONTROL", (modifiers & NativeInputEvent.CTRL_R_MASK) != 0, ne);
-        checkModifierState("LEFT_ALT", (modifiers & NativeInputEvent.ALT_L_MASK) != 0, ne);
-        checkModifierState("RIGHT_ALT", (modifiers & NativeInputEvent.ALT_R_MASK) != 0, ne);
-        checkModifierState("LEFT_META", (modifiers & NativeInputEvent.META_L_MASK) != 0, ne);
-        checkModifierState("RIGHT_META", (modifiers & NativeInputEvent.META_R_MASK) != 0, ne);
+        checkAllModifierStates(ne);
     }
 
     private void emit(NativeKeyEvent ne, NormalizedKeyEvent.Type type) {
-        Consumer<NormalizedKeyEvent> l = this.listener;
-        if (l == null) {
+        Consumer<NormalizedKeyEvent> listener = this.listener;
+        if (listener == null) {
             return;
         }
         String keyText = NativeKeyEvent.getKeyText(ne.getKeyCode());
         String key = KeyNameMapper.normalizeKey(keyText);
 
         // JNativeHook returns "Meta" for both left and right Command keys
-        // Use key location to distinguish left (0x0) vs right (0x36)
+        // Use key location to distinguish left vs right on macOS
         if ("META".equals(key)) {
             int rawKeyCode = ne.getRawCode();
-            if (rawKeyCode == 0x36) {
+            if (rawKeyCode == MACOS_RIGHT_CMD_KEYCODE) {
                 key = "RIGHT_META";
-            } else if (rawKeyCode == 0x37) {
+            } else if (rawKeyCode == MACOS_LEFT_CMD_KEYCODE) {
                 key = "LEFT_META";
             }
         }
@@ -180,7 +175,7 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
         Set<String> mods = extractModifiers(ne);
         NormalizedKeyEvent e = new NormalizedKeyEvent(type, key, mods, System.currentTimeMillis());
         try {
-            l.accept(e);
+            listener.accept(e);
         } catch (Exception ex) {
             LOG.warn("Listener error for {}: {}", e, ex.toString());
         }
@@ -201,30 +196,40 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
      * Checks for modifier state changes from mouse events.
      */
     private void checkModifierChanges(NativeMouseEvent e) {
-        Consumer<NormalizedKeyEvent> l = this.listener;
-        if (l == null) {
+        checkAllModifierStates(e);
+    }
+
+    /**
+     * Checks all modifier key states and emits events for any changes.
+     * Extracted from duplicate code in checkModifierChanges methods.
+     *
+     * @param event the native input event (keyboard or mouse) containing modifier state
+     */
+    private void checkAllModifierStates(NativeInputEvent event) {
+        Consumer<NormalizedKeyEvent> listener = this.listener;
+        if (listener == null) {
             return;
         }
 
-        int modifiers = e.getModifiers();
+        int modifiers = event.getModifiers();
 
         // Check each modifier key state
-        checkModifierState("LEFT_SHIFT", (modifiers & NativeInputEvent.SHIFT_L_MASK) != 0, e);
-        checkModifierState("RIGHT_SHIFT", (modifiers & NativeInputEvent.SHIFT_R_MASK) != 0, e);
-        checkModifierState("LEFT_CONTROL", (modifiers & NativeInputEvent.CTRL_L_MASK) != 0, e);
-        checkModifierState("RIGHT_CONTROL", (modifiers & NativeInputEvent.CTRL_R_MASK) != 0, e);
-        checkModifierState("LEFT_ALT", (modifiers & NativeInputEvent.ALT_L_MASK) != 0, e);
-        checkModifierState("RIGHT_ALT", (modifiers & NativeInputEvent.ALT_R_MASK) != 0, e);
-        checkModifierState("LEFT_META", (modifiers & NativeInputEvent.META_L_MASK) != 0, e);
-        checkModifierState("RIGHT_META", (modifiers & NativeInputEvent.META_R_MASK) != 0, e);
+        checkModifierState("LEFT_SHIFT", (modifiers & NativeInputEvent.SHIFT_L_MASK) != 0, event);
+        checkModifierState("RIGHT_SHIFT", (modifiers & NativeInputEvent.SHIFT_R_MASK) != 0, event);
+        checkModifierState("LEFT_CONTROL", (modifiers & NativeInputEvent.CTRL_L_MASK) != 0, event);
+        checkModifierState("RIGHT_CONTROL", (modifiers & NativeInputEvent.CTRL_R_MASK) != 0, event);
+        checkModifierState("LEFT_ALT", (modifiers & NativeInputEvent.ALT_L_MASK) != 0, event);
+        checkModifierState("RIGHT_ALT", (modifiers & NativeInputEvent.ALT_R_MASK) != 0, event);
+        checkModifierState("LEFT_META", (modifiers & NativeInputEvent.META_L_MASK) != 0, event);
+        checkModifierState("RIGHT_META", (modifiers & NativeInputEvent.META_R_MASK) != 0, event);
     }
 
     /**
      * Checks if a specific modifier key state has changed and emits an event if so.
      */
     private void checkModifierState(String keyName, boolean isPressed, NativeInputEvent sourceEvent) {
-        Consumer<NormalizedKeyEvent> l = this.listener;
-        if (l == null) {
+        Consumer<NormalizedKeyEvent> listener = this.listener;
+        if (listener == null) {
             return;
         }
 
@@ -244,7 +249,7 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
             NormalizedKeyEvent e = new NormalizedKeyEvent(type, keyName, mods, System.currentTimeMillis());
 
             try {
-                l.accept(e);
+                listener.accept(e);
             } catch (Exception ex) {
                 LOG.warn("Listener error for modifier {}: {}", keyName, ex.toString());
             }

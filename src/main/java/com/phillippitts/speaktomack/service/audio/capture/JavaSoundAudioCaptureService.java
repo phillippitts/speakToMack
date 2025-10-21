@@ -234,13 +234,13 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             if (line != null) {
                 try {
                     line.stop();
-                } catch (Exception ignore) {
-                    // Ignore
+                } catch (Exception e) {
+                    LOG.debug("Failed to stop audio line for session {}: {}", s.id, e.getMessage());
                 }
                 try {
                     line.close();
-                } catch (Exception ignore) {
-                    // Ignore
+                } catch (Exception e) {
+                    LOG.debug("Failed to close audio line for session {}: {}", s.id, e.getMessage());
                 }
             }
         }

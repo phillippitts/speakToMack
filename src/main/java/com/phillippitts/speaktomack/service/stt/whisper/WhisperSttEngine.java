@@ -326,6 +326,26 @@ public final class WhisperSttEngine implements SttEngine {
         return v == null ? java.util.List.of() : v;
     }
 
+    /**
+     * Implementation of SttEngine interface method for consuming tokens.
+     * Wraps {@link #consumeLastTokens()} to return Optional for polymorphic usage.
+     */
+    @Override
+    public java.util.Optional<java.util.List<String>> consumeTokens() {
+        java.util.List<String> tokens = consumeLastTokens();
+        return tokens.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(tokens);
+    }
+
+    /**
+     * Implementation of SttEngine interface method for consuming raw JSON.
+     * Wraps {@link #consumeLastRawJson()} to return Optional for polymorphic usage.
+     */
+    @Override
+    public java.util.Optional<String> consumeRawJson() {
+        String json = consumeLastRawJson();
+        return json == null ? java.util.Optional.empty() : java.util.Optional.of(json);
+    }
+
     @Override
     public String getEngineName() {
         return ENGINE;

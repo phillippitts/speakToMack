@@ -163,14 +163,15 @@ public class DefaultParallelSttService implements ParallelSttService {
             long elapsedMs = TimeUtils.elapsedMillis(startTime);
             List<String> tokens = TokenizerUtil.tokenize(tr.text());
             String rawJson = null;
-            // If this is the Whisper engine in JSON mode, prefer JSON-derived tokens/raw
-            if (engine instanceof com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine w) {
-                List<String> jt = w.consumeLastTokens();
-                if (!jt.isEmpty()) {
-                    tokens = jt;
-                }
-                rawJson = w.consumeLastRawJson();
+
+            // Use interface methods to get tokens and JSON if engine supports them
+            // This uses polymorphism instead of instanceof check
+            java.util.Optional<List<String>> engineTokens = engine.consumeTokens();
+            if (engineTokens.isPresent() && !engineTokens.get().isEmpty()) {
+                tokens = engineTokens.get();
             }
+            rawJson = engine.consumeRawJson().orElse(null);
+
             return new EngineResult(tr.text(), tr.confidence(), tokens, elapsedMs, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
             LOG.warn("{} failed: {}", engine.getEngineName(), te.getMessage());

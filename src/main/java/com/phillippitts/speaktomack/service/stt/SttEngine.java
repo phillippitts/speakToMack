@@ -4,6 +4,9 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.ModelNotFoundException;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
  * Contract for Speech-to-Text (STT) engine implementations.
  * Implementations must support the adapter pattern to wrap different STT libraries
@@ -74,4 +77,32 @@ public interface SttEngine extends AutoCloseable {
      */
     @Override
     void close();
+
+    /**
+     * Consumes and returns tokenized version of the last transcription result, if available.
+     * This is an optional capability - engines that support detailed tokenization can override
+     * this method to provide token-level information for improved reconciliation strategies.
+     *
+     * <p>Default implementation returns empty Optional. Engines like Whisper that provide
+     * JSON output with token-level timing can override to return actual tokens.
+     *
+     * @return Optional containing list of tokens from last transcription, or empty if not supported
+     */
+    default Optional<List<String>> consumeTokens() {
+        return Optional.empty();
+    }
+
+    /**
+     * Consumes and returns raw JSON output from the last transcription, if available.
+     * This is an optional capability - engines that produce structured output can override
+     * this method to provide access to the raw response for debugging or advanced processing.
+     *
+     * <p>Default implementation returns empty Optional. Engines like Whisper in JSON mode
+     * can override to return the complete JSON response.
+     *
+     * @return Optional containing raw JSON string from last transcription, or empty if not supported
+     */
+    default Optional<String> consumeRawJson() {
+        return Optional.empty();
+    }
 }
