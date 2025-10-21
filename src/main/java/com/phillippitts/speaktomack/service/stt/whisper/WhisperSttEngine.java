@@ -108,21 +108,12 @@ public final class WhisperSttEngine implements SttEngine {
     @Override
     public void initialize() {
         synchronized (lock) {
-            if (closed) {
-                IllegalStateException ex = new IllegalStateException("Engine already closed");
-                if (publisher != null) {
-                    Map<String, String> ctx = new HashMap<>();
-                    ctx.put("binaryPath", cfg.binaryPath());
-                    ctx.put("modelPath", cfg.modelPath());
-                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                            "initialize failure (already closed)", ex, ctx));
-                }
-                throw ex;
-            }
-            if (initialized) {
-                return;
+            if (initialized && !closed) {
+                return; // Already initialized and not closed
             }
             try {
+                // Allow reinitialization after close() for watchdog restart support
+                closed = false;
                 initialized = true; // Fail-fast validation already ran at startup
                 LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
                         cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
