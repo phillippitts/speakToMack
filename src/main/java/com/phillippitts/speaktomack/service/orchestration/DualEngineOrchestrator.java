@@ -2,6 +2,7 @@ package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties.PrimaryEngine;
+import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
@@ -26,19 +27,25 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Orchestrates push-to-talk workflow: audio capture on hotkey press, transcription on release.
+ * Orchestrates push-to-talk or toggle-mode workflow: audio capture on hotkey, transcription on completion.
  *
  * <p>This orchestrator coordinates the complete speech-to-text pipeline:
  * <ol>
- *   <li><b>Hotkey Press:</b> Starts audio capture session via {@link AudioCaptureService}</li>
- *   <li><b>Hotkey Release:</b> Stops capture, retrieves audio, selects engine, transcribes</li>
+ *   <li><b>Hotkey Press:</b> Starts audio capture (push-to-talk) or toggles recording (toggle mode)</li>
+ *   <li><b>Hotkey Release:</b> Stops capture and transcribes (push-to-talk mode only)</li>
  *   <li><b>Engine Selection:</b> Uses {@link SttEngineWatchdog} to choose healthy engine
  *       based on primary preference</li>
  *   <li><b>Transcription:</b> Supports both single-engine and dual-engine reconciliation modes</li>
  *   <li><b>Event Publishing:</b> Emits {@link TranscriptionCompletedEvent} for downstream processing</li>
  * </ol>
  *
- * <p><b>Operating Modes:</b>
+ * <p><b>Capture Modes:</b>
+ * <ul>
+ *   <li><b>Push-to-Talk (Default):</b> Press hotkey to start recording, release to stop and transcribe.</li>
+ *   <li><b>Toggle Mode:</b> First press starts recording, second press stops and transcribes. Release is ignored.</li>
+ * </ul>
+ *
+ * <p><b>Transcription Modes:</b>
  * <ul>
  *   <li><b>Single-Engine Mode (Default):</b> Uses one engine (Vosk or Whisper) based on primary
  *       preference and health status. Falls back to secondary if primary is unhealthy.</li>
@@ -82,6 +89,7 @@ public final class DualEngineOrchestrator {
     private final SttEngine whisper;
     private final SttEngineWatchdog watchdog;
     private final OrchestrationProperties props;
+    private final HotkeyProperties hotkeyProps;
     private final ApplicationEventPublisher publisher;
 
     // Optional Phase 4 components
@@ -109,10 +117,11 @@ public final class DualEngineOrchestrator {
      * @param whisper Whisper STT engine instance
      * @param watchdog engine health monitor and enablement controller
      * @param props orchestration configuration (primary engine preference)
+     * @param hotkeyProps hotkey configuration (toggle mode, etc.)
      * @param publisher Spring event publisher for transcription results
      * @throws NullPointerException if any parameter is null
      * @see #DualEngineOrchestrator(AudioCaptureService, SttEngine, SttEngine, SttEngineWatchdog,
-     *      OrchestrationProperties, ApplicationEventPublisher, ParallelSttService,
+     *      OrchestrationProperties, HotkeyProperties, ApplicationEventPublisher, ParallelSttService,
      *      TranscriptReconciler, ReconciliationProperties)
      */
     public DualEngineOrchestrator(AudioCaptureService captureService,
@@ -120,8 +129,9 @@ public final class DualEngineOrchestrator {
                                   SttEngine whisper,
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
+                                  HotkeyProperties hotkeyProps,
                                   ApplicationEventPublisher publisher) {
-        this(captureService, vosk, whisper, watchdog, props, publisher, null, null, null, null);
+        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null, null);
     }
 
     /**
@@ -132,13 +142,14 @@ public final class DualEngineOrchestrator {
      * in parallel and reconciles their results using the configured strategy.
      *
      * <p>If any Phase 4 parameter is {@code null} or reconciliation is disabled, the orchestrator
-     * falls back to single-engine mode (same behavior as the 6-parameter constructor).
+     * falls back to single-engine mode (same behavior as the 7-parameter constructor).
      *
      * @param captureService service for audio capture lifecycle management
      * @param vosk Vosk STT engine instance
      * @param whisper Whisper STT engine instance
      * @param watchdog engine health monitor and enablement controller
      * @param props orchestration configuration (primary engine preference)
+     * @param hotkeyProps hotkey configuration (toggle mode, etc.)
      * @param publisher Spring event publisher for transcription results
      * @param parallel service for running both engines in parallel (nullable)
      * @param reconciler strategy for merging dual-engine results (nullable)
@@ -149,11 +160,13 @@ public final class DualEngineOrchestrator {
      * @see TranscriptReconciler
      * @see ReconciliationProperties
      */
+    // CHECKSTYLE.OFF: ParameterNumber - Constructor requires many dependencies for reconciliation
     public DualEngineOrchestrator(AudioCaptureService captureService,
                                   SttEngine vosk,
                                   SttEngine whisper,
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
+                                  HotkeyProperties hotkeyProps,
                                   ApplicationEventPublisher publisher,
                                   ParallelSttService parallel,
                                   TranscriptReconciler reconciler,
@@ -164,23 +177,30 @@ public final class DualEngineOrchestrator {
         this.whisper = Objects.requireNonNull(whisper);
         this.watchdog = Objects.requireNonNull(watchdog);
         this.props = Objects.requireNonNull(props);
+        this.hotkeyProps = Objects.requireNonNull(hotkeyProps);
         this.publisher = Objects.requireNonNull(publisher);
         this.parallel = parallel;
         this.reconciler = reconciler;
         this.recProps = recProps;
         this.metrics = metrics;
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     /**
-     * Handles hotkey press events by starting a new audio capture session.
+     * Handles hotkey press events by starting or stopping audio capture, depending on mode.
      *
      * <p>This method is invoked asynchronously by Spring's event system when the user presses
-     * the configured hotkey (e.g., Cmd+Shift+M on macOS). It starts a new capture session
-     * via {@link AudioCaptureService} and records the session ID for later retrieval.
+     * the configured hotkey (e.g., Cmd+Shift+M on macOS).
+     *
+     * <p><b>Push-to-Talk Mode (toggleMode=false):</b> Starts a new capture session and records
+     * the session ID for later retrieval on release.
+     *
+     * <p><b>Toggle Mode (toggleMode=true):</b> If no session is active, starts a new capture
+     * session. If a session is already active, stops it and initiates transcription (same as
+     * release in push-to-talk mode).
      *
      * <p><b>Thread Safety:</b> Synchronized on {@code lock} to ensure only one session can
-     * be active at a time. Duplicate presses during an active session are ignored to prevent
-     * audio stream corruption.
+     * be active at a time. Duplicate presses during an active session are handled based on mode.
      *
      * <p><b>Performance:</b> This method completes in &lt;5ms under normal conditions. The
      * audio capture runs on a background thread managed by {@link AudioCaptureService}.
@@ -193,11 +213,40 @@ public final class DualEngineOrchestrator {
     public void onHotkeyPressed(HotkeyPressedEvent evt) {
         synchronized (lock) {
             if (activeSession != null) {
-                LOG.debug("Capture already active (session={})", activeSession);
-                return; // Ignore duplicate presses
+                // In toggle mode, pressing again stops the capture
+                if (hotkeyProps.isToggleMode()) {
+                    LOG.info("Toggle mode: stopping capture on second press (session={})", activeSession);
+                    processToggleStop();
+                } else {
+                    LOG.debug("Capture already active (session={})", activeSession);
+                }
+                return;
             }
             activeSession = captureService.startSession();
-            LOG.info("Capture session started at {} (session={})", evt.at(), activeSession);
+            LOG.info("Capture session started at {} (session={}, toggleMode={})",
+                     evt.at(), activeSession, hotkeyProps.isToggleMode());
+        }
+    }
+
+    /**
+     * Processes toggle mode stop: stops capture and initiates transcription.
+     * Must be called from within synchronized(lock) block.
+     */
+    private void processToggleStop() {
+        UUID session = activeSession;
+        captureService.stopSession(session);
+        activeSession = null;
+
+        // Process transcription asynchronously (same as onHotkeyReleased)
+        byte[] pcm = finalizeCaptureSession(session);
+        if (pcm == null) {
+            return; // Capture failed
+        }
+
+        if (isReconciliationEnabled()) {
+            transcribeWithReconciliation(pcm);
+        } else {
+            transcribeWithSingleEngine(pcm);
         }
     }
 
@@ -205,7 +254,9 @@ public final class DualEngineOrchestrator {
      * Handles hotkey release events by stopping capture and initiating transcription.
      *
      * <p>This method is invoked asynchronously by Spring's event system when the user releases
-     * the hotkey. It performs the following workflow:
+     * the hotkey.
+     *
+     * <p><b>Push-to-Talk Mode (toggleMode=false):</b> Performs the following workflow:
      * <ol>
      *   <li>Stops the active capture session (synchronized)</li>
      *   <li>Retrieves captured PCM audio data</li>
@@ -213,6 +264,9 @@ public final class DualEngineOrchestrator {
      *   <li>Transcribes audio using selected mode</li>
      *   <li>Publishes {@link TranscriptionCompletedEvent} on success</li>
      * </ol>
+     *
+     * <p><b>Toggle Mode (toggleMode=true):</b> Ignored. In toggle mode, capture is stopped
+     * by the second press event, not by release.
      *
      * <p><b>Error Handling:</b> If no active session exists or audio retrieval fails, the
      * method returns early without attempting transcription. Transcription failures are logged
@@ -230,6 +284,12 @@ public final class DualEngineOrchestrator {
      */
     @EventListener
     public void onHotkeyReleased(HotkeyReleasedEvent evt) {
+        // In toggle mode, release events are ignored
+        if (hotkeyProps.isToggleMode()) {
+            LOG.debug("Toggle mode: ignoring release event");
+            return;
+        }
+
         UUID session = stopCaptureSession();
         if (session == null) {
             return; // No active session

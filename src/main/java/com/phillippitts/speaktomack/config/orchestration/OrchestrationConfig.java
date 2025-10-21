@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.config.orchestration;
 
+import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
@@ -35,10 +36,11 @@ public class OrchestrationConfig {
                                                          SttEngine whisperSttEngine,
                                                          SttEngineWatchdog watchdog,
                                                          OrchestrationProperties props,
+                                                         HotkeyProperties hotkeyProps,
                                                          ApplicationEventPublisher publisher,
                                                          TranscriptionMetrics metrics) {
         return new DualEngineOrchestrator(captureService, voskSttEngine, whisperSttEngine,
-                watchdog, props, publisher, null, null, null, metrics);
+                watchdog, props, hotkeyProps, publisher, null, null, null, metrics);
     }
 
     /**
@@ -46,11 +48,13 @@ public class OrchestrationConfig {
      */
     @Bean
     @ConditionalOnProperty(prefix = "stt.reconciliation", name = "enabled", havingValue = "true")
+    // CHECKSTYLE.OFF: ParameterNumber - Constructor requires many dependencies for reconciliation
     public DualEngineOrchestrator reconciledDualEngineOrchestrator(AudioCaptureService captureService,
                                                                    SttEngine voskSttEngine,
                                                                    SttEngine whisperSttEngine,
                                                                    SttEngineWatchdog watchdog,
                                                                    OrchestrationProperties props,
+                                                                   HotkeyProperties hotkeyProps,
                                                                    ApplicationEventPublisher publisher,
                                                                    ParallelSttService parallelSttService,
                                                                    TranscriptReconciler transcriptReconciler,
@@ -62,6 +66,7 @@ public class OrchestrationConfig {
                 whisperSttEngine,
                 watchdog,
                 props,
+                hotkeyProps,
                 publisher,
                 parallelSttService,
                 transcriptReconciler,
@@ -69,4 +74,5 @@ public class OrchestrationConfig {
                 metrics
         );
     }
+    // CHECKSTYLE.ON: ParameterNumber
 }

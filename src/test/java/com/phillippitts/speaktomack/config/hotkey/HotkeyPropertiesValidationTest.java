@@ -10,7 +10,7 @@ class HotkeyPropertiesValidationTest {
 
     @Test
     void failsOnUnknownType() {
-        HotkeyProperties p = new HotkeyProperties(null, "RIGHT_META", 300, List.of(), List.of());
+        HotkeyProperties p = new HotkeyProperties(null, "RIGHT_META", 300, List.of(), List.of(), null);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -21,7 +21,7 @@ class HotkeyPropertiesValidationTest {
     void failsOnBadKey() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.SINGLE_KEY,
-                "NOT_A_KEY", 300, List.of(), List.of());
+                "NOT_A_KEY", 300, List.of(), List.of(), null);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -32,7 +32,7 @@ class HotkeyPropertiesValidationTest {
     void failsOnBadModifier() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                "D", 300, List.of("WEIRD"), List.of());
+                "D", 300, List.of("WEIRD"), List.of(), null);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -43,7 +43,7 @@ class HotkeyPropertiesValidationTest {
     void requiresModifierForCombination() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                "D", 300, List.of(), List.of());
+                "D", 300, List.of(), List.of(), null);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)

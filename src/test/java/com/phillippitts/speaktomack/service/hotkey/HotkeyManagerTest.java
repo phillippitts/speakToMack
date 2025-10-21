@@ -22,7 +22,7 @@ class HotkeyManagerTest {
         HotkeyProperties props =
                 new HotkeyProperties(
                         com.phillippitts.speaktomack.config.hotkey.TriggerType.SINGLE_KEY,
-                        "RIGHT_META", 300, List.of(), List.of());
+                        "RIGHT_META", 300, List.of(), List.of(), null);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher publisher = events::add;
 

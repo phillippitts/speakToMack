@@ -17,7 +17,7 @@ class HotkeyTriggerFactoryTest {
         HotkeyTriggerFactory f = new HotkeyTriggerFactory();
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.SINGLE_KEY,
-                "RIGHT_META", 300, List.of(), List.of());
+                "RIGHT_META", 300, List.of(), List.of(), null);
         HotkeyTrigger t = f.from(p);
         assertThat(t).isInstanceOf(SingleKeyTrigger.class);
     }
@@ -27,7 +27,7 @@ class HotkeyTriggerFactoryTest {
         HotkeyTriggerFactory f = new HotkeyTriggerFactory();
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.DOUBLE_TAP,
-                "F13", 250, List.of(), List.of());
+                "F13", 250, List.of(), List.of(), null);
         HotkeyTrigger t = f.from(p);
         assertThat(t).isInstanceOf(DoubleTapTrigger.class);
     }
@@ -37,7 +37,7 @@ class HotkeyTriggerFactoryTest {
         HotkeyTriggerFactory f = new HotkeyTriggerFactory();
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                "D", 300, List.of("META", "SHIFT"), List.of());
+                "D", 300, List.of("META", "SHIFT"), List.of(), null);
         HotkeyTrigger t = f.from(p);
         assertThat(t).isInstanceOf(ModifierCombinationTrigger.class);
     }

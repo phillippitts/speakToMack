@@ -1,5 +1,7 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
+import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
@@ -34,7 +36,7 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
 
         // Act
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -60,7 +62,7 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
@@ -81,7 +83,7 @@ class DualEngineOrchestratorTest {
         FakeWatchdog wd = new FakeWatchdog(false, false);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         assertThatThrownBy(() -> orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now())))
@@ -98,7 +100,7 @@ class DualEngineOrchestratorTest {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, pub);
+        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
 
         // Start session, then receive capture error
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -177,5 +179,9 @@ class DualEngineOrchestratorTest {
                 default -> false;
             };
         }
+    }
+
+    private static HotkeyProperties fakeHotkeyProps() {
+        return new HotkeyProperties(TriggerType.MODIFIER_COMBO, "J", 300, List.of("META"), List.of(), false);
     }
 }

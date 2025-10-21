@@ -1,6 +1,8 @@
 package com.phillippitts.speaktomack.integration;
 
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.config.stt.SttWatchdogProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
@@ -69,6 +71,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -104,6 +107,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -141,6 +145,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -178,6 +183,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -214,6 +220,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -247,6 +254,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -301,6 +309,7 @@ class ReconciliationE2ETest {
         DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
                 capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
                 new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
+                fakeHotkeyProps(),
                 publisher, parallel, reconciler, recProps,
                 null  // metrics
         );
@@ -314,5 +323,9 @@ class ReconciliationE2ETest {
         assertThat(event).isNotNull();
         assertThat(event.engineUsed()).isEqualTo("vosk"); // NOT "reconciled"
         assertThat(event.result().text()).isEqualTo("vosk text");
+    }
+    private static HotkeyProperties fakeHotkeyProps() {
+        return new HotkeyProperties(TriggerType.MODIFIER_COMBO, "J", 300,
+                java.util.List.of("META"), java.util.List.of(), false);
     }
 }

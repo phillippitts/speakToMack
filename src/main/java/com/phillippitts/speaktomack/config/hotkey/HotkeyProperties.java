@@ -42,12 +42,19 @@ public class HotkeyProperties {
     /** Reserved OS shortcuts to flag as conflicts (e.g., META+TAB, META+L). */
     private final List<String> reserved;
 
+    /**
+     * Toggle mode: if true, first hotkey press starts recording, second press stops and transcribes.
+     * If false (default), uses push-to-talk: press starts recording, release stops and transcribes.
+     */
+    private final boolean toggleMode;
+
     @ConstructorBinding
     public HotkeyProperties(TriggerType type,
                             String key,
                             Integer thresholdMs,
                             List<String> modifiers,
-                            List<String> reserved) {
+                            List<String> reserved,
+                            Boolean toggleMode) {
         this.type = type;
         this.key = key;
         this.thresholdMs = thresholdMs == null ? 300 : thresholdMs;
@@ -56,6 +63,7 @@ public class HotkeyProperties {
         this.reserved = (reserved == null || reserved.isEmpty())
                 ? List.of("META+TAB", "META+L")
                 : List.copyOf(reserved);
+        this.toggleMode = toggleMode == null ? false : toggleMode;
     }
 
     public TriggerType getType() {
@@ -76,5 +84,9 @@ public class HotkeyProperties {
 
     public List<String> getReserved() {
         return reserved;
+    }
+
+    public boolean isToggleMode() {
+        return toggleMode;
     }
 }

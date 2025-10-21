@@ -20,7 +20,7 @@ class HotkeyManagerReservedConflictTest {
         HotkeyProperties props =
                 new HotkeyProperties(
                         com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                        "TAB", 300, List.of("META"), List.of("META+TAB"));
+                        "TAB", 300, List.of("META"), List.of("META+TAB"), null);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher publisher = events::add;
         FakeHook hook = new FakeHook();

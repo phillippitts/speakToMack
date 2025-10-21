@@ -1,6 +1,8 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
@@ -56,7 +58,7 @@ class DualEngineOrchestratorReconciledTest {
         ApplicationEventPublisher pub = events::add;
 
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, pub, parallel, reconciler, rprops,
+                wd, props, fakeHotkeyProps(), pub, parallel, reconciler, rprops,
                 null  // metrics
         );
 
@@ -101,7 +103,7 @@ class DualEngineOrchestratorReconciledTest {
         ApplicationEventPublisher pub = events::add;
 
         DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, pub, parallel, reconciler, rprops,
+                wd, props, fakeHotkeyProps(), pub, parallel, reconciler, rprops,
                 null  // metrics
         );
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -180,5 +182,9 @@ class DualEngineOrchestratorReconciledTest {
                 default -> false;
             };
         }
+    }
+    private static HotkeyProperties fakeHotkeyProps() {
+        return new HotkeyProperties(TriggerType.MODIFIER_COMBO, "J", 300,
+                java.util.List.of("META"), java.util.List.of(), false);
     }
 }
