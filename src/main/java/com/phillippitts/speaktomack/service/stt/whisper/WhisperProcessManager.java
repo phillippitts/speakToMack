@@ -154,24 +154,53 @@ public final class WhisperProcessManager implements AutoCloseable {
 
     private List<String> buildCommand(WhisperConfig cfg, Path wavPath) {
         List<String> cmd = new ArrayList<>();
-        cmd.add(cfg.binaryPath());
+
+        // Resolve binary path to absolute to avoid working directory ambiguity
+        Path binaryPath = resolvePath(cfg.binaryPath());
+        cmd.add(binaryPath.toString());
+
         cmd.add("-m");
-        cmd.add(cfg.modelPath());
+        // Resolve model path to absolute
+        Path modelPath = resolvePath(cfg.modelPath());
+        cmd.add(modelPath.toString());
+
         cmd.add("-f");
-        cmd.add(wavPath.toString());
+        // WAV path is already absolute (created by Files.createTempFile)
+        cmd.add(wavPath.toAbsolutePath().toString());
+
         cmd.add("-l");
         cmd.add(cfg.language());
+
         // Output selection: JSON (-oj) when enabled, otherwise text (-otxt)
         if ("json".equalsIgnoreCase(this.outputMode)) {
             cmd.add("-oj");
         } else {
             cmd.add("-otxt");
         }
+
         cmd.add("-of");
         cmd.add("stdout");
         cmd.add("-t");
         cmd.add(String.valueOf(cfg.threads()));
+
         return cmd;
+    }
+
+    /**
+     * Resolves a path to absolute, handling both relative and absolute inputs.
+     *
+     * <p>This ensures commands work correctly regardless of the process working directory.
+     *
+     * @param pathString path from configuration (may be relative or absolute)
+     * @return absolute Path
+     */
+    private static Path resolvePath(String pathString) {
+        Path path = Path.of(pathString);
+        if (path.isAbsolute()) {
+            return path;
+        }
+        // Resolve relative paths against current working directory
+        return Path.of(".").toAbsolutePath().normalize().resolve(path).normalize();
     }
 
     private Thread startGobbler(InputStream inputStream, StringBuilder sink, String name, int maxBytes) {

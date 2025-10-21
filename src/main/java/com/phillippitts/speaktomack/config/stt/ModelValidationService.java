@@ -95,10 +95,14 @@ class ModelValidationService {
 
     // Visible for tests
     void validateWhisper() {
-        Path model = Paths.get(whisper.modelPath());
-        LOG.info("Validating Whisper: modelPath='{}', binaryPath='{}'", model, whisper.binaryPath());
+        Path model = resolveAndValidatePath(whisper.modelPath(), "Whisper model");
+        Path binary = resolveAndValidatePath(whisper.binaryPath(), "Whisper binary");
+
+        LOG.info("Validating Whisper: modelPath='{}', binaryPath='{}'", model, binary);
+
         if (!Files.exists(model)) {
-            throw new ModelNotFoundException("Whisper model not found: " + model);
+            throw new ModelNotFoundException("Whisper model not found: " + model +
+                    " (configured as: " + whisper.modelPath() + ")");
         }
         if (!Files.isRegularFile(model)) {
             throw new ModelNotFoundException("Whisper model is not a regular file: " + model);
@@ -117,9 +121,9 @@ class ModelValidationService {
             throw new ModelNotFoundException("Failed to read Whisper model metadata at: " + model, e);
         }
 
-        Path binary = Paths.get(whisper.binaryPath());
         if (!Files.exists(binary)) {
-            throw new ModelNotFoundException("Whisper binary not found: " + binary);
+            throw new ModelNotFoundException("Whisper binary not found: " + binary +
+                    " (configured as: " + whisper.binaryPath() + ")");
         }
         if (!Files.isRegularFile(binary)) {
             throw new ModelNotFoundException("Whisper binary is not a regular file: " + binary);
@@ -139,5 +143,32 @@ class ModelValidationService {
             throw new ModelNotFoundException("Whisper binary not executable: " + binary + hint);
         }
         LOG.info("Whisper validation OK: model='{}', binary='{}'", model, binary);
+    }
+
+    /**
+     * Resolves a path (which may be relative) to an absolute path.
+     *
+     * <p>If the path is already absolute, returns it as-is. If relative, resolves it
+     * against the current working directory and logs a warning to encourage using
+     * absolute paths in production.
+     *
+     * @param pathString the path string from configuration
+     * @param description human-readable description for error messages (e.g., "Whisper binary")
+     * @return resolved absolute Path
+     */
+    private Path resolveAndValidatePath(String pathString, String description) {
+        Path path = Paths.get(pathString);
+
+        if (!path.isAbsolute()) {
+            // Resolve relative paths against current working directory
+            Path workingDir = Paths.get(".").toAbsolutePath().normalize();
+            Path resolved = workingDir.resolve(path).normalize();
+            LOG.warn("{} uses relative path '{}' - resolved to '{}'. " +
+                    "Consider using absolute paths in production to avoid ambiguity.",
+                    description, pathString, resolved);
+            return resolved;
+        }
+
+        return path;
     }
 }
