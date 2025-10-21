@@ -81,6 +81,26 @@ verify_checksum() {
 step "Preparing models directory: $MODELS_DIR"
 mkdir -p "$MODELS_DIR"
 
+# --- Clean up old models and zip files ---
+step "Cleaning up old models and zip files"
+# Remove old Vosk model directories (keep only current version)
+for dir in "$MODELS_DIR"/vosk-model-*; do
+  if [ -d "$dir" ] && [ "$dir" != "$VOSK_DIR" ]; then
+    info "Removing old Vosk model: $dir"
+    rm -rf "$dir"
+  fi
+done
+
+# Remove any leftover zip files
+for zip in "$MODELS_DIR"/*.zip; do
+  if [ -f "$zip" ]; then
+    info "Removing leftover zip file: $zip"
+    rm -f "$zip"
+  fi
+done
+
+ok "Cleanup complete"
+
 # --- Download Vosk model ---
 if [ -d "$VOSK_DIR" ]; then
   ok "Vosk model already present: $VOSK_DIR"
