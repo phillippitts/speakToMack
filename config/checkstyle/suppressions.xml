@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- Allow 10 parameters for DualEngineOrchestrator constructor (Spring DI) -->
+    <suppress checks="ParameterNumber"
+              files="DualEngineOrchestrator\.java"
+              lines="164"/>
+
+    <!-- Allow 10 parameters for reconciledDualEngineOrchestrator bean method (Spring DI) -->
+    <suppress checks="ParameterNumber"
+              files="OrchestrationConfig\.java"
+              lines="52"/>
+</suppressions>

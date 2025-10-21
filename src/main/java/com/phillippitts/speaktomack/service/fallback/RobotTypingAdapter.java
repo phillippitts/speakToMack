@@ -27,6 +27,7 @@ public class RobotTypingAdapter implements TypingAdapter {
         void keyPress(int keyCode);
         void keyRelease(int keyCode);
         void delay(int ms);
+        void setClipboard(String text);
     }
 
     static final class AwtRobotFacade implements RobotFacade {
@@ -49,6 +50,12 @@ public class RobotTypingAdapter implements TypingAdapter {
         @Override
         public void delay(int ms) {
             robot.delay(ms);
+        }
+
+        @Override
+        public void setClipboard(String text) {
+            Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .setContents(new StringSelection(text), null);
         }
     }
 
@@ -101,8 +108,7 @@ public class RobotTypingAdapter implements TypingAdapter {
             int chunkSize = props.getChunkSize();
             if (text.length() <= chunkSize) {
                 // Short text: single paste
-                Toolkit.getDefaultToolkit().getSystemClipboard()
-                        .setContents(new StringSelection(text), null);
+                robot.setClipboard(text);
                 pasteShortcut(robot, props.getPasteShortcut());
             } else {
                 // Long text: paste in chunks
@@ -112,8 +118,7 @@ public class RobotTypingAdapter implements TypingAdapter {
                         robot.delay(props.getInterChunkDelayMs());
                     }
                     String segment = text.substring(i, Math.min(text.length(), i + chunkSize));
-                    Toolkit.getDefaultToolkit().getSystemClipboard()
-                            .setContents(new StringSelection(segment), null);
+                    robot.setClipboard(segment);
                     pasteShortcut(robot, props.getPasteShortcut());
                     i += chunkSize;
                 }

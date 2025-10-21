@@ -9,7 +9,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Tag("integration") // Requires AWT/display system (Toolkit.getDefaultToolkit)
+@Tag("integration")
 class RobotTypingAdapterTest {
 
     static class FakeRobot implements RobotTypingAdapter.RobotFacade {
@@ -30,6 +30,11 @@ class RobotTypingAdapterTest {
         public void delay(int ms) {
             delayMs += ms;
             events.add("delay:" + ms);
+        }
+
+        @Override
+        public void setClipboard(String text) {
+            events.add("clipboard:" + (text == null ? "" : text));
         }
     }
 
