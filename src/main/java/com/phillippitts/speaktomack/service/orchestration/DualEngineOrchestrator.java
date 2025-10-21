@@ -95,6 +95,9 @@ public final class DualEngineOrchestrator {
     private final Object lock = new Object();
     private UUID activeSession;
 
+    // Track last transcription timestamp for automatic paragraph breaks
+    private volatile long lastTranscriptionTimeMs = 0;
+
     /**
      * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
      *
@@ -393,12 +396,35 @@ public final class DualEngineOrchestrator {
 
     /**
      * Publishes transcription result as an event for downstream processing.
+     * Prepends a newline if the gap since the last transcription exceeds the configured threshold.
      *
      * @param result the transcription result
      * @param engineName name of the engine that produced the result
      */
     private void publishResult(TranscriptionResult result, String engineName) {
-        publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engineName));
+        // Check if we should prepend a newline based on silence gap
+        int silenceGapMs = props.getSilenceGapMs();
+        TranscriptionResult finalResult = result;
+
+        if (silenceGapMs > 0) {
+            long currentTimeMs = System.currentTimeMillis();
+            long lastTime = lastTranscriptionTimeMs;
+
+            if (lastTime > 0) {
+                long gapMs = currentTimeMs - lastTime;
+                if (gapMs >= silenceGapMs) {
+                    // Prepend newline for new paragraph
+                    String textWithNewline = "\n" + result.text();
+                    finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
+                    LOG.debug("Prepended newline after {}ms silence gap (threshold={}ms)", gapMs, silenceGapMs);
+                }
+            }
+
+            // Update last transcription time
+            lastTranscriptionTimeMs = currentTimeMs;
+        }
+
+        publisher.publishEvent(new TranscriptionCompletedEvent(finalResult, Instant.now(), engineName));
     }
 
     /**
