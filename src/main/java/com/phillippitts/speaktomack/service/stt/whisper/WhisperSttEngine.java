@@ -156,7 +156,7 @@ public final class WhisperSttEngine implements SttEngine {
                 double confidence = 1.0;
 
                 long elapsedMs = TimeUtils.elapsedMillis(startTime);
-                LOG.info("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
+                LOG.debug("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
                 return TranscriptionResult.of(text, confidence, ENGINE);
             } catch (Exception e) {
                 publishTranscribeFailureEvent(e);

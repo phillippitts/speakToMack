@@ -17,9 +17,6 @@ import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -28,13 +25,13 @@ import java.util.function.Consumer;
  * Converts NativeKeyEvent into NormalizedKeyEvent for the Hotkey subsystem.
  *
  * Special handling for modifier keys: JNativeHook on macOS doesn't fire key pressed/released
- * events for standalone modifier keys. We use a polling mechanism to detect modifier state changes.
+ * events for standalone modifier keys. We rely on keyboard and mouse motion events to detect
+ * modifier state changes and avoid an unnecessary polling thread.
  */
 @Component
 public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListener, NativeMouseMotionListener {
 
     private static final Logger LOG = LogManager.getLogger(JNativeHookGlobalKeyHook.class);
-    private static final long POLL_INTERVAL_MS = 50; // Poll every 50ms for modifier changes
 
     /**
      * macOS raw key code for right Command key.
@@ -52,9 +49,6 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     // Track modifier key states to detect press/release
     private final ConcurrentHashMap<String, Boolean> modifierStates = new ConcurrentHashMap<>();
 
-    // Polling service for modifier key detection
-    private ScheduledExecutorService modifierPoller;
-
     @Override
     public void register() {
         if (registered.get()) {
@@ -65,11 +59,8 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
             GlobalScreen.addNativeKeyListener(this);
             GlobalScreen.addNativeMouseMotionListener(this);
 
-            // Start polling for modifier state changes
-            startModifierPolling();
-
             registered.set(true);
-            LOG.info("Registered JNativeHook global key listener (with modifier polling every {}ms)", POLL_INTERVAL_MS);
+            LOG.info("Registered JNativeHook global key listener (modifier changes via key/mouse events)");
         } catch (NativeHookException | UnsatisfiedLinkError e) {
             throw new SecurityException("Failed to register global key hook: " + e.getMessage(), e);
         }
@@ -81,9 +72,6 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
             return;
         }
         try {
-            // Stop polling
-            stopModifierPolling();
-
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.removeNativeMouseMotionListener(this);
             GlobalScreen.unregisterNativeHook();
@@ -92,38 +80,6 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
         } finally {
             registered.set(false);
         }
-    }
-
-    private void startModifierPolling() {
-        modifierPoller = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "ModifierKeyPoller");
-            t.setDaemon(true);
-            return t;
-        });
-
-        modifierPoller.scheduleAtFixedRate(this::pollModifierState, 0, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
-    }
-
-    private void stopModifierPolling() {
-        if (modifierPoller != null) {
-            modifierPoller.shutdown();
-            try {
-                modifierPoller.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    /**
-     * Polls for current modifier state by triggering a synthetic check.
-     * We create a fake mouse event with current timestamp to check modifiers.
-     */
-    private void pollModifierState() {
-        // Get current modifier state from GlobalScreen's internal state
-        // Unfortunately JNativeHook doesn't expose this directly, so we rely on
-        // any recent event. We'll use a different approach - just check on any input.
-        // For now, this will be triggered by mouse motion events
     }
 
     @Override

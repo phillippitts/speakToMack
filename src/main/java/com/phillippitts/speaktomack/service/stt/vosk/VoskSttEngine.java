@@ -151,7 +151,7 @@ public class VoskSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        LOG.info("VoskSttEngine.transcribe: received {} bytes of audio data", audioData.length);
+        LOG.debug("VoskSttEngine.transcribe: received {} bytes of audio data", audioData.length);
 
         boolean acquired = acquireConcurrencyPermit();
         try {
@@ -279,7 +279,7 @@ public class VoskSttEngine implements SttEngine {
         LOG.debug("VoskSttEngine: feeding {} bytes to Vosk recognizer", audioData.length);
         recognizer.acceptWaveForm(audioData, audioData.length);
         String json = recognizer.getFinalResult();
-        LOG.info("VoskSttEngine: Vosk returned JSON (length={} chars): {}", json.length(), json);
+        LOG.debug("VoskSttEngine: Vosk returned JSON (length={} chars): {}", json.length(), json);
         return json;
     }
 
@@ -291,7 +291,7 @@ public class VoskSttEngine implements SttEngine {
      */
     private TranscriptionResult parseJsonAndCreateResult(String json) {
         VoskTranscription transcription = parseVoskJson(json);
-        LOG.info("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
+        LOG.debug("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
                  transcription.text(), transcription.text().length(), transcription.confidence());
         // Empty text is valid (e.g., silence or unclear audio)
         return TranscriptionResult.of(transcription.text(), transcription.confidence(), getEngineName());

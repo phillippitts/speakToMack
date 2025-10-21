@@ -220,7 +220,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
                     break;
                 }
             }
-            LOG.info("Audio capture completed: total {} bytes captured", written);
+            LOG.debug("Audio capture completed: total {} bytes captured", written);
         } catch (LineUnavailableException e) {
             LOG.warn("Microphone unavailable: {}", e.getMessage());
             publisher.publishEvent(new CaptureErrorEvent("MIC_UNAVAILABLE", Instant.now()));
