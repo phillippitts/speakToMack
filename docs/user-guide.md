@@ -5,7 +5,7 @@ This guide helps you install, run, and use speakToMack for local voice dictation
 ## Prerequisites
 - macOS 12+ (Monterey or later)
 - Java 21
-- Disk space: ~200 MB for STT models
+- Disk space: ~3 GB for STT models and tools
 - Permissions: Microphone (capture) and Accessibility (typing via Robot)
 
 ## Quick Start

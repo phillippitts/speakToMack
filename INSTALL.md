@@ -12,7 +12,12 @@ Without Accessibility permission, the app will crash with a fatal JVM error. See
 
 - **Operating System**: macOS 12+ (Monterey or later)
 - **Java Runtime**: Java 21 (JRE is sufficient, JDK not required)
-- **Disk Space**: ~2 GB (~1.95 GB for models + ~50 MB for application)
+- **Disk Space**: ~3 GB (2.8 GB models + 58 MB tools + logs/cache)
+  - Vosk model: ~1.8 GB
+  - Whisper model: ~150 MB
+  - Whisper.cpp binary: ~58 MB
+  - Application JAR: ~50 MB
+  - Logs and runtime cache: ~50 MB
 - **Permissions** (MUST be granted before first run):
   - **Accessibility** (REQUIRED - for global hotkey capture and text typing)
   - **Microphone** (REQUIRED - for voice capture)

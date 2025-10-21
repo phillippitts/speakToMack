@@ -300,7 +300,7 @@ stt:
   reconciliation:
     strategy: overlap
   vosk:
-    model-path: ./models/vosk-model-small-en-us-0.15
+    model-path: ./models/vosk-model-en-us-0.22
     sample-rate: 16000
   whisper:
     binary-path: ./bin/whisper.cpp/main
@@ -343,7 +343,7 @@ VOSK_CHECKSUM="d3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3"
 WHISPER_CHECKSUM="a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
 
 echo "📥 Downloading Vosk model (50 MB)..."
-curl -L "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" \
+curl -L "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip" \
     -o "$MODELS_DIR/vosk.zip"
 shasum -a 256 -c <<< "$VOSK_CHECKSUM *$MODELS_DIR/vosk.zip"
 unzip -q "$MODELS_DIR/vosk.zip" -d "$MODELS_DIR"

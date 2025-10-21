@@ -20,22 +20,22 @@ The CI pipeline runs on every push to `main` and on all pull requests.
 - ✅ JAR builds successfully (55 MB)
 
 **What's NOT tested in CI:**
-- ❌ Integration tests (require STT models - 200 MB download)
+- ❌ Integration tests (require STT models - 2 GB download)
 - ❌ Vosk model loading
 - ❌ Whisper.cpp binary execution
 
 ## Why Integration Tests Are Skipped
 
 Integration tests require:
-1. **STT Models** (~200 MB download)
-   - Vosk model: 40 MB
-   - Whisper model: 147 MB
+1. **STT Models** (~2 GB download)
+   - Vosk model: 1.8 GB
+   - Whisper model: 150 MB
 2. **Whisper.cpp binary** (must be built from source)
 3. **Audio hardware** (some tests use real microphone)
 
 Running these in CI would:
 - Take 8-10 minutes (vs 3-4 minutes now)
-- Download 200 MB on every run (costs, slow)
+- Download 2 GB on every run (costs, slow)
 - Be flaky (hardware dependencies)
 
 **Solution**: Integration tests run locally before merging:

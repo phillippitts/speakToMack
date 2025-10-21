@@ -139,8 +139,8 @@ stt.reconciliation.strategy=confidence
 **Vosk Models:**
 | Model | Size | Speed | Accuracy | Recommended For |
 |-------|------|-------|----------|-----------------|
-| `vosk-model-small-en-us-0.15` | 40MB | Very Fast | Good | Daily use (default) |
-| `vosk-model-en-us-0.22` | 1.8GB | Fast | Excellent | High accuracy needs |
+| `vosk-model-en-us-0.22` | 1.8GB | Fast | Excellent | Daily use (default) |
+| `vosk-model-small-en-us-0.15` | 40MB | Very Fast | Good | Lightweight alternative (deprecated) |
 
 **Whisper Models:**
 | Model | Size | Speed | Accuracy | Recommended For |
@@ -409,7 +409,7 @@ stt.whisper.threads=8  # Match your CPU core count
 
 **Error: `ModelNotFoundException`**
 ```
-Caused by: java.io.FileNotFoundException: models/vosk-model-small-en-us-0.15
+Caused by: java.io.FileNotFoundException: models/vosk-model-en-us-0.22
 ```
 **Fix:** Run `./setup-models.sh` to download models
 

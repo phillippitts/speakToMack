@@ -118,7 +118,7 @@ Planned (later phases):
 This project includes **automated setup scripts** to simplify onboarding:
 
 ```bash
-# 1. Download STT models (~200 MB, includes checksum verification)
+# 1. Download STT models (~2 GB, includes checksum verification)
 chmod +x ./setup-models.sh
 ./setup-models.sh
 
@@ -150,7 +150,7 @@ WRITE_APP_PROPS=true ./build-whisper.sh
 ### `./setup-models.sh` - Download STT Models
 
 **What it does:**
-- Downloads Vosk model (vosk-model-small-en-us-0.15, ~40 MB)
+- Downloads Vosk model (vosk-model-en-us-0.22, ~1.8 GB)
 - Downloads Whisper model (ggml-base.en.bin, ~147 MB)
 - Verifies integrity with SHA-256 checksums
 - Locks checksums to `models/checksums.sha256` for reproducibility
@@ -384,7 +384,7 @@ audio.validation.min-duration-ms=250
 audio.validation.max-duration-ms=300000
 
 # Vosk (model path set by ./setup-models.sh)
-stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=models/vosk-model-en-us-0.22
 stt.vosk.sample-rate=16000
 stt.vosk.max-alternatives=1
 
@@ -457,10 +457,11 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 
 ### Vosk Models (Required for Vosk Engine)
 
-- **Model:** vosk-model-small-en-us-0.15
+- **Model:** vosk-model-en-us-0.22
+- **Size:** ~1.8 GB
 - **Source:** https://alphacephei.com/vosk/models
 - **Download Method:** `./setup-models.sh` (automated)
-- **Install Location:** `models/vosk-model-small-en-us-0.15/`
+- **Install Location:** `models/vosk-model-en-us-0.22/`
 - **Checksum Verification:** `models/checksums.sha256`
 
 ### Whisper Models (Required for Whisper Engine)

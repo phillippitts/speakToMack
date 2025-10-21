@@ -68,20 +68,20 @@ Configures the Vosk STT engine (fast, JNI-based, offline).
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `stt.vosk.model-path` | String | `models/vosk-model-small-en-us-0.15` | Path to Vosk model directory. Must contain `am/`, `graph/`, `rescore/` subdirectories. |
+| `stt.vosk.model-path` | String | `models/vosk-model-en-us-0.22` | Path to Vosk model directory. Must contain `am/`, `graph/`, `rescore/` subdirectories. |
 | `stt.vosk.sample-rate` | int | `16000` | Audio sample rate in Hz. Must match model requirements (typically 16000 or 8000). |
 | `stt.vosk.max-alternatives` | int | `1` | Maximum number of recognition alternatives to generate. Higher values increase processing time. |
 
 **Example:**
 ```properties
-stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=models/vosk-model-en-us-0.22
 stt.vosk.sample-rate=16000
 stt.vosk.max-alternatives=1
 ```
 
 **Supported Models:**
-- `vosk-model-small-en-us-0.15` (40MB, fast, moderate accuracy)
-- `vosk-model-en-us-0.22` (1.8GB, slower, high accuracy)
+- `vosk-model-en-us-0.22` (1.8GB, high accuracy) **← Current default**
+- `vosk-model-small-en-us-0.15` (40MB, fast, moderate accuracy, deprecated)
 - See [Vosk Models](https://alphacephei.com/vosk/models) for more options
 
 ---
@@ -494,7 +494,7 @@ stt.orchestration.primary-engine=vosk
 stt.reconciliation.enabled=false
 
 # Small model for speed
-stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=models/vosk-model-en-us-0.22
 
 # Higher concurrency
 stt.concurrency.vosk-max=8
@@ -526,7 +526,7 @@ stt.orchestration.primary-engine=vosk
 stt.reconciliation.enabled=false
 
 # Balanced models
-stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=models/vosk-model-en-us-0.22
 stt.whisper.model-path=models/ggml-base.en.bin
 ```
 

@@ -45,7 +45,7 @@ Before deploying to production, verify:
 Set these environment variables before starting the application:
 
 ```bash
-export VOSK_MODEL_PATH=/opt/speaktomack/models/vosk-model-small-en-us-0.15
+export VOSK_MODEL_PATH=/opt/speaktomack/models/vosk-model-en-us-0.22
 export WHISPER_MODEL_PATH=/opt/speaktomack/models/ggml-base.en.bin
 export WHISPER_BINARY_PATH=/opt/speaktomack/bin/whisper
 export SPEAKTOMACK_LOG_PATH=/var/log/speaktomack
@@ -55,7 +55,7 @@ export SPRING_PROFILES_ACTIVE=production
 Update `application.properties` to read from env vars:
 
 ```properties
-stt.vosk.model-path=${VOSK_MODEL_PATH:models/vosk-model-small-en-us-0.15}
+stt.vosk.model-path=${VOSK_MODEL_PATH:models/vosk-model-en-us-0.22}
 stt.whisper.model-path=${WHISPER_MODEL_PATH:models/ggml-base.en.bin}
 stt.whisper.binary-path=${WHISPER_BINARY_PATH:tools/whisper.cpp/main}
 logging.file.path=${SPEAKTOMACK_LOG_PATH:/var/log/speaktomack}
@@ -67,7 +67,7 @@ Create `/etc/speaktomack/application-production.properties`:
 
 ```properties
 # Model paths (absolute)
-stt.vosk.model-path=/opt/speaktomack/models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=/opt/speaktomack/models/vosk-model-en-us-0.22
 stt.whisper.model-path=/opt/speaktomack/models/ggml-base.en.bin
 stt.whisper.binary-path=/opt/speaktomack/bin/whisper
 
@@ -323,7 +323,7 @@ Recommendation: Use native systemd/LaunchDaemon for now.
       "status": "UP",
       "details": {
         "status": "All models and binaries accessible",
-        "voskModel": "accessible at /opt/speaktomack/models/vosk-model-small-en-us-0.15",
+        "voskModel": "accessible at /opt/speaktomack/models/vosk-model-en-us-0.22",
         "whisperModel": "accessible at /opt/speaktomack/models/ggml-base.en.bin",
         "whisperBinary": "accessible and executable at /opt/speaktomack/bin/whisper"
       }
@@ -635,7 +635,7 @@ Trade-off: Lower accuracy (no Whisper cross-validation).
 
 **Critical files**:
 - JAR: `/opt/speaktomack/speaktomack.jar`
-- Models: `/opt/speaktomack/models/*` (~200 MB)
+- Models: `/opt/speaktomack/models/*` (~2 GB)
 - Configuration: `/etc/speaktomack/application-production.properties`
 - Whisper binary: `/opt/speaktomack/bin/whisper`
 

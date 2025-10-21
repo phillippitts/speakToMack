@@ -20,7 +20,7 @@ audio.capture.max-duration-ms=60000
 ### STT Engines
 ```properties
 # Vosk
-stt.vosk.model-path=models/vosk-model-small-en-us-0.15
+stt.vosk.model-path=models/vosk-model-en-us-0.22
 stt.vosk.sample-rate=16000
 stt.vosk.max-alternatives=1
 

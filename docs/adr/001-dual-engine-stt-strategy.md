@@ -39,7 +39,7 @@ stt:
 
 ### Negative
 - ❌ **2x CPU usage** during transcription (2-5 seconds per request)
-- ❌ **2x memory** for loaded models (~200 MB total)
+- ❌ **2x memory** for loaded models (~2.5 GB total in memory)
 - ❌ **Complexity**: Reconciliation logic adds 400+ lines of code
 
 ### Mitigation
