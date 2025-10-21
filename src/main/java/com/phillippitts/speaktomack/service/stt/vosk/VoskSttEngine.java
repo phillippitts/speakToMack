@@ -13,7 +13,6 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import jakarta.annotation.PreDestroy;
 import java.util.Objects;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
