@@ -260,43 +260,10 @@ class DualEngineOrchestratorTest {
         // Arrange
         FakeCapture cap = new FakeCapture();
         cap.pcm = new byte[3200];
-        // Engine that returns text already starting with newline
-        SttEngine vosk = new SttEngine() {
-            @Override
-            public void initialize() { }
-            @Override
-            public TranscriptionResult transcribe(byte[] audioData) {
-                return TranscriptionResult.of("\nalready-has-newline", 1.0, "vosk");
-            }
-            @Override
-            public String getEngineName() { return "vosk"; }
-            @Override
-            public boolean isHealthy() { return true; }
-            @Override
-            public void close() { }
-        };
-        SttEngine whisper = new StubEngine("whisper");
-        FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(
-                OrchestrationProperties.PrimaryEngine.VOSK,
-                100
-        );
+        SttEngine vosk = createVoskEngineWithNewlinePrefix();
         List<Object> events = new ArrayList<>();
-        ApplicationEventPublisher pub = events::add;
-        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
 
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
-                .captureService(cap)
-                .voskEngine(vosk)
-                .whisperEngine(whisper)
-                .watchdog(wd)
-                .orchestrationProperties(props)
-                .hotkeyProperties(fakeHotkeyProps())
-                .publisher(pub)
-                .captureStateMachine(new CaptureStateMachine())
-                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(timingCoordinator)
-                .build();
+        DualEngineOrchestrator orch = buildOrchestratorForParagraphBreakTest(cap, vosk, events);
 
         // First transcription
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -317,6 +284,52 @@ class DualEngineOrchestratorTest {
         // Should NOT have double newline
         assertThat(evt.result().text()).isEqualTo("\nalready-has-newline");
         assertThat(evt.result().text()).doesNotStartWith("\n\n");
+    }
+
+    private SttEngine createVoskEngineWithNewlinePrefix() {
+        return new SttEngine() {
+            @Override
+            public void initialize() { }
+            @Override
+            public TranscriptionResult transcribe(byte[] audioData) {
+                return TranscriptionResult.of("\nalready-has-newline", 1.0, "vosk");
+            }
+            @Override
+            public String getEngineName() {
+                return "vosk";
+            }
+            @Override
+            public boolean isHealthy() {
+                return true;
+            }
+            @Override
+            public void close() { }
+        };
+    }
+
+    private DualEngineOrchestrator buildOrchestratorForParagraphBreakTest(
+            FakeCapture cap, SttEngine vosk, List<Object> events) {
+        SttEngine whisper = new StubEngine("whisper");
+        FakeWatchdog wd = new FakeWatchdog(true, true);
+        OrchestrationProperties props = new OrchestrationProperties(
+                OrchestrationProperties.PrimaryEngine.VOSK,
+                100
+        );
+        ApplicationEventPublisher pub = events::add;
+        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
+
+        return DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(timingCoordinator)
+                .build();
     }
 
     // ---- Test fakes ----
