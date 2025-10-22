@@ -32,6 +32,20 @@ public final class TranscriptionMetricsPublisher {
 
     private static final Logger LOG = LogManager.getLogger(TranscriptionMetricsPublisher.class);
 
+    /**
+     * Singleton no-op instance for test environments and builder defaults.
+     *
+     * <p>This instance is safe to use when metrics tracking is not required. It:
+     * <ul>
+     *   <li>Never throws exceptions</li>
+     *   <li>Performs no operations (all methods are no-ops)</li>
+     *   <li>Always reports as disabled via {@link #isEnabled()}</li>
+     * </ul>
+     *
+     * @since 1.1
+     */
+    public static final TranscriptionMetricsPublisher NOOP = new TranscriptionMetricsPublisher(null);
+
     private final TranscriptionMetrics metrics;
 
     /**

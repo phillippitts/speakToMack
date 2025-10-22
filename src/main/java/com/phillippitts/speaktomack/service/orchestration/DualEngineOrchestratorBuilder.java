@@ -268,10 +268,10 @@ public final class DualEngineOrchestratorBuilder {
         Objects.requireNonNull(engineSelector, "engineSelector is required");
         Objects.requireNonNull(timingCoordinator, "timingCoordinator is required");
 
-        // Provide default metricsPublisher if not set (for tests)
+        // Provide default no-op metricsPublisher if not set (for tests)
         TranscriptionMetricsPublisher effectiveMetricsPublisher = metricsPublisher != null
                 ? metricsPublisher
-                : new TranscriptionMetricsPublisher(null);
+                : TranscriptionMetricsPublisher.NOOP;
 
         // Create orchestrator with all dependencies (nullable optional ones will be handled by constructor)
         return new DualEngineOrchestrator(
