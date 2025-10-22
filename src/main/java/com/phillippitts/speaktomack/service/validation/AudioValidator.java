@@ -24,6 +24,11 @@ import static com.phillippitts.speaktomack.service.audio.AudioFormat.REQUIRED_SA
 public class AudioValidator {
     private final AudioValidationProperties props;
 
+    /**
+     * Constructs an AudioValidator with the specified validation configuration.
+     *
+     * @param props audio validation properties (min/max duration, max file size)
+     */
     public AudioValidator(AudioValidationProperties props) {
         this.props = props;
     }
