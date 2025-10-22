@@ -69,6 +69,34 @@ public class DualEngineOrchestrator {
 - Pool size matches STT engine concurrency limits to prevent resource exhaustion
 - Callers should never block event listener threads with long-running STT operations
 
+## Paragraph Break Semantics
+
+The application automatically inserts paragraph breaks (newlines) between transcriptions when a silence gap exceeds the configured threshold.
+
+**Behavior:**
+- `TimingCoordinator` tracks the timestamp of the last transcription
+- If elapsed time since last transcription exceeds `stt.orchestration.silence-gap-ms` (default: 2000ms), a paragraph break is inserted
+- `DualEngineOrchestrator.publishResult()` prepends a newline (`"\n"`) directly to `TranscriptionResult.text()` before publishing the event
+- The newline becomes part of the transcription result, not a separate formatting instruction
+
+**Consumer Expectations:**
+- Downstream consumers (typing adapters, UI displays) receive `TranscriptionResult` with a **leading newline** when paragraph breaks occur
+- Consumers must handle leading newlines gracefully (e.g., `RobotTypingAdapter` types the newline as a keystroke, creating a new paragraph in the target application)
+- No post-processing or stripping of leading newlines should occur - they are intentional formatting
+
+**Configuration:**
+```properties
+# Silence gap threshold for automatic paragraph breaks (milliseconds)
+stt.orchestration.silence-gap-ms=2000
+```
+
+**Example Flow:**
+1. User transcribes "Hello world" at 10:00:00
+2. 3 seconds later (exceeds 2000ms threshold), user transcribes "New paragraph"
+3. `TimingCoordinator.shouldAddParagraphBreak()` returns `true`
+4. Result published with text: `"\nNew paragraph"` (note leading newline)
+5. Typing adapter outputs newline + text, creating a paragraph break in the document
+
 ## Testing Strategy
 - Hermetic by default: all OS / native integrations behind seams
   - GlobalKeyHook → tests inject fake implementation

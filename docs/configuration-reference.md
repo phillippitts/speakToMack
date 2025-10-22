@@ -289,7 +289,7 @@ hotkey.type=single-key
 hotkey.key=F13
 hotkey.modifiers=SHIFT
 ```
-Note: `single-key` can optionally include modifiers.
+**Note:** For `single-key` type, modifiers are optional and allowed but may be ignored by the trigger implementation. Only `modifier-combo` requires and enforces modifier usage.
 
 **Example - Modifier Combination (Cmd+Shift+M):**
 ```properties
@@ -305,7 +305,7 @@ hotkey.type=double-tap
 hotkey.key=D
 hotkey.threshold-ms=300
 ```
-**Note:** `threshold-ms` for `double-tap` must be between 100-1000 milliseconds.
+**Note:** `threshold-ms` for `double-tap` must be between 100-1000 milliseconds. The validator enforces this range at startup, though the property annotation in `HotkeyProperties.java` currently specifies `@Min(50)` - the actual effective minimum is 100ms.
 
 **Example - Hold Threshold (Hold 300ms to activate):**
 ```properties
