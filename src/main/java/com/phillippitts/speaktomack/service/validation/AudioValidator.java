@@ -37,6 +37,15 @@ public class AudioValidator {
         if (data == null) {
             throw new InvalidAudioException("Audio data is null");
         }
+
+        // Guard against oversized payloads (security: prevent memory exhaustion)
+        if (data.length > props.getMaxFileSizeBytes()) {
+            throw new InvalidAudioException(data.length,
+                    "Audio payload too large: " + data.length + " bytes. Max: "
+                    + props.getMaxFileSizeBytes() + " bytes ("
+                    + (props.getMaxFileSizeBytes() / (1024 * 1024)) + " MB)");
+        }
+
         if (isWav(data)) {
             validateWav(data);
         } else {

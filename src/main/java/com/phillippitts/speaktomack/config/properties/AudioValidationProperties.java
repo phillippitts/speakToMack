@@ -23,6 +23,13 @@ public class AudioValidationProperties {
     @Positive(message = "Maximum duration must be positive")
     private int maxDurationMs = 300_000;      // 5 minutes
 
+    /**
+     * Maximum file size in bytes for audio payloads (security guard against memory exhaustion).
+     * Default: 100 MB (reasonable upper bound for 5 min audio with WAV overhead).
+     */
+    @Positive(message = "Maximum file size must be positive")
+    private int maxFileSizeBytes = 100 * 1024 * 1024;  // 100 MB
+
     public int getMinDurationMs() {
         return minDurationMs;
     }
@@ -37,5 +44,13 @@ public class AudioValidationProperties {
 
     public void setMaxDurationMs(int maxDurationMs) {
         this.maxDurationMs = maxDurationMs;
+    }
+
+    public int getMaxFileSizeBytes() {
+        return maxFileSizeBytes;
+    }
+
+    public void setMaxFileSizeBytes(int maxFileSizeBytes) {
+        this.maxFileSizeBytes = maxFileSizeBytes;
     }
 }

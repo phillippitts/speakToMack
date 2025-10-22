@@ -20,6 +20,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -86,7 +87,7 @@ import java.util.UUID;
  * @see TranscriptReconciler
  * @since 1.0
  */
-public final class DualEngineOrchestrator {
+public class DualEngineOrchestrator {
 
     private static final Logger LOG = LogManager.getLogger(DualEngineOrchestrator.class);
 
@@ -223,8 +224,9 @@ public final class DualEngineOrchestrator {
     /**
      * Handles hotkey press events by starting or stopping audio capture, depending on mode.
      *
-     * <p>This method is invoked asynchronously by Spring's event system when the user presses
-     * the configured hotkey (e.g., Cmd+Shift+M on macOS).
+     * <p>This method runs asynchronously on the {@code eventExecutor} thread pool to prevent
+     * blocking Spring's event bus. Transcription work (in toggle mode) is offloaded from the
+     * event publishing thread.
      *
      * <p><b>Push-to-Talk Mode (toggleMode=false):</b> Starts a new capture session and records
      * the session ID for later retrieval on release.
@@ -236,14 +238,15 @@ public final class DualEngineOrchestrator {
      * <p><b>Thread Safety:</b> Synchronized on {@code lock} to ensure only one session can
      * be active at a time. Duplicate presses during an active session are handled based on mode.
      *
-     * <p><b>Performance:</b> This method completes in &lt;5ms under normal conditions. The
-     * audio capture runs on a background thread managed by {@link AudioCaptureService}.
+     * <p><b>Performance:</b> Session start completes in &lt;5ms. Transcription (toggle mode)
+     * may take 1-5 seconds but runs on a dedicated thread pool without blocking event delivery.
      *
      * @param evt the hotkey pressed event with timestamp
      * @see HotkeyPressedEvent
      * @see AudioCaptureService#startSession()
      */
     @EventListener
+    @Async("eventExecutor")
     public void onHotkeyPressed(HotkeyPressedEvent evt) {
         if (captureStateMachine.isActive()) {
             // In toggle mode, pressing again stops the capture
@@ -297,8 +300,8 @@ public final class DualEngineOrchestrator {
     /**
      * Handles hotkey release events by stopping capture and initiating transcription.
      *
-     * <p>This method is invoked asynchronously by Spring's event system when the user releases
-     * the hotkey.
+     * <p>This method runs asynchronously on the {@code eventExecutor} thread pool to prevent
+     * blocking Spring's event bus during CPU-intensive transcription work.
      *
      * <p><b>Push-to-Talk Mode (toggleMode=false):</b> Performs the following workflow:
      * <ol>
@@ -317,8 +320,8 @@ public final class DualEngineOrchestrator {
      * but do not crash the application.
      *
      * <p><b>Performance:</b> Transcription is CPU-intensive and may take 1-5 seconds depending
-     * on audio length and engine choice. This method blocks on Spring's event thread pool during
-     * transcription. Future optimization may move transcription to a dedicated thread pool.
+     * on audio length and engine choice. Running asynchronously prevents blocking other event
+     * listeners and maintains UI responsiveness.
      *
      * @param evt the hotkey released event with timestamp
      * @see HotkeyReleasedEvent
@@ -327,6 +330,7 @@ public final class DualEngineOrchestrator {
      * @see TranscriptionCompletedEvent
      */
     @EventListener
+    @Async("eventExecutor")
     public void onHotkeyReleased(HotkeyReleasedEvent evt) {
         // In toggle mode, release events are ignored
         if (hotkeyProps.isToggleMode()) {
@@ -516,8 +520,9 @@ public final class DualEngineOrchestrator {
         TranscriptionResult finalResult = result;
 
         if (timingCoordinator.shouldAddParagraphBreak()) {
-            // Prepend newline for new paragraph
-            String textWithNewline = "\n" + result.text();
+            // Prepend newline for new paragraph (avoid double newlines if text already starts with one)
+            String text = result.text();
+            String textWithNewline = text.startsWith("\n") ? text : "\n" + text;
             finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
             LOG.debug("Prepended newline after silence gap (threshold={}ms)", props.getSilenceGapMs());
         }
