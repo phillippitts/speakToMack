@@ -133,7 +133,13 @@ public class SttEngineWatchdog {
         }
         state.put(engine, EngineState.HEALTHY);
         // Clear restart window after successful recovery
-        restartWindow.get(engine).clear();
+        ReentrantLock lock = restartLocks.get(engine);
+        lock.lock();
+        try {
+            restartWindow.get(engine).clear();
+        } finally {
+            lock.unlock();
+        }
         disabledUntil.remove(engine);
         LOG.info("Engine recovered: {}", engine);
     }
@@ -203,14 +209,26 @@ public class SttEngineWatchdog {
 
     /** Returns true if restart budget allows another attempt (after pruning old attempts). */
     private boolean budgetAllowsRestart(String engine) {
-        Deque<Instant> window = restartWindow.get(engine);
-        pruneOld(window, props.getWindowMinutes());
-        return window.size() < props.getMaxRestartsPerWindow();
+        ReentrantLock lock = restartLocks.get(engine);
+        lock.lock();
+        try {
+            Deque<Instant> window = restartWindow.get(engine);
+            pruneOld(window, props.getWindowMinutes());
+            return window.size() < props.getMaxRestartsPerWindow();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Records a restart attempt timestamp in the sliding window. */
     private void recordRestartAttempt(String engine) {
-        restartWindow.get(engine).addLast(Instant.now());
+        ReentrantLock lock = restartLocks.get(engine);
+        lock.lock();
+        try {
+            restartWindow.get(engine).addLast(Instant.now());
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Disables engine and sets cooldown timestamp. */
@@ -218,8 +236,14 @@ public class SttEngineWatchdog {
         state.put(engine, EngineState.DISABLED);
         Instant until = Instant.now().plus(Duration.ofMinutes(props.getCooldownMinutes()));
         disabledUntil.put(engine, until);
-        LOG.error("Engine {} disabled after {} failures within {}m; cooldown until {}",
-                engine, restartWindow.get(engine).size(), props.getWindowMinutes(), until);
+        ReentrantLock lock = restartLocks.get(engine);
+        lock.lock();
+        try {
+            LOG.error("Engine {} disabled after {} failures within {}m; cooldown until {}",
+                    engine, restartWindow.get(engine).size(), props.getWindowMinutes(), until);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Attempts to restart engine: close then initialize. Returns true on success. */

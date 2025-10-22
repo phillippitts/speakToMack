@@ -93,7 +93,14 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
         }
         // Join thread outside lock to avoid deadlock
         if (captureThread != null) {
+            // Interrupt the thread to break out of blocking line.read() call
+            captureThread.interrupt();
             joinThread(captureThread, ProcessTimeouts.CAPTURE_THREAD_SHUTDOWN_TIMEOUT.toMillis());
+            // If thread is still alive after timeout, force interrupt again and log error
+            if (captureThread.isAlive()) {
+                LOG.error("Capture thread still alive after timeout; forcing final interrupt");
+                captureThread.interrupt();
+            }
         }
     }
 

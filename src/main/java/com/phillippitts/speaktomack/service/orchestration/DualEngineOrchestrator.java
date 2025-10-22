@@ -402,9 +402,15 @@ public final class DualEngineOrchestrator {
         } catch (TranscriptionException te) {
             metricsPublisher.recordFailure(ENGINE_RECONCILED, "transcription_error");
             LOG.warn("Reconciled transcription failed: {}", te.getMessage());
+            // Publish empty result to notify downstream consumers
+            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
+            publishResult(emptyResult, ENGINE_RECONCILED);
         } catch (RuntimeException re) {
             metricsPublisher.recordFailure(ENGINE_RECONCILED, "unexpected_error");
             LOG.error("Unexpected error during reconciled transcription", re);
+            // Publish empty result to notify downstream consumers
+            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
+            publishResult(emptyResult, ENGINE_RECONCILED);
         }
     }
 

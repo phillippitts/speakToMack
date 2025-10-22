@@ -74,8 +74,10 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private ApplicationEventPublisher publisher;
     private final boolean jsonMode;
     // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
-    private volatile String lastRawJson;
-    private volatile java.util.List<String> lastTokens;
+    // SYNCHRONIZED ACCESS ONLY - use cachedDataLock to ensure atomic read/write of paired values
+    private final Object cachedDataLock = new Object();
+    private String lastRawJson;
+    private java.util.List<String> lastTokens;
 
     public WhisperSttEngine(WhisperConfig cfg, WhisperProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
@@ -191,12 +193,16 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         if (jsonMode) {
             // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
             String text = WhisperJsonParser.extractText(stdout);
-            this.lastRawJson = stdout;
-            this.lastTokens = WhisperJsonParser.extractTokens(stdout);
+            synchronized (cachedDataLock) {
+                this.lastRawJson = stdout;
+                this.lastTokens = WhisperJsonParser.extractTokens(stdout);
+            }
             return text;
         } else {
-            this.lastRawJson = null;
-            this.lastTokens = null;
+            synchronized (cachedDataLock) {
+                this.lastRawJson = null;
+                this.lastTokens = null;
+            }
             return stdout == null ? "" : stdout.trim();
         }
     }
@@ -233,9 +239,11 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
      * @see WhisperJsonParser
      */
     public String consumeLastRawJson() {
-        String v = this.lastRawJson;
-        this.lastRawJson = null;
-        return v;
+        synchronized (cachedDataLock) {
+            String v = this.lastRawJson;
+            this.lastRawJson = null;
+            return v;
+        }
     }
 
     /**
@@ -259,9 +267,11 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
      * @see WhisperJsonParser#extractTokens(String)
      */
     public java.util.List<String> consumeLastTokens() {
-        java.util.List<String> v = this.lastTokens;
-        this.lastTokens = null;
-        return v == null ? java.util.List.of() : v;
+        synchronized (cachedDataLock) {
+            java.util.List<String> v = this.lastTokens;
+            this.lastTokens = null;
+            return v == null ? java.util.List.of() : v;
+        }
     }
 
     /**
