@@ -83,3 +83,16 @@ graph TD
 | **Extensibility** | High | Strategy pattern for reconciliation/hotkeys |
 | **Observability** | High | Log4j 2 with MDC, Prometheus metrics |
 | **Maintainability** | High | Clean Code principles, Checkstyle enforcement |
+
+## Additional Architecture Diagrams
+
+For deeper technical details, see:
+
+### Developer Diagrams
+- **[Class Dependencies](class-dependencies.md)** - UML class diagrams, package structure, design patterns, dependency rules
+- **[Thread Model & Concurrency](thread-model-concurrency.md)** - Thread pools, synchronization points, lock ordering, MDC propagation
+- **[Data Flow Diagram](data-flow-diagram.md)** - Sequence diagrams, state machines, error handling flows
+
+### User Diagrams
+- **[User Journey Map](user-journey.md)** - Onboarding timeline, decision trees, usage scenarios, emotional journey
+- **[Troubleshooting Guide](troubleshooting-guide.md)** - Problem diagnosis flowcharts, common fixes, diagnostic commands

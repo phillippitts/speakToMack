@@ -496,14 +496,25 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 - [ADR-006: Event-Driven Architecture](docs/adr/006-event-driven-architecture.md)
 
 ### Diagrams & Runbooks
-- [Architecture Overview](docs/diagrams/architecture-overview.md)
-- [Data Flow Diagram](docs/diagrams/data-flow-diagram.md)
+
+**Architecture Diagrams:**
+- [Architecture Overview](docs/diagrams/architecture-overview.md) - High-level components, layers, patterns
+- [Data Flow Diagram](docs/diagrams/data-flow-diagram.md) - Sequence diagrams, state machines, error flows
+- [Class Dependencies](docs/diagrams/class-dependencies.md) - UML class diagrams, package structure, design patterns
+- [Thread Model & Concurrency](docs/diagrams/thread-model-concurrency.md) - Thread pools, synchronization, MDC propagation
+
+**User Guides:**
+- [User Journey Map](docs/diagrams/user-journey.md) - Onboarding timeline, decision trees, usage scenarios
+- [Troubleshooting Guide](docs/diagrams/troubleshooting-guide.md) - Problem diagnosis flowcharts, common fixes
+
+**Reference Guides:**
 - [Reconciliation Guide](docs/reconciliation.md)
 - [Configuration Reference](docs/configuration-reference.md)
 - [FAQ](docs/FAQ.md)
-- Runbooks:
-  - [Engine Failures](docs/runbooks/engine-failures.md)
-  - [Permissions & Hotkeys](docs/runbooks/permissions-and-hotkeys.md)
+
+**Runbooks:**
+- [Engine Failures](docs/runbooks/engine-failures.md)
+- [Permissions & Hotkeys](docs/runbooks/permissions-and-hotkeys.md)
 
 ## Development
 
