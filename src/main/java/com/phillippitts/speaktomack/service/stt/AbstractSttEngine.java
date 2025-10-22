@@ -1,7 +1,11 @@
 package com.phillippitts.speaktomack.service.stt;
 
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import jakarta.annotation.PreDestroy;
+import org.springframework.context.ApplicationEventPublisher;
+
+import java.util.Map;
 
 /**
  * Abstract base class for STT engine implementations providing common lifecycle and state management.
@@ -186,5 +190,60 @@ public abstract class AbstractSttEngine implements SttEngine {
                 );
             }
         }
+    }
+
+    /**
+     * Handles transcription errors with consistent event publishing and exception wrapping.
+     *
+     * <p>This method provides common error handling for transcription failures:
+     * <ul>
+     *   <li>Publishes failure event with context for monitoring</li>
+     *   <li>Preserves TranscriptionException instances without double-wrapping</li>
+     *   <li>Wraps other exceptions with engine context</li>
+     * </ul>
+     *
+     * <p><b>Usage Pattern:</b>
+     * <pre>{@code
+     * try {
+     *     // Transcription logic
+     *     return result;
+     * } catch (Exception e) {
+     *     throw handleTranscriptionError(e, publisher, context);
+     * }
+     * }</pre>
+     *
+     * @param exception the exception that occurred during transcription
+     * @param publisher Spring event publisher for failure events (may be null)
+     * @param context additional context to include in failure event (may be null)
+     * @return TranscriptionException (always throws, never returns)
+     * @throws TranscriptionException always thrown with appropriate context
+     */
+    protected final TranscriptionException handleTranscriptionError(
+            Exception exception,
+            ApplicationEventPublisher publisher,
+            Map<String, String> context) {
+
+        // Publish failure event if publisher available
+        if (publisher != null) {
+            EngineEventPublisher.publishFailure(
+                publisher,
+                getEngineName(),
+                "transcription failure",
+                exception,
+                context
+            );
+        }
+
+        // Preserve TranscriptionException without double-wrapping
+        if (exception instanceof TranscriptionException te) {
+            throw te;
+        }
+
+        // Wrap other exceptions with engine context
+        throw new TranscriptionException(
+            getEngineName() + " transcription failed: " + exception.getMessage(),
+            getEngineName(),
+            exception
+        );
     }
 }

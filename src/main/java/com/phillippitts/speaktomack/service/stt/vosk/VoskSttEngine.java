@@ -186,12 +186,8 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             configureRecognizer(localRecognizer);
             String json = processAudioAndGetResult(localRecognizer, audioData);
             return parseJsonAndCreateResult(json);
-        } catch (Throwable t) {
-            throw com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder
-                    .create("Vosk transcription failed")
-                    .engine(SttEngineNames.VOSK)
-                    .cause(t)
-                    .build();
+        } catch (Exception e) {
+            throw handleTranscriptionError(e, publisher, null);
         }
     }
 

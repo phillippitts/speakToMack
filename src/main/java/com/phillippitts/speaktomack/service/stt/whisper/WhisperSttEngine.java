@@ -152,14 +152,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 Map<String, String> ctx = new HashMap<>();
                 ctx.put("binaryPath", cfg.binaryPath());
                 ctx.put("modelPath", cfg.modelPath());
-                EngineEventPublisher.publishFailure(publisher, SttEngineNames.WHISPER, "transcribe failure", e, ctx);
-                if (e instanceof TranscriptionException te) {
-                    throw te;
-                }
-                throw new TranscriptionException(
-                        "Whisper transcription failed: " + e.getMessage(),
-                        SttEngineNames.WHISPER,
-                        e);
+                throw handleTranscriptionError(e, publisher, ctx);
             } finally {
                 cleanupTempFile(wav);
             }
