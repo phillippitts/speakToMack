@@ -138,7 +138,7 @@ public class SttEngineWatchdog {
         LOG.info("Engine recovered: {}", engine);
     }
 
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedRateString = "#{${stt.watchdog.health-summary-interval-millis:60000}}")
     void logHealthSummary() {
         // Lightweight: no JNI probes; just log states and counts
         StringBuilder sb = new StringBuilder("Watchdog states: ");

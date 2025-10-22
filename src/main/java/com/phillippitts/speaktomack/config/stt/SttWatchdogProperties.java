@@ -30,6 +30,10 @@ public class SttWatchdogProperties {
     /** Optional lightweight probe enabled (not used by default). */
     private boolean probeEnabled = false;
 
+    /** Health summary log interval in milliseconds. */
+    @Positive(message = "Health summary interval must be positive")
+    private long healthSummaryIntervalMillis = 60_000;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -68,5 +72,13 @@ public class SttWatchdogProperties {
 
     public void setProbeEnabled(boolean probeEnabled) {
         this.probeEnabled = probeEnabled;
+    }
+
+    public long getHealthSummaryIntervalMillis() {
+        return healthSummaryIntervalMillis;
+    }
+
+    public void setHealthSummaryIntervalMillis(long healthSummaryIntervalMillis) {
+        this.healthSummaryIntervalMillis = healthSummaryIntervalMillis;
     }
 }
