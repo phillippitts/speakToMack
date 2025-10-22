@@ -45,7 +45,7 @@ Yes, speakToMack is completely free and open source under the MIT license.
 
 ### What platforms are supported?
 
-Currently macOS only (tested on macOS 10.15+). Linux and Windows support may be added in the future.
+Currently macOS only (requires macOS 13+). Linux and Windows support may be added in the future.
 
 ---
 
@@ -65,14 +65,14 @@ cd speakToMack
 ### What are the system requirements?
 
 **Minimum:**
-- macOS 10.15 (Catalina) or later
+- macOS 13+ (Ventura or later)
 - 4GB RAM
 - 2GB free disk space (for models)
 - Java 21 or later
 - Microphone
 
 **Recommended:**
-- macOS 12.0 (Monterey) or later
+- macOS 14+ (Sonoma or later)
 - 8GB RAM
 - 4-core CPU
 - SSD storage
@@ -205,7 +205,7 @@ hotkey.key=RIGHT_META
 
 **Combination (e.g., ⌘+Shift+M):**
 ```properties
-hotkey.type=combination
+hotkey.type=modifier-combo
 hotkey.key=M
 hotkey.modifiers=META,SHIFT
 ```
@@ -249,7 +249,15 @@ Yes, that's the default behavior (push-to-talk). Hold = recording, release = tra
 
 ### Can I use a click-to-toggle mode instead of hold?
 
-Not currently supported. Feature request: [Issue #42](https://github.com/phillippitts/speakToMack/issues/42)
+Yes! Toggle mode is supported. Enable it with:
+```properties
+hotkey.toggle-mode=true
+```
+
+With toggle mode enabled:
+- First hotkey press starts recording
+- Second hotkey press stops recording and transcribes
+- Hotkey release events are ignored
 
 ---
 

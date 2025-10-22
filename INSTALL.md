@@ -10,7 +10,7 @@ Without Accessibility permission, the app will crash with a fatal JVM error. See
 
 ## System Requirements
 
-- **Operating System**: macOS 12+ (Monterey or later)
+- **Operating System**: macOS 13+ (Ventura or later)
 - **Java Runtime**: Java 21 (JRE is sufficient, JDK not required)
 - **Disk Space**: ~3 GB (2.8 GB models + 58 MB tools + logs/cache)
   - Vosk model: ~1.8 GB
@@ -296,7 +296,7 @@ hotkey.key=RIGHT_META
 hotkey.threshold-ms=300           # Max time between taps
 
 # Modifier combination mode (e.g., Cmd+Shift+D)
-hotkey.type=modifier-combination
+hotkey.type=modifier-combo
 hotkey.key=D
 hotkey.modifiers=META,SHIFT
 ```

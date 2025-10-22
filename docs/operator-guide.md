@@ -73,11 +73,12 @@ stt.watchdog.cooldown-minutes=10
 
 ### Hotkeys
 ```properties
-hotkey.type=single-key               # single-key | double-tap | modifier-combination
+hotkey.type=single-key               # single-key | double-tap | modifier-combo
 hotkey.key=RIGHT_META
-# hotkey.modifiers=META,SHIFT
-# hotkey.threshold-ms=300
-# hotkey.reserved=META+TAB,META+L     # OS-reserved examples
+# hotkey.modifiers=META,SHIFT        # required for modifier-combo
+# hotkey.threshold-ms=300            # for double-tap (100-1000ms)
+# hotkey.toggle-mode=false           # true for click-to-toggle
+# hotkey.reserved=META+TAB,META+L    # OS-reserved examples
 ```
 
 ### Typing / Fallback

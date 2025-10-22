@@ -3,7 +3,7 @@
 This guide helps you install, run, and use speakToMack for local voice dictation on macOS.
 
 ## Prerequisites
-- macOS 12+ (Monterey or later)
+- macOS 13+ (Ventura or later)
 - Java 21
 - Disk space: ~3 GB for STT models and tools
 - Permissions: Microphone (capture) and Accessibility (typing via Robot)
@@ -33,13 +33,20 @@ WRITE_APP_PROPS=true ./build-whisper.sh
 - Press and hold the hotkey, speak, release; the text is pasted into the active application.
 
 ## Changing the Hotkey
-Edit `src/main/resources/application.properties`:
+
+Create or edit `application-local.properties` in your application directory:
 ```properties
-hotkey.type=single-key            # single-key | double-tap | modifier-combination
+hotkey.type=single-key            # single-key | double-tap | modifier-combo
 hotkey.key=RIGHT_META             # e.g., RIGHT_META, F13, D
-# hotkey.modifiers=META,SHIFT     # for modifier-combination
-# hotkey.threshold-ms=300         # for double-tap
+# hotkey.modifiers=META,SHIFT     # for modifier-combo (required for this type)
+# hotkey.threshold-ms=300         # for double-tap (100-1000ms)
+# hotkey.toggle-mode=false        # true for click-to-toggle, false for push-to-talk
 # hotkey.reserved=META+TAB,META+L # flag conflicts (platform-aware)
+```
+
+Then start the application with:
+```bash
+./gradlew bootRun --args='--spring.config.additional-location=./application-local.properties'
 ```
 Notes:
 - The app detects common OS-reserved shortcuts (e.g., Cmd+Tab) and logs a warning.
