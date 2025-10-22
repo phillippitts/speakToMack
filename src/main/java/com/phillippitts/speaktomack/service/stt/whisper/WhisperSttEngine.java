@@ -5,6 +5,7 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,7 +20,7 @@ import jakarta.annotation.PreDestroy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Semaphore;
 
 /**
  * Whisper-based implementation of {@link SttEngine} using the external whisper.cpp binary.
@@ -63,8 +64,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public final class WhisperSttEngine implements SttEngine {
 
-    private final java.util.concurrent.Semaphore concurrencySemaphore;
-    private final int acquireTimeoutMs;
+    private final ConcurrencyGuard concurrencyGuard;
 
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
     private static final String ENGINE = "whisper";
@@ -84,8 +84,12 @@ public final class WhisperSttEngine implements SttEngine {
     public WhisperSttEngine(WhisperConfig cfg, WhisperProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
-        this.concurrencySemaphore = new java.util.concurrent.Semaphore(2);
-        this.acquireTimeoutMs = 1000; // Default 1 second
+        this.concurrencyGuard = new ConcurrencyGuard(
+                new Semaphore(2),
+                1000, // Default 1 second timeout
+                ENGINE,
+                null // No publisher in basic constructor
+        );
         this.jsonMode = false;
     }
 
@@ -99,8 +103,13 @@ public final class WhisperSttEngine implements SttEngine {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
-        this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
-        this.acquireTimeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
+        long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
+        this.concurrencyGuard = new ConcurrencyGuard(
+                new Semaphore(max),
+                timeoutMs,
+                ENGINE,
+                publisher
+        );
         this.publisher = publisher;
         this.jsonMode = "json".equalsIgnoreCase(outputMode);
     }
@@ -135,8 +144,8 @@ public final class WhisperSttEngine implements SttEngine {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        boolean acquired = acquireConcurrencyPermit();
         try {
+            concurrencyGuard.acquire();
             checkEngineInitialized();
             Path wav = null;
             long startTime = System.nanoTime();
@@ -159,39 +168,10 @@ public final class WhisperSttEngine implements SttEngine {
                 cleanupTempFile(wav);
             }
         } finally {
-            if (acquired) {
-                concurrencySemaphore.release();
-            }
+            concurrencyGuard.release();
         }
     }
 
-    /**
-     * Acquires concurrency permit with timeout.
-     *
-     * @return true if permit was acquired
-     * @throws TranscriptionException if permit cannot be acquired or interrupted
-     */
-    private boolean acquireConcurrencyPermit() {
-        try {
-            boolean acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
-            if (!acquired) {
-                if (publisher != null) {
-                    Map<String, String> ctx = new HashMap<>();
-                    ctx.put("reason", "concurrency-limit");
-                    ctx.put("timeoutMs", String.valueOf(acquireTimeoutMs));
-                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                            "concurrency limit reached after " + acquireTimeoutMs + "ms wait", null, ctx));
-                }
-                throw new TranscriptionException("Whisper concurrency limit reached after "
-                        + acquireTimeoutMs + "ms wait", ENGINE);
-            }
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TranscriptionException("Whisper transcription interrupted while waiting for semaphore",
-                    ENGINE, e);
-        }
-    }
 
     /**
      * Checks if engine is initialized and not closed.

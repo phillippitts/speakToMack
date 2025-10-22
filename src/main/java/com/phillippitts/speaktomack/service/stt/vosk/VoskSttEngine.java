@@ -4,6 +4,8 @@ import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
+import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
@@ -14,8 +16,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import jakarta.annotation.PreDestroy;
 import java.util.Objects;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
+import java.util.concurrent.Semaphore;
 
 /**
  * Vosk-based implementation of the SttEngine interface.
@@ -56,8 +57,7 @@ public class VoskSttEngine implements SttEngine {
     private final Object lock = new Object();
 
     // Lightweight concurrency guard (configurable)
-    private final java.util.concurrent.Semaphore concurrencySemaphore;
-    private final int acquireTimeoutMs;
+    private final ConcurrencyGuard concurrencyGuard;
 
     // Optional event publisher for watchdog events
     private ApplicationEventPublisher publisher;
@@ -76,8 +76,12 @@ public class VoskSttEngine implements SttEngine {
 
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
-        this.concurrencySemaphore = new java.util.concurrent.Semaphore(DEFAULT_CONCURRENCY_LIMIT);
-        this.acquireTimeoutMs = DEFAULT_ACQUIRE_TIMEOUT_MS;
+        this.concurrencyGuard = new ConcurrencyGuard(
+                new Semaphore(DEFAULT_CONCURRENCY_LIMIT),
+                DEFAULT_ACQUIRE_TIMEOUT_MS,
+                ENGINE_NAME,
+                null // No publisher in basic constructor
+        );
     }
 
     /**
@@ -89,8 +93,13 @@ public class VoskSttEngine implements SttEngine {
             ApplicationEventPublisher publisher) {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
-        this.concurrencySemaphore = new java.util.concurrent.Semaphore(max);
-        this.acquireTimeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
+        long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
+        this.concurrencyGuard = new ConcurrencyGuard(
+                new Semaphore(max),
+                timeoutMs,
+                ENGINE_NAME,
+                publisher
+        );
         this.publisher = publisher;
     }
 
@@ -153,51 +162,15 @@ public class VoskSttEngine implements SttEngine {
         }
         LOG.debug("VoskSttEngine.transcribe: received {} bytes of audio data", audioData.length);
 
-        boolean acquired = acquireConcurrencyPermit();
         try {
+            concurrencyGuard.acquire();
             org.vosk.Model localModel = getModelForTranscription();
             return transcribeWithModel(localModel, audioData);
         } finally {
-            if (acquired) {
-                concurrencySemaphore.release();
-            }
+            concurrencyGuard.release();
         }
     }
 
-    /**
-     * Acquires a concurrency permit from the semaphore.
-     *
-     * <p>Implements bounded waiting to gracefully handle brief load spikes.
-     * Publishes failure event if permit cannot be acquired within timeout.
-     *
-     * @return true if permit was acquired
-     * @throws TranscriptionException if permit cannot be acquired or thread is interrupted
-     */
-    private boolean acquireConcurrencyPermit() {
-        try {
-            boolean acquired = concurrencySemaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
-            if (!acquired) {
-                publishFailureEvent(
-                    "concurrency limit reached after " + acquireTimeoutMs + "ms wait",
-                    null,
-                    Map.of("reason", "concurrency-limit",
-                           "timeoutMs", String.valueOf(acquireTimeoutMs))
-                );
-                throw new TranscriptionException(
-                    "Vosk concurrency limit reached after " + acquireTimeoutMs + "ms wait",
-                    ENGINE_NAME
-                );
-            }
-            return acquired;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TranscriptionException(
-                "Vosk transcription interrupted while waiting for semaphore",
-                ENGINE_NAME,
-                e
-            );
-        }
-    }
 
     /**
      * Publishes an engine failure event if publisher is available.
