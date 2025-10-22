@@ -3,6 +3,7 @@ package com.phillippitts.speaktomack.service.stt.vosk;
 import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +34,6 @@ import java.util.concurrent.Semaphore;
 public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine {
 
     private static final Logger LOG = LogManager.getLogger(VoskSttEngine.class);
-    private static final String ENGINE_NAME = "vosk";
 
     /**
      * Maximum allowed JSON response size from Vosk recognizer (1MB).
@@ -70,7 +70,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         this.concurrencyGuard = new ConcurrencyGuard(
                 new Semaphore(DEFAULT_CONCURRENCY_LIMIT),
                 DEFAULT_ACQUIRE_TIMEOUT_MS,
-                ENGINE_NAME,
+                SttEngineNames.VOSK,
                 null // No publisher in basic constructor
         );
     }
@@ -88,7 +88,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         this.concurrencyGuard = new ConcurrencyGuard(
                 new Semaphore(max),
                 timeoutMs,
-                ENGINE_NAME,
+                SttEngineNames.VOSK,
                 publisher
         );
         this.publisher = publisher;
@@ -116,7 +116,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             safeCloseUnlocked();
             EngineEventPublisher.publishFailure(
                 publisher,
-                ENGINE_NAME,
+                SttEngineNames.VOSK,
                 "initialize failure",
                 t,
                 Map.of("modelPath", String.valueOf(config.modelPath()),
@@ -124,7 +124,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             );
             throw new TranscriptionException(
                 "Failed to initialize Vosk (model=" + config.modelPath()
-                    + ", sampleRate=" + config.sampleRate() + ")", ENGINE_NAME, t);
+                    + ", sampleRate=" + config.sampleRate() + ")", SttEngineNames.VOSK, t);
         }
     }
 
@@ -181,7 +181,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             String json = processAudioAndGetResult(localRecognizer, audioData);
             return parseJsonAndCreateResult(json);
         } catch (Throwable t) {
-            throw new TranscriptionException("Vosk transcription failed", ENGINE_NAME, t);
+            throw new TranscriptionException("Vosk transcription failed", SttEngineNames.VOSK, t);
         }
     }
 
@@ -232,7 +232,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
 
     @Override
     public String getEngineName() {
-        return ENGINE_NAME;
+        return SttEngineNames.VOSK;
     }
 
     /**

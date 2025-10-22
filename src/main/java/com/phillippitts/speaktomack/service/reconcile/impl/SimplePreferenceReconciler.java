@@ -2,7 +2,7 @@ package com.phillippitts.speaktomack.service.reconcile.impl;
 
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
+import com.phillippitts.speaktomack.service.reconcile.AbstractReconciler;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 
 import java.util.Objects;
@@ -17,7 +17,7 @@ import java.util.Objects;
  * based on accuracy, speed, or other factors, but want fallback protection
  * when the primary engine fails or produces no output.
  */
-public final class SimplePreferenceReconciler implements TranscriptReconciler {
+public final class SimplePreferenceReconciler extends AbstractReconciler {
     private final OrchestrationProperties.PrimaryEngine primary;
 
     /**
@@ -31,22 +31,20 @@ public final class SimplePreferenceReconciler implements TranscriptReconciler {
     }
 
     /**
-     * Reconciles two engine results by preferring the primary engine.
+     * Reconciles two non-null engine results by preferring the primary engine.
      *
-     * @param vosk Vosk engine result (may be null if engine failed)
-     * @param whisper Whisper engine result (may be null if engine failed)
+     * <p>Null handling is performed by {@link AbstractReconciler}.
+     *
+     * @param vosk Vosk engine result (never null)
+     * @param whisper Whisper engine result (never null)
      * @return reconciled transcription result with "reconciled" engine name
      */
     @Override
-    public TranscriptionResult reconcile(EngineResult vosk, EngineResult whisper) {
+    protected TranscriptionResult doReconcile(EngineResult vosk, EngineResult whisper) {
         EngineResult first = primary == OrchestrationProperties.PrimaryEngine.VOSK ? vosk : whisper;
         EngineResult second = primary == OrchestrationProperties.PrimaryEngine.VOSK ? whisper : vosk;
         EngineResult pick = pickNonEmpty(first, second);
-        return TranscriptionResult.of(
-                pick == null ? "" : pick.text(),
-                pick == null ? 0.0 : pick.confidence(),
-                "reconciled"
-        );
+        return toResult(pick);
     }
 
     /**

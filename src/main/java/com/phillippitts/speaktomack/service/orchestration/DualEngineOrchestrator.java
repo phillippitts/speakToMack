@@ -12,6 +12,7 @@ import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCom
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.util.TimeUtils;
@@ -75,8 +76,6 @@ public final class DualEngineOrchestrator {
     private static final Logger LOG = LogManager.getLogger(DualEngineOrchestrator.class);
 
     // Engine name constants
-    private static final String ENGINE_VOSK = "vosk";
-    private static final String ENGINE_WHISPER = "whisper";
     private static final String ENGINE_RECONCILED = "reconciled";
 
     // Timeout value indicating "use service default"
@@ -427,7 +426,7 @@ public final class DualEngineOrchestrator {
             // Smart reconciliation: Check if we should upgrade to dual-engine
             // based on Vosk confidence threshold
             if (isReconciliationEnabled() &&
-                ENGINE_VOSK.equals(engineName) &&
+                SttEngineNames.VOSK.equals(engineName) &&
                 result.confidence() < recProps.getConfidenceThreshold()) {
 
                 LOG.info("Vosk confidence {:.3f} < threshold {:.3f}, upgrading to dual-engine reconciliation",
@@ -525,17 +524,17 @@ public final class DualEngineOrchestrator {
 
         // Verify both engines aren't unhealthy (strategy returns primary anyway, but we want to fail fast)
         if (!engineSelector.areBothEnginesHealthy()) {
-            boolean voskReady = watchdog.isEngineEnabled(ENGINE_VOSK) && vosk.isHealthy();
-            boolean whisperReady = watchdog.isEngineEnabled(ENGINE_WHISPER) && whisper.isHealthy();
+            boolean voskReady = watchdog.isEngineEnabled(SttEngineNames.VOSK) && vosk.isHealthy();
+            boolean whisperReady = watchdog.isEngineEnabled(SttEngineNames.WHISPER) && whisper.isHealthy();
 
             if (!voskReady && !whisperReady) {
                 // Both engines unavailable - construct detailed error message
                 String errorMsg = String.format(
                         "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, "
                                 + "whisper.enabled=%s, whisper.healthy=%s)",
-                        watchdog.isEngineEnabled(ENGINE_VOSK),
+                        watchdog.isEngineEnabled(SttEngineNames.VOSK),
                         vosk.isHealthy(),
-                        watchdog.isEngineEnabled(ENGINE_WHISPER),
+                        watchdog.isEngineEnabled(SttEngineNames.WHISPER),
                         whisper.isHealthy()
                 );
                 throw new TranscriptionException(errorMsg);

@@ -6,6 +6,7 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
+import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import com.phillippitts.speaktomack.util.TimeUtils;
@@ -67,7 +68,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private final ConcurrencyGuard concurrencyGuard;
 
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
-    private static final String ENGINE = "whisper";
 
     private final WhisperConfig cfg;
     private final WhisperProcessManager manager;
@@ -83,7 +83,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         this.concurrencyGuard = new ConcurrencyGuard(
                 new Semaphore(2),
                 1000, // Default 1 second timeout
-                ENGINE,
+                SttEngineNames.WHISPER,
                 null // No publisher in basic constructor
         );
         this.jsonMode = false;
@@ -103,7 +103,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         this.concurrencyGuard = new ConcurrencyGuard(
                 new Semaphore(max),
                 timeoutMs,
-                ENGINE,
+                SttEngineNames.WHISPER,
                 publisher
         );
         this.publisher = publisher;
@@ -122,8 +122,8 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             Map<String, String> ctx = new HashMap<>();
             ctx.put("binaryPath", cfg.binaryPath());
             ctx.put("modelPath", cfg.modelPath());
-            EngineEventPublisher.publishFailure(publisher, ENGINE, "initialize failure", t, ctx);
-            throw new TranscriptionException("Whisper initialization failed", ENGINE, t);
+            EngineEventPublisher.publishFailure(publisher, SttEngineNames.WHISPER, "initialize failure", t, ctx);
+            throw new TranscriptionException("Whisper initialization failed", SttEngineNames.WHISPER, t);
         }
     }
 
@@ -145,16 +145,16 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
 
                 long elapsedMs = TimeUtils.elapsedMillis(startTime);
                 LOG.debug("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
-                return TranscriptionResult.of(text, confidence, ENGINE);
+                return TranscriptionResult.of(text, confidence, SttEngineNames.WHISPER);
             } catch (Exception e) {
                 Map<String, String> ctx = new HashMap<>();
                 ctx.put("binaryPath", cfg.binaryPath());
                 ctx.put("modelPath", cfg.modelPath());
-                EngineEventPublisher.publishFailure(publisher, ENGINE, "transcribe failure", e, ctx);
+                EngineEventPublisher.publishFailure(publisher, SttEngineNames.WHISPER, "transcribe failure", e, ctx);
                 if (e instanceof TranscriptionException te) {
                     throw te;
                 }
-                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), ENGINE, e);
+                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), SttEngineNames.WHISPER, e);
             } finally {
                 cleanupTempFile(wav);
             }
@@ -283,7 +283,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
 
     @Override
     public String getEngineName() {
-        return ENGINE;
+        return SttEngineNames.WHISPER;
     }
 
     /**

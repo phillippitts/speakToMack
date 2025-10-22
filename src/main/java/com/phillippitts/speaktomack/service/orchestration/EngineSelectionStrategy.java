@@ -4,6 +4,7 @@ import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties.PrimaryEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
+import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,8 +33,6 @@ public final class EngineSelectionStrategy {
 
     private static final Logger LOG = LogManager.getLogger(EngineSelectionStrategy.class);
 
-    private static final String ENGINE_VOSK = "vosk";
-    private static final String ENGINE_WHISPER = "whisper";
 
     private final SttEngine vosk;
     private final SttEngine whisper;
@@ -53,8 +52,8 @@ public final class EngineSelectionStrategy {
                                     SttEngine whisper,
                                     SttEngineWatchdog watchdog,
                                     OrchestrationProperties props) {
-        this.vosk = Objects.requireNonNull(vosk, "vosk");
-        this.whisper = Objects.requireNonNull(whisper, "whisper");
+        this.vosk = Objects.requireNonNull(vosk, SttEngineNames.VOSK);
+        this.whisper = Objects.requireNonNull(whisper, SttEngineNames.WHISPER);
         this.watchdog = Objects.requireNonNull(watchdog, "watchdog");
         this.props = Objects.requireNonNull(props, "props");
     }
@@ -111,19 +110,19 @@ public final class EngineSelectionStrategy {
     /**
      * Returns the name of the primary engine.
      *
-     * @return "vosk" or "whisper"
+     * @return SttEngineNames.VOSK or SttEngineNames.WHISPER
      */
     private String getPrimaryEngineName() {
-        return props.getPrimaryEngine() == PrimaryEngine.VOSK ? ENGINE_VOSK : ENGINE_WHISPER;
+        return props.getPrimaryEngine() == PrimaryEngine.VOSK ? SttEngineNames.VOSK : SttEngineNames.WHISPER;
     }
 
     /**
      * Returns the name of the secondary engine.
      *
-     * @return "vosk" or "whisper"
+     * @return SttEngineNames.VOSK or SttEngineNames.WHISPER
      */
     private String getSecondaryEngineName() {
-        return props.getPrimaryEngine() == PrimaryEngine.VOSK ? ENGINE_WHISPER : ENGINE_VOSK;
+        return props.getPrimaryEngine() == PrimaryEngine.VOSK ? SttEngineNames.WHISPER : SttEngineNames.VOSK;
     }
 
     /**
@@ -132,7 +131,7 @@ public final class EngineSelectionStrategy {
      * @return {@code true} if both engines are enabled, {@code false} otherwise
      */
     public boolean areBothEnginesHealthy() {
-        return watchdog.isEngineEnabled(ENGINE_VOSK)
-                && watchdog.isEngineEnabled(ENGINE_WHISPER);
+        return watchdog.isEngineEnabled(SttEngineNames.VOSK)
+                && watchdog.isEngineEnabled(SttEngineNames.WHISPER);
     }
 }

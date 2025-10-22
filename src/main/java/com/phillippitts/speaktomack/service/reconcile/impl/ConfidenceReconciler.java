@@ -1,7 +1,7 @@
 package com.phillippitts.speaktomack.service.reconcile.impl;
 
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
+import com.phillippitts.speaktomack.service.reconcile.AbstractReconciler;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 
 /**
@@ -13,25 +13,19 @@ import com.phillippitts.speaktomack.service.stt.EngineResult;
  * <p>This strategy is optimal when both engines are equally accurate but
  * their confidence scores reliably indicate transcription quality.
  */
-public final class ConfidenceReconciler implements TranscriptReconciler {
+public final class ConfidenceReconciler extends AbstractReconciler {
 
     /**
-     * Reconciles two engine results by selecting the one with higher confidence.
+     * Reconciles two non-null engine results by selecting the one with higher confidence.
      *
-     * @param vosk Vosk engine result (may be null if engine failed)
-     * @param whisper Whisper engine result (may be null if engine failed)
+     * <p>Null handling is performed by {@link AbstractReconciler}.
+     *
+     * @param vosk Vosk engine result (never null)
+     * @param whisper Whisper engine result (never null)
      * @return reconciled transcription result with "reconciled" engine name
      */
     @Override
-    public TranscriptionResult reconcile(EngineResult vosk, EngineResult whisper) {
-        // Handle null cases early
-        if (vosk == null) {
-            return toResult(whisper);
-        }
-        if (whisper == null) {
-            return toResult(vosk);
-        }
-
+    protected TranscriptionResult doReconcile(EngineResult vosk, EngineResult whisper) {
         // Pick by confidence
         if (vosk.confidence() > whisper.confidence()) {
             return toResult(vosk);
@@ -53,20 +47,6 @@ public final class ConfidenceReconciler implements TranscriptReconciler {
 
         // Both empty or both non-empty: default to Vosk
         return toResult(vosk);
-    }
-
-    /**
-     * Converts an engine result to a transcription result.
-     *
-     * @param result engine result (may be null)
-     * @return transcription result with "reconciled" engine name
-     */
-    private TranscriptionResult toResult(EngineResult result) {
-        return TranscriptionResult.of(
-                result == null ? "" : result.text(),
-                result == null ? 0.0 : result.confidence(),
-                "reconciled"
-        );
     }
 
     /**

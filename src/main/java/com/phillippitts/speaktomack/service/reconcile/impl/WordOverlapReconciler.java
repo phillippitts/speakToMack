@@ -1,7 +1,7 @@
 package com.phillippitts.speaktomack.service.reconcile.impl;
 
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
+import com.phillippitts.speaktomack.service.reconcile.AbstractReconciler;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 
 import java.util.HashSet;
@@ -20,7 +20,7 @@ import java.util.Set;
  * semantically similar transcriptions, and you want to prefer the one with better
  * coverage of the shared vocabulary.
  */
-public final class WordOverlapReconciler implements TranscriptReconciler {
+public final class WordOverlapReconciler extends AbstractReconciler {
     private final double threshold;
 
     /**
@@ -37,25 +37,16 @@ public final class WordOverlapReconciler implements TranscriptReconciler {
     }
 
     /**
-     * Reconciles two engine results by comparing word overlap.
+     * Reconciles two non-null engine results by comparing word overlap.
      *
-     * @param vosk Vosk engine result (may be null if engine failed)
-     * @param whisper Whisper engine result (may be null if engine failed)
+     * <p>Null handling is performed by {@link AbstractReconciler}.
+     *
+     * @param vosk Vosk engine result (never null)
+     * @param whisper Whisper engine result (never null)
      * @return reconciled transcription result with "reconciled" engine name
      */
     @Override
-    public TranscriptionResult reconcile(EngineResult vosk, EngineResult whisper) {
-        // Handle null cases early
-        if (vosk == null && whisper == null) {
-            return TranscriptionResult.of("", 0.0, "reconciled");
-        }
-        if (vosk == null) {
-            return TranscriptionResult.of(whisper.text(), whisper.confidence(), "reconciled");
-        }
-        if (whisper == null) {
-            return TranscriptionResult.of(vosk.text(), vosk.confidence(), "reconciled");
-        }
-
+    protected TranscriptionResult doReconcile(EngineResult vosk, EngineResult whisper) {
         // Calculate Jaccard similarity for each result
         Set<String> union = union(vosk.tokens(), whisper.tokens());
         double voskSimilarity = jaccard(vosk.tokens(), union);
@@ -70,7 +61,7 @@ public final class WordOverlapReconciler implements TranscriptReconciler {
             pick = voskSimilarity >= whisperSimilarity ? vosk : whisper;
         }
 
-        return TranscriptionResult.of(pick.text(), pick.confidence(), "reconciled");
+        return toResult(pick);
     }
 
     /**
