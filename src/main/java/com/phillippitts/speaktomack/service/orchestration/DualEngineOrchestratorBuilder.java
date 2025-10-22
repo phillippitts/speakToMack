@@ -277,14 +277,24 @@ public final class DualEngineOrchestratorBuilder {
         CaptureOrchestrator captureOrchestrator = new DefaultCaptureOrchestrator(
                 captureService, captureStateMachine);
 
+        // Create ReconciliationService if all reconciliation components are present
+        ReconciliationService reconciliation;
+        if (parallelSttService != null && transcriptReconciler != null && reconciliationProperties != null) {
+            reconciliation = new DefaultReconciliationService(
+                    parallelSttService,
+                    transcriptReconciler,
+                    reconciliationProperties
+            );
+        } else {
+            reconciliation = DefaultReconciliationService.disabled();
+        }
+
         // Create TranscriptionOrchestrator from all transcription-related dependencies
         // Note: engineSelector already encapsulates voskEngine, whisperEngine, watchdog, orchestrationProperties
         TranscriptionOrchestrator transcriptionOrchestrator = new DefaultTranscriptionOrchestrator(
                 orchestrationProperties,
                 publisher,
-                parallelSttService,
-                transcriptReconciler,
-                reconciliationProperties,
+                reconciliation,
                 engineSelector,
                 timingCoordinator,
                 effectiveMetricsPublisher

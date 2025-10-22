@@ -1,14 +1,11 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
-import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
@@ -43,16 +40,11 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     // Engine name constants
     private static final String ENGINE_RECONCILED = "reconciled";
 
-    // Timeout value indicating "use service default"
-    private static final long USE_DEFAULT_TIMEOUT = 0L;
-
     private final OrchestrationProperties props;
     private final ApplicationEventPublisher publisher;
 
-    // Optional reconciliation components
-    private final ParallelSttService parallel;
-    private final TranscriptReconciler reconciler;
-    private final ReconciliationProperties recProps;
+    // Reconciliation service (encapsulates parallel, reconciler, recProps)
+    private final ReconciliationService reconciliation;
 
     // State machines and services
     private final EngineSelectionStrategy engineSelector;
@@ -64,9 +56,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      *
      * @param props orchestration configuration (silence gap threshold)
      * @param publisher Spring event publisher for transcription results
-     * @param parallel service for running both engines in parallel (nullable for single-engine mode)
-     * @param reconciler strategy for merging dual-engine results (nullable for single-engine mode)
-     * @param recProps reconciliation configuration and enablement flag (nullable for single-engine mode)
+     * @param reconciliation service for dual-engine reconciliation (encapsulates parallel, reconciler, recProps)
      * @param engineSelector strategy for selecting STT engine (also manages vosk, whisper, watchdog)
      * @param timingCoordinator coordinator for timing and paragraph breaks
      * @param metricsPublisher metrics publishing service
@@ -74,17 +64,13 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      */
     public DefaultTranscriptionOrchestrator(OrchestrationProperties props,
                                             ApplicationEventPublisher publisher,
-                                            ParallelSttService parallel,
-                                            TranscriptReconciler reconciler,
-                                            ReconciliationProperties recProps,
+                                            ReconciliationService reconciliation,
                                             EngineSelectionStrategy engineSelector,
                                             TimingCoordinator timingCoordinator,
                                             TranscriptionMetricsPublisher metricsPublisher) {
         this.props = Objects.requireNonNull(props, "props must not be null");
         this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
-        this.parallel = parallel;
-        this.reconciler = reconciler;
-        this.recProps = recProps;
+        this.reconciliation = Objects.requireNonNull(reconciliation, "reconciliation must not be null");
         this.engineSelector = Objects.requireNonNull(engineSelector, "engineSelector must not be null");
         this.timingCoordinator = Objects.requireNonNull(timingCoordinator, "timingCoordinator must not be null");
         this.metricsPublisher = Objects.requireNonNull(metricsPublisher, "metricsPublisher must not be null");
@@ -108,7 +94,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @return true if reconciliation is enabled and all services are available
      */
     private boolean isReconciliationEnabled() {
-        return recProps != null && recProps.isEnabled() && parallel != null && reconciler != null;
+        return reconciliation.isEnabled();
     }
 
     /**
@@ -126,9 +112,8 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     private void transcribeWithReconciliation(byte[] pcm) {
         long startTime = System.nanoTime();
         try {
-            var pair = parallel.transcribeBoth(pcm, USE_DEFAULT_TIMEOUT);
-            TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
-            String strategy = String.valueOf(recProps.getStrategy());
+            TranscriptionResult result = reconciliation.reconcile(pcm);
+            String strategy = reconciliation.getStrategy();
 
             // Record metrics
             long duration = System.nanoTime() - startTime;
@@ -176,11 +161,11 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             // based on Vosk confidence threshold
             if (isReconciliationEnabled()
                     && SttEngineNames.VOSK.equals(engineName)
-                    && result.confidence() < recProps.getConfidenceThreshold()) {
+                    && result.confidence() < reconciliation.getConfidenceThreshold()) {
 
                 LOG.info("Vosk confidence {} < threshold {}, upgrading to dual-engine reconciliation",
                          String.format("%.3f", result.confidence()),
-                         String.format("%.3f", recProps.getConfidenceThreshold()));
+                         String.format("%.3f", reconciliation.getConfidenceThreshold()));
 
                 // Upgrade to dual-engine mode for this transcription
                 transcribeWithReconciliation(pcm);
