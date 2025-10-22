@@ -42,10 +42,11 @@ import java.util.UUID;
  *       reconciles results using configurable strategy (SIMPLE, CONFIDENCE, or OVERLAP).</li>
  * </ul>
  *
- * <p><b>Thread Safety:</b> This class uses synchronization on {@code lock} to protect the
- * {@code activeSession} field. Multiple hotkey events can be received concurrently, but only
- * one capture session can be active at a time. Duplicate presses during active sessions are
- * ignored to prevent audio corruption.
+ * <p><b>Thread Safety:</b> This class delegates to thread-safe orchestrators
+ * ({@link CaptureOrchestrator} and {@link TranscriptionOrchestrator}) for all state management.
+ * Multiple hotkey events can be received concurrently, but only one capture session can be
+ * active at a time. Duplicate presses during active sessions are ignored to prevent audio
+ * corruption.
  *
  * <p><b>Error Handling:</b> Transcription failures are logged but do not crash the application.
  * The orchestrator remains ready for the next hotkey press. Capture errors trigger session
@@ -129,8 +130,9 @@ public class DualEngineOrchestrator {
      * session. If a session is already active, stops it and initiates transcription (same as
      * release in push-to-talk mode).
      *
-     * <p><b>Thread Safety:</b> Synchronized on {@code lock} to ensure only one session can
-     * be active at a time. Duplicate presses during an active session are handled based on mode.
+     * <p><b>Thread Safety:</b> Thread safety is provided by {@link CaptureOrchestrator}, which
+     * ensures only one session can be active at a time. Duplicate presses during an active session
+     * are handled based on mode.
      *
      * <p><b>Performance:</b> Session start completes in &lt;5ms. Transcription (toggle mode)
      * may take 1-5 seconds but runs on a dedicated thread pool without blocking event delivery.
