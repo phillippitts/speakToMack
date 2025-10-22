@@ -2,12 +2,12 @@ package com.phillippitts.speaktomack.config.orchestration;
 
 import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
-import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
 import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;
+import com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 
@@ -31,7 +31,7 @@ public class OrchestrationConfig {
     private final OrchestrationProperties orchestrationProperties;
     private final HotkeyProperties hotkeyProperties;
     private final ApplicationEventPublisher publisher;
-    private final TranscriptionMetrics metrics;
+    private final TranscriptionMetricsPublisher metricsPublisher;
     private final ReconciliationDependencies reconciliationDeps;
 
     /**
@@ -45,7 +45,7 @@ public class OrchestrationConfig {
                                OrchestrationProperties orchestrationProperties,
                                HotkeyProperties hotkeyProperties,
                                ApplicationEventPublisher publisher,
-                               TranscriptionMetrics metrics,
+                               TranscriptionMetricsPublisher metricsPublisher,
                                ReconciliationDependencies reconciliationDeps) {
         this.captureService = captureService;
         this.voskSttEngine = voskSttEngine;
@@ -54,7 +54,7 @@ public class OrchestrationConfig {
         this.orchestrationProperties = orchestrationProperties;
         this.hotkeyProperties = hotkeyProperties;
         this.publisher = publisher;
-        this.metrics = metrics;
+        this.metricsPublisher = metricsPublisher;
         this.reconciliationDeps = reconciliationDeps;
     }
 
@@ -105,7 +105,7 @@ public class OrchestrationConfig {
                 .orchestrationProperties(this.orchestrationProperties)
                 .hotkeyProperties(this.hotkeyProperties)
                 .publisher(this.publisher)
-                .metrics(this.metrics)
+                .metricsPublisher(this.metricsPublisher)
                 .captureStateMachine(captureStateMachine)
                 .engineSelector(engineSelector)
                 .timingCoordinator(timingCoordinator)
@@ -131,7 +131,7 @@ public class OrchestrationConfig {
                 .parallelSttService(this.reconciliationDeps.getParallelSttService())
                 .transcriptReconciler(this.reconciliationDeps.getTranscriptReconciler())
                 .reconciliationProperties(this.reconciliationDeps.getReconciliationProperties())
-                .metrics(this.metrics)
+                .metricsPublisher(this.metricsPublisher)
                 .captureStateMachine(captureStateMachine)
                 .engineSelector(engineSelector)
                 .timingCoordinator(timingCoordinator)

@@ -68,7 +68,8 @@ class DualEngineOrchestratorReconciledTest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(rprops)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .timingCoordinator(new TimingCoordinator(props))
@@ -125,7 +126,8 @@ class DualEngineOrchestratorReconciledTest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(rprops)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .timingCoordinator(new TimingCoordinator(props))

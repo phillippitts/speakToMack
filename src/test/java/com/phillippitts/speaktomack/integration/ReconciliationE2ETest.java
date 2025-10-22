@@ -83,7 +83,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -131,7 +132,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -181,7 +183,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -231,7 +234,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -280,7 +284,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -356,7 +361,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
@@ -401,7 +407,8 @@ class ReconciliationE2ETest {
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
-                .metrics(null)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),

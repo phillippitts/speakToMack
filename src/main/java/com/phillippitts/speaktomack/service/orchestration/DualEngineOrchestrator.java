@@ -12,7 +12,6 @@ import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCom
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
-import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.util.TimeUtils;
@@ -96,13 +95,11 @@ public final class DualEngineOrchestrator {
     private final TranscriptReconciler reconciler;
     private final ReconciliationProperties recProps;
 
-    // Optional metrics (nullable for tests)
-    private final TranscriptionMetrics metrics;
-
-    // State machines for managing complex state and logic
+    // State machines and services for managing complex state and logic
     private final CaptureStateMachine captureStateMachine;
     private final EngineSelectionStrategy engineSelector;
     private final TimingCoordinator timingCoordinator;
+    private final TranscriptionMetricsPublisher metricsPublisher;
 
     /**
      * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
@@ -122,6 +119,7 @@ public final class DualEngineOrchestrator {
      *      OrchestrationProperties, HotkeyProperties, ApplicationEventPublisher, ParallelSttService,
      *      TranscriptReconciler, ReconciliationProperties)
      */
+    // CHECKSTYLE.OFF: ParameterNumber - Builder pattern used for construction
     public DualEngineOrchestrator(AudioCaptureService captureService,
                                   SttEngine vosk,
                                   SttEngine whisper,
@@ -131,10 +129,12 @@ public final class DualEngineOrchestrator {
                                   ApplicationEventPublisher publisher,
                                   CaptureStateMachine captureStateMachine,
                                   EngineSelectionStrategy engineSelector,
-                                  TimingCoordinator timingCoordinator) {
-        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null, null,
-                captureStateMachine, engineSelector, timingCoordinator);
+                                  TimingCoordinator timingCoordinator,
+                                  TranscriptionMetricsPublisher metricsPublisher) {
+        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null,
+                captureStateMachine, engineSelector, timingCoordinator, metricsPublisher);
     }
+    // CHECKSTYLE.ON: ParameterNumber
 
     /**
      * Constructs a DualEngineOrchestrator with optional reconciliation and metrics support.
@@ -167,7 +167,7 @@ public final class DualEngineOrchestrator {
      * @param parallel service for running both engines in parallel (nullable)
      * @param reconciler strategy for merging dual-engine results (nullable)
      * @param recProps reconciliation configuration and enablement flag (nullable)
-     * @param metrics metrics tracking service (nullable)
+     * @param metricsPublisher metrics publishing service
      * @throws NullPointerException if any required parameter is null (Phase 4 params are optional)
      * @see ParallelSttService
      * @see TranscriptReconciler
@@ -185,10 +185,10 @@ public final class DualEngineOrchestrator {
                            ParallelSttService parallel,
                            TranscriptReconciler reconciler,
                            ReconciliationProperties recProps,
-                           TranscriptionMetrics metrics,
                            CaptureStateMachine captureStateMachine,
                            EngineSelectionStrategy engineSelector,
-                           TimingCoordinator timingCoordinator) {
+                           TimingCoordinator timingCoordinator,
+                           TranscriptionMetricsPublisher metricsPublisher) {
         this.captureService = Objects.requireNonNull(captureService);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);
@@ -199,10 +199,10 @@ public final class DualEngineOrchestrator {
         this.parallel = parallel;
         this.reconciler = reconciler;
         this.recProps = recProps;
-        this.metrics = metrics;
         this.captureStateMachine = Objects.requireNonNull(captureStateMachine);
         this.engineSelector = Objects.requireNonNull(engineSelector);
         this.timingCoordinator = Objects.requireNonNull(timingCoordinator);
+        this.metricsPublisher = Objects.requireNonNull(metricsPublisher);
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -395,24 +395,16 @@ public final class DualEngineOrchestrator {
             String strategy = String.valueOf(recProps.getStrategy());
 
             // Record metrics
-            if (metrics != null) {
-                long duration = System.nanoTime() - startTime;
-                metrics.recordLatency(ENGINE_RECONCILED, duration);
-                metrics.incrementSuccess(ENGINE_RECONCILED);
-                metrics.recordReconciliation(strategy, result.engineName());
-            }
+            long duration = System.nanoTime() - startTime;
+            metricsPublisher.recordSuccess(ENGINE_RECONCILED, duration, strategy);
 
             logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
             publishResult(result, ENGINE_RECONCILED);
         } catch (TranscriptionException te) {
-            if (metrics != null) {
-                metrics.incrementFailure(ENGINE_RECONCILED, "transcription_error");
-            }
+            metricsPublisher.recordFailure(ENGINE_RECONCILED, "transcription_error");
             LOG.warn("Reconciled transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
-            if (metrics != null) {
-                metrics.incrementFailure(ENGINE_RECONCILED, "unexpected_error");
-            }
+            metricsPublisher.recordFailure(ENGINE_RECONCILED, "unexpected_error");
             LOG.error("Unexpected error during reconciled transcription", re);
         }
     }
@@ -447,23 +439,16 @@ public final class DualEngineOrchestrator {
             }
 
             // Record metrics for successful single-engine transcription
-            if (metrics != null) {
-                long duration = System.nanoTime() - startTime;
-                metrics.recordLatency(engineName, duration);
-                metrics.incrementSuccess(engineName);
-            }
+            long duration = System.nanoTime() - startTime;
+            metricsPublisher.recordSuccess(engineName, duration, null);
 
             logTranscriptionSuccess(engineName, startTime, result.text().length(), null);
             publishResult(result, engineName);
         } catch (TranscriptionException te) {
-            if (metrics != null) {
-                metrics.incrementFailure(engine.getEngineName(), "transcription_error");
-            }
+            metricsPublisher.recordFailure(engine.getEngineName(), "transcription_error");
             LOG.warn("Transcription failed: {}", te.getMessage());
         } catch (RuntimeException re) {
-            if (metrics != null) {
-                metrics.incrementFailure(engine.getEngineName(), "unexpected_error");
-            }
+            metricsPublisher.recordFailure(engine.getEngineName(), "unexpected_error");
             LOG.error("Unexpected error during transcription", re);
         }
     }

@@ -4,7 +4,6 @@ import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
-import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
@@ -75,7 +74,7 @@ public final class DualEngineOrchestratorBuilder {
     private ParallelSttService parallelSttService;
     private TranscriptReconciler transcriptReconciler;
     private ReconciliationProperties reconciliationProperties;
-    private TranscriptionMetrics metrics;
+    private TranscriptionMetricsPublisher metricsPublisher;
 
     private DualEngineOrchestratorBuilder() {
         // Private constructor - use builder() factory method
@@ -236,13 +235,13 @@ public final class DualEngineOrchestratorBuilder {
     }
 
     /**
-     * Sets the transcription metrics (optional).
+     * Sets the transcription metrics publisher.
      *
-     * @param metrics metrics tracking service
+     * @param metricsPublisher metrics publishing service
      * @return this builder
      */
-    public DualEngineOrchestratorBuilder metrics(TranscriptionMetrics metrics) {
-        this.metrics = metrics;
+    public DualEngineOrchestratorBuilder metricsPublisher(TranscriptionMetricsPublisher metricsPublisher) {
+        this.metricsPublisher = metricsPublisher;
         return this;
     }
 
@@ -269,6 +268,11 @@ public final class DualEngineOrchestratorBuilder {
         Objects.requireNonNull(engineSelector, "engineSelector is required");
         Objects.requireNonNull(timingCoordinator, "timingCoordinator is required");
 
+        // Provide default metricsPublisher if not set (for tests)
+        TranscriptionMetricsPublisher effectiveMetricsPublisher = metricsPublisher != null
+                ? metricsPublisher
+                : new TranscriptionMetricsPublisher(null);
+
         // Create orchestrator with all dependencies (nullable optional ones will be handled by constructor)
         return new DualEngineOrchestrator(
                 captureService,
@@ -281,10 +285,10 @@ public final class DualEngineOrchestratorBuilder {
                 parallelSttService,
                 transcriptReconciler,
                 reconciliationProperties,
-                metrics,
                 captureStateMachine,
                 engineSelector,
-                timingCoordinator
+                timingCoordinator,
+                effectiveMetricsPublisher
         );
     }
 }
