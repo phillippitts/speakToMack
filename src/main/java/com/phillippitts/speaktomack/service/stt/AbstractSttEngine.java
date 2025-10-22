@@ -36,8 +36,8 @@ import jakarta.annotation.PreDestroy;
  *
  * @since 1.1
  * @see SttEngine
- * @see VoskSttEngine
- * @see WhisperSttEngine
+ * @see com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine
+ * @see com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine
  */
 public abstract class AbstractSttEngine implements SttEngine {
 

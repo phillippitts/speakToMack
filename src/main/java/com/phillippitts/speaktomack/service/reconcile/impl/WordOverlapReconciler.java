@@ -12,7 +12,7 @@ import java.util.Set;
  * Reconciles two engine results using Jaccard word-overlap similarity.
  *
  * <p>Chooses the text whose tokens have higher Jaccard similarity to the union.
- * If both results have low overlap (< threshold), falls back to selecting the longer text.
+ * If both results have low overlap (&lt; threshold), falls back to selecting the longer text.
  *
  * <p>Jaccard similarity = |A ∩ B| / |A ∪ B|
  *

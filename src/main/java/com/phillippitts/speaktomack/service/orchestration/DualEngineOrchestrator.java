@@ -19,10 +19,10 @@ import java.util.UUID;
  * <ol>
  *   <li><b>Hotkey Press:</b> Starts audio capture (push-to-talk) or toggles recording (toggle mode)</li>
  *   <li><b>Hotkey Release:</b> Stops capture and transcribes (push-to-talk mode only)</li>
- *   <li><b>Engine Selection:</b> Uses {@link SttEngineWatchdog} to choose healthy engine
+ *   <li><b>Engine Selection:</b> Uses {@link com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog} to choose healthy engine
  *       based on primary preference</li>
  *   <li><b>Transcription:</b> Supports both single-engine and dual-engine reconciliation modes</li>
- *   <li><b>Event Publishing:</b> Emits {@link TranscriptionCompletedEvent} for downstream processing</li>
+ *   <li><b>Event Publishing:</b> Emits {@link com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent} for downstream processing</li>
  * </ol>
  *
  * <p><b>Capture Modes:</b>
@@ -51,11 +51,11 @@ import java.util.UUID;
  * <p><b>Smart Reconciliation Failure Semantics:</b> When running in single-engine mode and the
  * selected engine is Vosk with a confidence score below the configured threshold, this orchestrator
  * upgrades the current transcription to dual-engine reconciliation for improved accuracy. If that
- * reconciliation attempt itself fails (throws {@link TranscriptionException} or any unexpected
+ * reconciliation attempt itself fails (throws {@link com.phillippitts.speaktomack.exception.TranscriptionException} or any unexpected
  * runtime exception), the orchestrator will:
  * <ul>
  *   <li>Record a failure metric for the "reconciled" engine</li>
- *   <li>Publish a {@link TranscriptionCompletedEvent} carrying an <b>empty</b> text result
+ *   <li>Publish a {@link com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent} carrying an <b>empty</b> text result
  *       (no characters will be typed)</li>
  *   <li><b>Not</b> fall back to the original low-confidence single-engine result</li>
  * </ul>
@@ -68,9 +68,9 @@ import java.util.UUID;
  *
  * @see HotkeyPressedEvent
  * @see HotkeyReleasedEvent
- * @see TranscriptionCompletedEvent
- * @see SttEngineWatchdog
- * @see TranscriptReconciler
+ * @see com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent
+ * @see com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog
+ * @see com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler
  * @since 1.0
  */
 public class DualEngineOrchestrator {
@@ -190,7 +190,7 @@ public class DualEngineOrchestrator {
      *   <li>Retrieves captured PCM audio data</li>
      *   <li>Selects transcription mode (single-engine vs. reconciliation)</li>
      *   <li>Transcribes audio using selected mode</li>
-     *   <li>Publishes {@link TranscriptionCompletedEvent} on success</li>
+     *   <li>Publishes {@link com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent} on success</li>
      * </ol>
      *
      * <p><b>Toggle Mode (toggleMode=true):</b> Ignored. In toggle mode, capture is stopped
@@ -207,7 +207,7 @@ public class DualEngineOrchestrator {
      * @param evt the hotkey released event with timestamp
      * @see HotkeyReleasedEvent
      * @see CaptureOrchestrator#stopCapture(UUID)
-     * @see TranscriptionCompletedEvent
+     * @see com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent
      */
     @EventListener
     @Async("eventExecutor")

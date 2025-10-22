@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Positive;
  * Configurable audio validation thresholds.
  * Defaults target good UX: minimum ~250 ms; maximum 5 minutes.
  *
- * <p>Note: Bean created via {@link com.phillippitts.speaktomack.SpeakToMackApplication#EnableConfigurationProperties}.
+ * <p>Note: Bean created via {@code @EnableConfigurationProperties} in SpeakToMackApplication.
  */
 @ConfigurationProperties(prefix = "audio.validation")
 @Validated

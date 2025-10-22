@@ -74,7 +74,6 @@ public class DefaultParallelSttService implements ParallelSttService {
      * @param timeoutMs default timeout in milliseconds from {@code stt.parallel.timeout-ms} property
      *                  (defaults to 10000ms if not configured or invalid)
      * @throws NullPointerException if vosk, whisper, or executor is null
-     * @see com.phillippitts.speaktomack.config.stt.SttConfig
      */
     public DefaultParallelSttService(@Qualifier("voskSttEngine") SttEngine vosk,
                                      @Qualifier("whisperSttEngine") SttEngine whisper,
