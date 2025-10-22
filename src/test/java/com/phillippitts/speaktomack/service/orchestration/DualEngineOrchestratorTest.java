@@ -36,7 +36,18 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
 
         // Act
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -62,7 +73,18 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
@@ -83,7 +105,18 @@ class DualEngineOrchestratorTest {
         FakeWatchdog wd = new FakeWatchdog(false, false);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         assertThatThrownBy(() -> orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now())))
@@ -100,7 +133,18 @@ class DualEngineOrchestratorTest {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper, wd, props, fakeHotkeyProps(), pub);
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
 
         // Start session, then receive capture error
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));

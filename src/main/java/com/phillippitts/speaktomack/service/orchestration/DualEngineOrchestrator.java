@@ -1,7 +1,6 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties.PrimaryEngine;
 import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
@@ -100,11 +99,10 @@ public final class DualEngineOrchestrator {
     // Optional metrics (nullable for tests)
     private final TranscriptionMetrics metrics;
 
-    private final Object lock = new Object();
-    private UUID activeSession;
-
-    // Track last transcription timestamp for automatic paragraph breaks
-    private volatile long lastTranscriptionTimeMs = 0;
+    // State machines for managing complex state and logic
+    private final CaptureStateMachine captureStateMachine;
+    private final EngineSelectionStrategy engineSelector;
+    private final TimingCoordinator timingCoordinator;
 
     /**
      * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
@@ -130,8 +128,12 @@ public final class DualEngineOrchestrator {
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
                                   HotkeyProperties hotkeyProps,
-                                  ApplicationEventPublisher publisher) {
-        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null, null);
+                                  ApplicationEventPublisher publisher,
+                                  CaptureStateMachine captureStateMachine,
+                                  EngineSelectionStrategy engineSelector,
+                                  TimingCoordinator timingCoordinator) {
+        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null, null,
+                captureStateMachine, engineSelector, timingCoordinator);
     }
 
     /**
@@ -171,7 +173,10 @@ public final class DualEngineOrchestrator {
                                   ParallelSttService parallel,
                                   TranscriptReconciler reconciler,
                                   ReconciliationProperties recProps,
-                                  TranscriptionMetrics metrics) {
+                                  TranscriptionMetrics metrics,
+                                  CaptureStateMachine captureStateMachine,
+                                  EngineSelectionStrategy engineSelector,
+                                  TimingCoordinator timingCoordinator) {
         this.captureService = Objects.requireNonNull(captureService);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);
@@ -183,6 +188,9 @@ public final class DualEngineOrchestrator {
         this.reconciler = reconciler;
         this.recProps = recProps;
         this.metrics = metrics;
+        this.captureStateMachine = Objects.requireNonNull(captureStateMachine);
+        this.engineSelector = Objects.requireNonNull(engineSelector);
+        this.timingCoordinator = Objects.requireNonNull(timingCoordinator);
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -211,31 +219,41 @@ public final class DualEngineOrchestrator {
      */
     @EventListener
     public void onHotkeyPressed(HotkeyPressedEvent evt) {
-        synchronized (lock) {
-            if (activeSession != null) {
-                // In toggle mode, pressing again stops the capture
-                if (hotkeyProps.isToggleMode()) {
-                    LOG.info("Toggle mode: stopping capture on second press (session={})", activeSession);
-                    processToggleStop();
-                } else {
-                    LOG.debug("Capture already active (session={})", activeSession);
-                }
-                return;
+        if (captureStateMachine.isActive()) {
+            // In toggle mode, pressing again stops the capture
+            if (hotkeyProps.isToggleMode()) {
+                LOG.info("Toggle mode: stopping capture on second press (session={})",
+                        captureStateMachine.getActiveSession());
+                processToggleStop();
+            } else {
+                LOG.debug("Capture already active (session={})", captureStateMachine.getActiveSession());
             }
-            activeSession = captureService.startSession();
+            return;
+        }
+
+        UUID sessionId = captureService.startSession();
+        if (captureStateMachine.startCapture(sessionId)) {
             LOG.info("Capture session started at {} (session={}, toggleMode={})",
-                     evt.at(), activeSession, hotkeyProps.isToggleMode());
+                     evt.at(), sessionId, hotkeyProps.isToggleMode());
+        } else {
+            // Race condition: another session started between our check and start attempt
+            LOG.warn("Failed to start capture session {}, another session already active", sessionId);
+            captureService.cancelSession(sessionId);
         }
     }
 
     /**
      * Processes toggle mode stop: stops capture and initiates transcription.
-     * Must be called from within synchronized(lock) block.
      */
     private void processToggleStop() {
-        UUID session = activeSession;
+        UUID session = captureStateMachine.getActiveSession();
+        if (session == null) {
+            LOG.warn("processToggleStop called but no active session");
+            return;
+        }
+
         captureService.stopSession(session);
-        activeSession = null;
+        captureStateMachine.stopCapture(session);
 
         // Process transcription asynchronously (same as onHotkeyReleased)
         byte[] pcm = finalizeCaptureSession(session);
@@ -314,16 +332,17 @@ public final class DualEngineOrchestrator {
      * @return session ID if an active session exists, null otherwise
      */
     private UUID stopCaptureSession() {
-        synchronized (lock) {
-            UUID session = activeSession;
-            if (session == null) {
-                LOG.debug("No active capture session on release; ignoring");
-                return null;
-            }
-            captureService.stopSession(session);
-            activeSession = null;
-            return session;
+        UUID session = captureStateMachine.getActiveSession();
+        if (session == null) {
+            LOG.debug("No active capture session on release; ignoring");
+            return null;
         }
+
+        captureService.stopSession(session);
+        if (!captureStateMachine.stopCapture(session)) {
+            LOG.warn("Failed to stop capture session {} - session ID mismatch or not active", session);
+        }
+        return session;
     }
 
     /**
@@ -463,26 +482,17 @@ public final class DualEngineOrchestrator {
      */
     private void publishResult(TranscriptionResult result, String engineName) {
         // Check if we should prepend a newline based on silence gap
-        int silenceGapMs = props.getSilenceGapMs();
         TranscriptionResult finalResult = result;
 
-        if (silenceGapMs > 0) {
-            long currentTimeMs = System.currentTimeMillis();
-            long lastTime = lastTranscriptionTimeMs;
-
-            if (lastTime > 0) {
-                long gapMs = currentTimeMs - lastTime;
-                if (gapMs >= silenceGapMs) {
-                    // Prepend newline for new paragraph
-                    String textWithNewline = "\n" + result.text();
-                    finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
-                    LOG.debug("Prepended newline after {}ms silence gap (threshold={}ms)", gapMs, silenceGapMs);
-                }
-            }
-
-            // Update last transcription time
-            lastTranscriptionTimeMs = currentTimeMs;
+        if (timingCoordinator.shouldAddParagraphBreak()) {
+            // Prepend newline for new paragraph
+            String textWithNewline = "\n" + result.text();
+            finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
+            LOG.debug("Prepended newline after silence gap (threshold={}ms)", props.getSilenceGapMs());
         }
+
+        // Record this transcription for future paragraph break decisions
+        timingCoordinator.recordTranscription();
 
         publisher.publishEvent(new TranscriptionCompletedEvent(finalResult, Instant.now(), engineName));
     }
@@ -496,14 +506,12 @@ public final class DualEngineOrchestrator {
      */
     @EventListener
     public void onCaptureError(CaptureErrorEvent event) {
-        synchronized (lock) {
-            if (activeSession != null) {
-                LOG.warn("Capture error during session {}: {}", activeSession, event.reason());
-                captureService.cancelSession(activeSession);
-                activeSession = null;
-            } else {
-                LOG.debug("Capture error when no active session: {}", event.reason());
-            }
+        UUID cancelledSession = captureStateMachine.cancelCapture();
+        if (cancelledSession != null) {
+            LOG.warn("Capture error during session {}: {}", cancelledSession, event.reason());
+            captureService.cancelSession(cancelledSession);
+        } else {
+            LOG.debug("Capture error when no active session: {}", event.reason());
         }
         // Phase 4.2: Publish user notification event for UI display
     }
@@ -515,34 +523,28 @@ public final class DualEngineOrchestrator {
      * @throws TranscriptionException if both engines are unavailable
      */
     private SttEngine selectSingleEngine() {
-        PrimaryEngine primary = props.getPrimaryEngine();
-        boolean voskReady = watchdog.isEngineEnabled(ENGINE_VOSK) && vosk.isHealthy();
-        boolean whisperReady = watchdog.isEngineEnabled(ENGINE_WHISPER) && whisper.isHealthy();
+        // Delegate to strategy for engine selection
+        SttEngine selected = engineSelector.selectEngine();
 
-        if (primary == PrimaryEngine.VOSK) {
-            if (voskReady) {
-                return vosk;
-            }
-            if (whisperReady) {
-                return whisper;
-            }
-        } else { // primary whisper
-            if (whisperReady) {
-                return whisper;
-            }
-            if (voskReady) {
-                return vosk;
+        // Verify both engines aren't unhealthy (strategy returns primary anyway, but we want to fail fast)
+        if (!engineSelector.areBothEnginesHealthy()) {
+            boolean voskReady = watchdog.isEngineEnabled(ENGINE_VOSK) && vosk.isHealthy();
+            boolean whisperReady = watchdog.isEngineEnabled(ENGINE_WHISPER) && whisper.isHealthy();
+
+            if (!voskReady && !whisperReady) {
+                // Both engines unavailable - construct detailed error message
+                String errorMsg = String.format(
+                        "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, "
+                                + "whisper.enabled=%s, whisper.healthy=%s)",
+                        watchdog.isEngineEnabled(ENGINE_VOSK),
+                        vosk.isHealthy(),
+                        watchdog.isEngineEnabled(ENGINE_WHISPER),
+                        whisper.isHealthy()
+                );
+                throw new TranscriptionException(errorMsg);
             }
         }
 
-        // Both engines unavailable - construct detailed error message
-        String errorMsg = String.format(
-                "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, whisper.enabled=%s, whisper.healthy=%s)",
-                watchdog.isEngineEnabled(ENGINE_VOSK),
-                vosk.isHealthy(),
-                watchdog.isEngineEnabled(ENGINE_WHISPER),
-                whisper.isHealthy()
-        );
-        throw new TranscriptionException(errorMsg);
+        return selected;
     }
 }

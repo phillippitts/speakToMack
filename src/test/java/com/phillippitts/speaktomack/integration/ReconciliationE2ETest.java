@@ -7,7 +7,11 @@ import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.config.stt.SttWatchdogProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
+import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
+import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
+import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
+import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.reconcile.impl.ConfidenceReconciler;
@@ -68,13 +72,25 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new WordOverlapReconciler(0.5);
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Act: Full hotkey flow
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -104,13 +120,25 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Act
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -142,13 +170,25 @@ class ReconciliationE2ETest {
                 OrchestrationProperties.PrimaryEngine.VOSK
         );
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Act
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -180,13 +220,25 @@ class ReconciliationE2ETest {
                 OrchestrationProperties.PrimaryEngine.WHISPER
         );
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER)))
+                .build();
 
         // Act
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -217,13 +269,25 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Act
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -236,6 +300,7 @@ class ReconciliationE2ETest {
         assertThat(event.result().text()).isEqualTo("whisper text");
     }
 
+    // CHECKSTYLE.OFF: MethodLength - Integration test requires many setup steps
     @Test
     void reconciliationMemoryLeakTest() {
         // Setup: Run 100 iterations to verify no memory leaks
@@ -251,13 +316,25 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Measure memory before
         Runtime runtime = Runtime.getRuntime();
@@ -289,6 +366,7 @@ class ReconciliationE2ETest {
         // Assert: Memory growth should be less than 50MB
         assertThat(growthMB).isLessThan(50);
     }
+    // CHECKSTYLE.ON: MethodLength
 
     @Test
     void reconciliationDisabledFallsBackToSingleEngine() {
@@ -306,13 +384,25 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = new DualEngineOrchestrator(
-                capture, vosk, whisper, createWatchdog(vosk, whisper, publisher),
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK),
-                fakeHotkeyProps(),
-                publisher, parallel, reconciler, recProps,
-                null  // metrics
-        );
+        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
 
         // Act
         orchestrator.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));

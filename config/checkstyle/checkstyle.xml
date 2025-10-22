@@ -108,6 +108,13 @@
         <!-- Dependency Injection: Constructor injection enforced -->
         <module name="MissingDeprecated"/>
 
+        <!-- Allow inline suppression comments (CHECKSTYLE.OFF/CHECKSTYLE.ON) -->
+        <module name="SuppressionCommentFilter">
+            <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+            <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+            <property name="checkFormat" value="$1"/>
+        </module>
+
     </module>
 
     <!-- File-level checks -->

@@ -57,10 +57,22 @@ class DualEngineOrchestratorReconciledTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, fakeHotkeyProps(), pub, parallel, reconciler, rprops,
-                null  // metrics
-        );
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(rprops)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
 
         // Act
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -102,10 +114,22 @@ class DualEngineOrchestratorReconciledTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = new DualEngineOrchestrator(cap, vosk, whisper,
-                wd, props, fakeHotkeyProps(), pub, parallel, reconciler, rprops,
-                null  // metrics
-        );
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(rprops)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
