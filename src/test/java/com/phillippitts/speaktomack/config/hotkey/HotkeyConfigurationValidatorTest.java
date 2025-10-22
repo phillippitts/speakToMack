@@ -365,4 +365,86 @@ class HotkeyConfigurationValidatorTest {
         // Should not throw (one modifier is enough)
         validator.validate();
     }
+
+    @Test
+    void rejectsDoubleTapThresholdTooLow() {
+        HotkeyProperties props = new HotkeyProperties(
+                TriggerType.DOUBLE_TAP,
+                "F13",
+                50, // Too low
+                List.of(),
+                List.of(),
+                false
+        );
+        HotkeyConfigurationValidator validator = new HotkeyConfigurationValidator(props);
+
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Double-tap threshold must be between 100 and 1000");
+    }
+
+    @Test
+    void rejectsDoubleTapThresholdTooHigh() {
+        HotkeyProperties props = new HotkeyProperties(
+                TriggerType.DOUBLE_TAP,
+                "F13",
+                1500, // Too high
+                List.of(),
+                List.of(),
+                false
+        );
+        HotkeyConfigurationValidator validator = new HotkeyConfigurationValidator(props);
+
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Double-tap threshold must be between 100 and 1000");
+    }
+
+    @Test
+    void acceptsDoubleTapThresholdAtMinimum() {
+        HotkeyProperties props = new HotkeyProperties(
+                TriggerType.DOUBLE_TAP,
+                "D",
+                100, // Minimum valid
+                List.of(),
+                List.of(),
+                false
+        );
+        HotkeyConfigurationValidator validator = new HotkeyConfigurationValidator(props);
+
+        // Should not throw
+        validator.validate();
+    }
+
+    @Test
+    void acceptsDoubleTapThresholdAtMaximum() {
+        HotkeyProperties props = new HotkeyProperties(
+                TriggerType.DOUBLE_TAP,
+                "D",
+                1000, // Maximum valid
+                List.of(),
+                List.of(),
+                false
+        );
+        HotkeyConfigurationValidator validator = new HotkeyConfigurationValidator(props);
+
+        // Should not throw
+        validator.validate();
+    }
+
+    @Test
+    void acceptsDoubleTapThresholdInRange() {
+        HotkeyProperties props = new HotkeyProperties(
+                TriggerType.DOUBLE_TAP,
+                "D",
+                300, // Valid range
+                List.of(),
+                List.of(),
+                false
+        );
+        HotkeyConfigurationValidator validator = new HotkeyConfigurationValidator(props);
+
+        // Should not throw
+        validator.validate();
+    }
 }

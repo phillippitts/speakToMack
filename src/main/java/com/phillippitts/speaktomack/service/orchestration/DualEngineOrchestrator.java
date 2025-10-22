@@ -61,6 +61,21 @@ import java.util.UUID;
  * The orchestrator remains ready for the next hotkey press. Capture errors trigger session
  * cancellation via {@link #onCaptureError(CaptureErrorEvent)}.
  *
+ * <p><b>Smart Reconciliation Failure Semantics:</b> When running in single-engine mode and the
+ * selected engine is Vosk with a confidence score below the configured threshold, this orchestrator
+ * upgrades the current transcription to dual-engine reconciliation for improved accuracy. If that
+ * reconciliation attempt itself fails (throws {@link TranscriptionException} or any unexpected
+ * runtime exception), the orchestrator will:
+ * <ul>
+ *   <li>Record a failure metric for the "reconciled" engine</li>
+ *   <li>Publish a {@link TranscriptionCompletedEvent} carrying an <b>empty</b> text result
+ *       (no characters will be typed)</li>
+ *   <li><b>Not</b> fall back to the original low-confidence single-engine result</li>
+ * </ul>
+ * This behavior favors correctness (avoiding possibly wrong text) over availability. Downstream
+ * consumers should treat an empty text result as a no-op while still updating any UI state
+ * (e.g., ending a "transcribing" spinner).
+ *
  * <p><b>Configuration:</b> Not annotated as {@code @Component} to avoid ambiguity; see
  * {@link com.phillippitts.speaktomack.config.orchestration.OrchestrationConfig} for bean wiring.
  *
@@ -384,6 +399,13 @@ public final class DualEngineOrchestrator {
     /**
      * Transcribes audio using both engines in parallel and reconciles the results.
      *
+     * <p><b>Failure semantics:</b> If reconciliation fails (either with a
+     * {@link TranscriptionException} from an engine or any other runtime exception), this method
+     * will record a failure metric for the "reconciled" engine and publish a
+     * {@link TranscriptionCompletedEvent} with an empty text result. It will not fall back to
+     * any previously computed single-engine result. This conservative behavior avoids emitting
+     * potentially inaccurate text when both engines disagree or fail.
+     *
      * @param pcm PCM audio data to transcribe
      */
     private void transcribeWithReconciliation(byte[] pcm) {
@@ -418,6 +440,12 @@ public final class DualEngineOrchestrator {
      * Transcribes audio using a single engine selected based on watchdog state.
      * Implements smart reconciliation: if Vosk confidence is below threshold,
      * automatically upgrades to dual-engine mode for better accuracy.
+     *
+     * <p><b>Upgrade and failure behavior:</b> When upgraded to reconciliation due to low
+     * Vosk confidence, this method delegates to {@link #transcribeWithReconciliation(byte[])} and
+     * returns immediately. If reconciliation then fails, an empty result is published and there
+     * is no fallback to the original single-engine (low-confidence) text. This avoids emitting
+     * potentially incorrect transcriptions.
      *
      * @param pcm PCM audio data to transcribe
      */

@@ -18,6 +18,7 @@ import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_CHANNEL
 import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_HEADER_SIZE;
 import static com.phillippitts.speaktomack.service.audio.AudioFormat.WAV_SAMPLE_RATE_OFFSET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WavWriterTest {
 
@@ -64,6 +65,19 @@ class WavWriterTest {
             assertThat(bitsPerSample).isEqualTo(REQUIRED_BITS_PER_SAMPLE);
         } finally {
             Files.deleteIfExists(wav);
+        }
+    }
+
+    @Test
+    void shouldRejectOddLengthPcm() throws IOException {
+        byte[] pcm = new byte[3]; // Odd length - invalid for 16-bit samples
+        Path tmp = Files.createTempFile("bad", ".wav");
+        try {
+            assertThatThrownBy(() -> WavWriter.writePcm16LeMono16kHz(pcm, tmp))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("PCM data length must be even");
+        } finally {
+            Files.deleteIfExists(tmp);
         }
     }
 }

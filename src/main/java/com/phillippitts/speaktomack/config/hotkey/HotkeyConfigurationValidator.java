@@ -42,6 +42,14 @@ class HotkeyConfigurationValidator {
             throw new IllegalArgumentException(
                     "hotkey.type=modifier-combination requires at least one modifier in hotkey.modifiers");
         }
+        // Double-tap threshold validation
+        if (props.getType() == TriggerType.DOUBLE_TAP) {
+            Integer threshold = props.getThresholdMs();
+            if (threshold != null && (threshold < 100 || threshold > 1000)) {
+                throw new IllegalArgumentException(
+                        "Double-tap threshold must be between 100 and 1000 milliseconds, got: " + threshold);
+            }
+        }
         // Reserved list can be empty; no strict validation beyond basic format
     }
 }

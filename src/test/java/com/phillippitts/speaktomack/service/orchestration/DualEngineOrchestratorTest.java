@@ -155,6 +155,53 @@ class DualEngineOrchestratorTest {
         assertThat(cap.canceledSession).isEqualTo(cap.id);
     }
 
+    @Test
+    void shouldHandleRapidTogglePresses() {
+        // Test that rapid hotkey presses don't create race conditions
+        FakeCapture cap = new FakeCapture();
+        cap.pcm = new byte[3200];
+        SttEngine vosk = new StubEngine("vosk");
+        SttEngine whisper = new StubEngine("whisper");
+        FakeWatchdog wd = new FakeWatchdog(true, true);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        List<Object> events = new ArrayList<>();
+        ApplicationEventPublisher pub = events::add;
+        CaptureStateMachine csm = new CaptureStateMachine();
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(csm)
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
+
+        // Simulate: press (start), press again (ignored - already active), release (complete)
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        UUID firstSession = cap.id;
+        assertThat(firstSession).isNotNull();
+        assertThat(csm.isActive()).isTrue();
+
+        // Second press should be ignored since session is already active
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        assertThat(cap.id).isEqualTo(firstSession); // Same session, not a new one
+        assertThat(csm.isActive()).isTrue();
+
+        // Release completes the transcription
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        assertThat(csm.isActive()).isFalse();
+
+        // Verify only one transcription completed
+        long completedCount = events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .count();
+        assertThat(completedCount).isEqualTo(1);
+    }
+
     // ---- Test fakes ----
 
     static class FakeCapture implements AudioCaptureService {
