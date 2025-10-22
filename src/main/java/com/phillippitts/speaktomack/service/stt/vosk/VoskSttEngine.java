@@ -3,7 +3,6 @@ package com.phillippitts.speaktomack.service.stt.vosk;
 import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
-import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import org.apache.logging.log4j.LogManager;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 
-import jakarta.annotation.PreDestroy;
 import java.util.Objects;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -32,7 +30,7 @@ import java.util.concurrent.Semaphore;
  * Callers must validate/convert inputs (e.g., strip WAV headers) before invoking {@link #transcribe(byte[])}.
  */
 @Component
-public class VoskSttEngine implements SttEngine {
+public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine {
 
     private static final Logger LOG = LogManager.getLogger(VoskSttEngine.class);
     private static final String ENGINE_NAME = "vosk";
@@ -54,7 +52,6 @@ public class VoskSttEngine implements SttEngine {
     private static final int DEFAULT_ACQUIRE_TIMEOUT_MS = 1000;
 
     private final VoskConfig config;
-    private final Object lock = new Object();
 
     // Lightweight concurrency guard (configurable)
     private final ConcurrencyGuard concurrencyGuard;
@@ -67,12 +64,6 @@ public class VoskSttEngine implements SttEngine {
     private org.vosk.Model model;           // JNI resource
 
     // Recognizer is created per call for thread-safety; only the Model is held.
-
-    // @GuardedBy("lock")
-    private boolean initialized = false;
-
-    // @GuardedBy("lock")
-    private boolean closed = false;
 
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -106,41 +97,32 @@ public class VoskSttEngine implements SttEngine {
     /**
      * Initializes the Vosk engine by loading the model (recognizer is created per transcription call).
      *
-     * <p>This operation is idempotent - multiple calls will not reload the model.
+     * <p>Called by {@link #initialize()} within synchronized context. Supports reinitialization
+     * after close by resetting the {@code closed} flag.
      *
-     * <p>Thread-safe: synchronized to prevent concurrent initialization.
-     *
-     * @throws TranscriptionException if model loading or recognizer creation fails
+     * @throws TranscriptionException if model loading fails
      */
     @Override
-    public void initialize() {
-        synchronized (lock) {
-            if (initialized) {
-                LOG.debug("VoskSttEngine.initialize(): already initialized");
-                return;
-            }
-            LOG.info("Initializing Vosk engine: modelPath={}, sampleRate={}, maxAlternatives={}",
-                    config.modelPath(), config.sampleRate(), config.maxAlternatives());
-            try {
-                // Load model only; recognizer is created per transcription call for thread-safety
-                this.model = new org.vosk.Model(config.modelPath());
-
-                initialized = true;
-                closed = false;
-                LOG.info("Vosk engine initialized");
-            } catch (Throwable t) {
-                // Ensure partial resources are closed on failure
-                safeCloseUnlocked();
-                publishFailureEvent(
-                    "initialize failure",
-                    t,
-                    Map.of("modelPath", String.valueOf(config.modelPath()),
-                           "sampleRate", String.valueOf(config.sampleRate()))
-                );
-                throw new TranscriptionException(
-                    "Failed to initialize Vosk (model=" + config.modelPath()
-                        + ", sampleRate=" + config.sampleRate() + ")", ENGINE_NAME, t);
-            }
+    protected void doInitialize() {
+        LOG.info("Initializing Vosk engine: modelPath={}, sampleRate={}, maxAlternatives={}",
+                config.modelPath(), config.sampleRate(), config.maxAlternatives());
+        try {
+            // Load model only; recognizer is created per transcription call for thread-safety
+            this.model = new org.vosk.Model(config.modelPath());
+            closed = false; // Support reinitialization after close
+            LOG.info("Vosk engine initialized");
+        } catch (Throwable t) {
+            // Ensure partial resources are closed on failure
+            safeCloseUnlocked();
+            publishFailureEvent(
+                "initialize failure",
+                t,
+                Map.of("modelPath", String.valueOf(config.modelPath()),
+                       "sampleRate", String.valueOf(config.sampleRate()))
+            );
+            throw new TranscriptionException(
+                "Failed to initialize Vosk (model=" + config.modelPath()
+                    + ", sampleRate=" + config.sampleRate() + ")", ENGINE_NAME, t);
         }
     }
 
@@ -202,10 +184,8 @@ public class VoskSttEngine implements SttEngine {
      * @throws TranscriptionException if engine not initialized or closed
      */
     private org.vosk.Model getModelForTranscription() {
+        ensureInitialized();
         synchronized (lock) {
-            if (!initialized || closed) {
-                throw new TranscriptionException("Vosk engine not initialized", ENGINE_NAME);
-            }
             return this.model;
         }
     }
@@ -276,40 +256,13 @@ public class VoskSttEngine implements SttEngine {
     }
 
     /**
-     * Checks if the engine is healthy and ready to transcribe.
-     *
-     * <p>Returns true if initialized, not closed, and model is loaded.
-     *
-     * @return true if healthy, false otherwise
-     */
-    @Override
-    public boolean isHealthy() {
-        synchronized (lock) {
-            return initialized && !closed && model != null;
-        }
-    }
-
-    /**
      * Closes the Vosk engine and releases JNI resources.
      *
-     * <p>This operation is idempotent - multiple calls are safe.
-     *
-     * <p>Thread-safe: synchronized to prevent concurrent closure.
-     *
-     * <p>Automatically invoked by Spring container on shutdown via {@link PreDestroy}.
+     * <p>Called by {@link #close()} within synchronized context.
      */
     @Override
-    @PreDestroy
-    public void close() {
-        synchronized (lock) {
-            if (closed) {
-                LOG.debug("VoskSttEngine.close(): already closed");
-                return;
-            }
-            safeCloseUnlocked();
-            closed = true;
-            initialized = false;
-        }
+    protected void doClose() {
+        safeCloseUnlocked();
         LOG.info("Vosk engine closed");
     }
 

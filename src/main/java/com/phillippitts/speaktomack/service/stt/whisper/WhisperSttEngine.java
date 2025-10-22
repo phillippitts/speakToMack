@@ -16,7 +16,6 @@ import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import java.util.HashMap;
 import java.util.Map;
 
-import jakarta.annotation.PreDestroy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -62,7 +61,7 @@ import java.util.concurrent.Semaphore;
  * @since 1.0
  */
 @Component
-public final class WhisperSttEngine implements SttEngine {
+public final class WhisperSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine {
 
     private final ConcurrencyGuard concurrencyGuard;
 
@@ -76,10 +75,6 @@ public final class WhisperSttEngine implements SttEngine {
     // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
     private volatile String lastRawJson;
     private volatile java.util.List<String> lastTokens;
-
-    private final Object lock = new Object();
-    private boolean initialized;
-    private boolean closed;
 
     public WhisperSttEngine(WhisperConfig cfg, WhisperProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
@@ -115,27 +110,22 @@ public final class WhisperSttEngine implements SttEngine {
     }
 
     @Override
-    public void initialize() {
-        synchronized (lock) {
-            if (initialized && !closed) {
-                return; // Already initialized and not closed
+    protected void doInitialize() {
+        try {
+            // Allow reinitialization after close() for watchdog restart support
+            closed = false;
+            // Fail-fast validation already ran at startup
+            LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
+                    cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
+        } catch (Throwable t) {
+            if (publisher != null) {
+                Map<String, String> ctx = new HashMap<>();
+                ctx.put("binaryPath", cfg.binaryPath());
+                ctx.put("modelPath", cfg.modelPath());
+                publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
+                        "initialize failure", t, ctx));
             }
-            try {
-                // Allow reinitialization after close() for watchdog restart support
-                closed = false;
-                initialized = true; // Fail-fast validation already ran at startup
-                LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
-                        cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
-            } catch (Throwable t) {
-                if (publisher != null) {
-                    Map<String, String> ctx = new HashMap<>();
-                    ctx.put("binaryPath", cfg.binaryPath());
-                    ctx.put("modelPath", cfg.modelPath());
-                    publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                            "initialize failure", t, ctx));
-                }
-                throw new TranscriptionException("Whisper initialization failed", ENGINE, t);
-            }
+            throw new TranscriptionException("Whisper initialization failed", ENGINE, t);
         }
     }
 
@@ -146,7 +136,7 @@ public final class WhisperSttEngine implements SttEngine {
         }
         try {
             concurrencyGuard.acquire();
-            checkEngineInitialized();
+            ensureInitialized();
             Path wav = null;
             long startTime = System.nanoTime();
             try {
@@ -173,18 +163,6 @@ public final class WhisperSttEngine implements SttEngine {
     }
 
 
-    /**
-     * Checks if engine is initialized and not closed.
-     *
-     * @throws TranscriptionException if engine is not ready
-     */
-    private void checkEngineInitialized() {
-        synchronized (lock) {
-            if (!initialized || closed) {
-                throw new TranscriptionException("Whisper engine not initialized", ENGINE);
-            }
-        }
-    }
 
     /**
      * Creates a temporary WAV file from PCM audio data.
@@ -322,32 +300,13 @@ public final class WhisperSttEngine implements SttEngine {
         return ENGINE;
     }
 
-    @Override
-    public boolean isHealthy() {
-        synchronized (lock) {
-            return initialized && !closed;
-        }
-    }
-
     /**
      * Closes the Whisper engine and releases process resources.
      *
-     * <p>This operation is idempotent - multiple calls are safe.
-     *
-     * <p>Thread-safe: synchronized to prevent concurrent closure.
-     *
-     * <p>Automatically invoked by Spring container on shutdown via {@link PreDestroy}.
+     * <p>Called by {@link #close()} within synchronized context.
      */
     @Override
-    @PreDestroy
-    public void close() {
-        synchronized (lock) {
-            if (closed) {
-                return;
-            }
-            closed = true;
-            initialized = false;
-        }
+    protected void doClose() {
         try {
             manager.close();
         } catch (Exception e) {
