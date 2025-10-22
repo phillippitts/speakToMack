@@ -154,7 +154,10 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 if (e instanceof TranscriptionException te) {
                     throw te;
                 }
-                throw new TranscriptionException("Whisper transcription failed: " + e.getMessage(), SttEngineNames.WHISPER, e);
+                throw new TranscriptionException(
+                        "Whisper transcription failed: " + e.getMessage(),
+                        SttEngineNames.WHISPER,
+                        e);
             } finally {
                 cleanupTempFile(wav);
             }
