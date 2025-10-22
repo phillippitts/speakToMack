@@ -202,6 +202,123 @@ class DualEngineOrchestratorTest {
         assertThat(completedCount).isEqualTo(1);
     }
 
+    @Test
+    void shouldPrependParagraphBreakAfterSilenceGap() throws InterruptedException {
+        // Arrange
+        FakeCapture cap = new FakeCapture();
+        cap.pcm = new byte[3200];
+        SttEngine vosk = new StubEngine("vosk");
+        SttEngine whisper = new StubEngine("whisper");
+        FakeWatchdog wd = new FakeWatchdog(true, true);
+        OrchestrationProperties props = new OrchestrationProperties(
+                OrchestrationProperties.PrimaryEngine.VOSK,
+                100 // 100ms silence gap threshold
+        );
+        List<Object> events = new ArrayList<>();
+        ApplicationEventPublisher pub = events::add;
+        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
+
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(timingCoordinator)
+                .build();
+
+        // Act: First transcription - no paragraph break
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+
+        TranscriptionCompletedEvent evt1 = (TranscriptionCompletedEvent) events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .findFirst().orElseThrow();
+        assertThat(evt1.result().text()).isEqualTo("text"); // No newline prepended
+        events.clear();
+
+        // Wait longer than silence gap threshold
+        Thread.sleep(150);
+
+        // Second transcription - should have paragraph break prepended
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+
+        TranscriptionCompletedEvent evt2 = (TranscriptionCompletedEvent) events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .findFirst().orElseThrow();
+        assertThat(evt2.result().text()).startsWith("\n"); // Newline prepended
+        assertThat(evt2.result().text()).isEqualTo("\ntext");
+    }
+
+    @Test
+    void shouldNotAddDoubleNewlineWhenTextAlreadyStartsWithNewline() throws InterruptedException {
+        // Arrange
+        FakeCapture cap = new FakeCapture();
+        cap.pcm = new byte[3200];
+        // Engine that returns text already starting with newline
+        SttEngine vosk = new SttEngine() {
+            @Override
+            public void initialize() { }
+            @Override
+            public TranscriptionResult transcribe(byte[] audioData) {
+                return TranscriptionResult.of("\nalready-has-newline", 1.0, "vosk");
+            }
+            @Override
+            public String getEngineName() { return "vosk"; }
+            @Override
+            public boolean isHealthy() { return true; }
+            @Override
+            public void close() { }
+        };
+        SttEngine whisper = new StubEngine("whisper");
+        FakeWatchdog wd = new FakeWatchdog(true, true);
+        OrchestrationProperties props = new OrchestrationProperties(
+                OrchestrationProperties.PrimaryEngine.VOSK,
+                100
+        );
+        List<Object> events = new ArrayList<>();
+        ApplicationEventPublisher pub = events::add;
+        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
+
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(timingCoordinator)
+                .build();
+
+        // First transcription
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        events.clear();
+
+        // Wait for silence gap
+        Thread.sleep(150);
+
+        // Second transcription - engine returns text starting with newline
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+
+        TranscriptionCompletedEvent evt = (TranscriptionCompletedEvent) events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .findFirst().orElseThrow();
+
+        // Should NOT have double newline
+        assertThat(evt.result().text()).isEqualTo("\nalready-has-newline");
+        assertThat(evt.result().text()).doesNotStartWith("\n\n");
+    }
+
     // ---- Test fakes ----
 
     static class FakeCapture implements AudioCaptureService {

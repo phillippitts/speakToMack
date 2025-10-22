@@ -142,6 +142,90 @@ class DualEngineOrchestratorReconciledTest {
         assertThat(evt.result().text()).isEqualTo("only-whisper");
     }
 
+    @Test
+    void shouldTriggerSmartReconciliationWhenVoskConfidenceBelowThreshold() {
+        // Arrange
+        FakeCapture cap = new FakeCapture();
+        cap.pcm = new byte[3200];
+
+        // Vosk returns low confidence (0.5 < threshold 0.6)
+        SttEngine vosk = new SttEngine() {
+            @Override
+            public void initialize() { }
+            @Override
+            public TranscriptionResult transcribe(byte[] audioData) {
+                return TranscriptionResult.of("low-confidence-text", 0.5, "vosk");
+            }
+            @Override
+            public String getEngineName() { return "vosk"; }
+            @Override
+            public boolean isHealthy() { return true; }
+            @Override
+            public void close() { }
+        };
+        SttEngine whisper = new StubEngine("whisper");
+        FakeWatchdog wd = new FakeWatchdog(true, true);
+        OrchestrationProperties props =
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        ReconciliationProperties rprops =
+                new ReconciliationProperties(true,
+                        ReconciliationProperties.Strategy.SIMPLE,
+                        0.6,  // confidence threshold
+                        0.7); // overlap threshold
+
+        // Track how many times parallel service is called
+        final int[] parallelCallCount = {0};
+        ParallelSttService.EnginePair pair = new ParallelSttService.EnginePair(
+                new EngineResult("low-confidence-text", 0.5, List.of("low","confidence","text"), 10, "vosk", null),
+                new EngineResult("high-confidence-text", 0.9, List.of("high","confidence","text"), 20, "whisper", null)
+        );
+        ParallelSttService parallel = (pcm, timeoutMs) -> {
+            parallelCallCount[0]++;
+            return pair;
+        };
+
+        // Reconciler picks higher confidence result
+        TranscriptReconciler reconciler =
+                (v, w) -> TranscriptionResult.of(w.text(), w.confidence(), "reconciled");
+
+        List<Object> events = new ArrayList<>();
+        ApplicationEventPublisher pub = events::add;
+
+        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+                .captureService(cap)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(wd)
+                .orchestrationProperties(props)
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(pub)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(rprops)
+                .metricsPublisher(
+                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
+                .timingCoordinator(new TimingCoordinator(props))
+                .build();
+
+        // Act
+        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+
+        // Assert
+        // 1. Reconciliation was triggered exactly once (not twice - once for single-engine, once for upgrade)
+        assertThat(parallelCallCount[0]).isEqualTo(1);
+
+        // 2. Final result is from reconciliation with high confidence text
+        TranscriptionCompletedEvent evt = (TranscriptionCompletedEvent) events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .findFirst().orElseThrow();
+        assertThat(evt.engineUsed()).isEqualTo("reconciled");
+        assertThat(evt.result().text()).isEqualTo("high-confidence-text");
+        assertThat(evt.result().confidence()).isEqualTo(0.9);
+    }
+
     // ---- Test fakes reused ----
 
     static class FakeCapture implements AudioCaptureService {
