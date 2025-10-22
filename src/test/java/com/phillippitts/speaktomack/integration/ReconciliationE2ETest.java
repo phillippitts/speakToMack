@@ -300,7 +300,6 @@ class ReconciliationE2ETest {
         assertThat(event.result().text()).isEqualTo("whisper text");
     }
 
-    // CHECKSTYLE.OFF: MethodLength - Integration test requires many setup steps
     @Test
     void reconciliationMemoryLeakTest() {
         // Setup: Run 100 iterations to verify no memory leaks
@@ -309,42 +308,11 @@ class ReconciliationE2ETest {
         FakeSttEngine vosk = new FakeSttEngine("vosk", "test text", 0.9);
         FakeSttEngine whisper = new FakeSttEngine("whisper", "test text", 0.95);
 
-        ReconciliationProperties recProps = new ReconciliationProperties(
-                true, ReconciliationProperties.Strategy.CONFIDENCE, 0.6, 0.7);
-
-        ParallelSttService parallel = new DefaultParallelSttService(vosk, whisper,
-                new SyncExecutor(), 10000);
-        TranscriptReconciler reconciler = new ConfidenceReconciler();
-
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
-                .captureService(capture)
-                .voskEngine(vosk)
-                .whisperEngine(whisper)
-                .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
-                .hotkeyProperties(fakeHotkeyProps())
-                .publisher(publisher)
-                .parallelSttService(parallel)
-                .transcriptReconciler(reconciler)
-                .reconciliationProperties(recProps)
-                .metrics(null)
-                .captureStateMachine(new CaptureStateMachine())
-                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
-                        createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .build();
+        DualEngineOrchestrator orchestrator = buildConfidenceOrchestrator(
+                capture, vosk, whisper, publisher);
 
         // Measure memory before
-        Runtime runtime = Runtime.getRuntime();
-        System.gc();
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
+        long memoryBefore = measureMemoryUsage();
 
         // Act: Run 100 iterations
         for (int i = 0; i < 100; i++) {
@@ -354,19 +322,12 @@ class ReconciliationE2ETest {
         }
 
         // Measure memory after
-        System.gc();
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
+        long memoryAfter = measureMemoryUsage();
         long growthMB = (memoryAfter - memoryBefore) / 1024 / 1024;
 
         // Assert: Memory growth should be less than 50MB
         assertThat(growthMB).isLessThan(50);
     }
-    // CHECKSTYLE.ON: MethodLength
 
     @Test
     void reconciliationDisabledFallsBackToSingleEngine() {
@@ -417,5 +378,47 @@ class ReconciliationE2ETest {
     private static HotkeyProperties fakeHotkeyProps() {
         return new HotkeyProperties(TriggerType.MODIFIER_COMBO, "J", 300,
                 java.util.List.of("META"), java.util.List.of(), false);
+    }
+
+    private static DualEngineOrchestrator buildConfidenceOrchestrator(FakeAudioCaptureService capture,
+                                                                      FakeSttEngine vosk,
+                                                                      FakeSttEngine whisper,
+                                                                      EventCapturingPublisher publisher) {
+        ReconciliationProperties recProps = new ReconciliationProperties(
+                true, ReconciliationProperties.Strategy.CONFIDENCE, 0.6, 0.7);
+        ParallelSttService parallel = new DefaultParallelSttService(vosk, whisper,
+                new SyncExecutor(), 10000);
+        TranscriptReconciler reconciler = new ConfidenceReconciler();
+
+        return DualEngineOrchestratorBuilder.builder()
+                .captureService(capture)
+                .voskEngine(vosk)
+                .whisperEngine(whisper)
+                .watchdog(createWatchdog(vosk, whisper, publisher))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .hotkeyProperties(fakeHotkeyProps())
+                .publisher(publisher)
+                .parallelSttService(parallel)
+                .transcriptReconciler(reconciler)
+                .reconciliationProperties(recProps)
+                .metrics(null)
+                .captureStateMachine(new CaptureStateMachine())
+                .engineSelector(new EngineSelectionStrategy(vosk, whisper,
+                        createWatchdog(vosk, whisper, publisher),
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .timingCoordinator(new TimingCoordinator(
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                .build();
+    }
+
+    private static long measureMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        System.gc();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return runtime.totalMemory() - runtime.freeMemory();
     }
 }

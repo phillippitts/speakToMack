@@ -138,6 +138,17 @@ public final class DualEngineOrchestrator {
 
     /**
      * Constructs a DualEngineOrchestrator with optional reconciliation and metrics support.
+     * Package-private to enforce use of DualEngineOrchestratorBuilder for construction.
+     *
+     * <p>This constructor has 14 parameters, which exceeds checkstyle's 10-parameter limit.
+     * The suppression is justified because:
+     * <ul>
+     *   <li>Constructor is package-private, not part of public API</li>
+     *   <li>Only accessed via DualEngineOrchestratorBuilder (builder pattern)</li>
+     *   <li>All parameters represent required dependencies or state machine components</li>
+     *   <li>Further parameter reduction would require nested parameter objects,
+     *       adding complexity without improving readability</li>
+     * </ul>
      *
      * <p>When all Phase 4 parameters ({@code parallel}, {@code reconciler}, {@code recProps})
      * are provided and {@code recProps.isEnabled() == true}, the orchestrator runs both engines
@@ -161,22 +172,23 @@ public final class DualEngineOrchestrator {
      * @see ParallelSttService
      * @see TranscriptReconciler
      * @see ReconciliationProperties
+     * @see DualEngineOrchestratorBuilder
      */
-    // CHECKSTYLE.OFF: ParameterNumber - Constructor requires many dependencies for reconciliation
-    public DualEngineOrchestrator(AudioCaptureService captureService,
-                                  SttEngine vosk,
-                                  SttEngine whisper,
-                                  SttEngineWatchdog watchdog,
-                                  OrchestrationProperties props,
-                                  HotkeyProperties hotkeyProps,
-                                  ApplicationEventPublisher publisher,
-                                  ParallelSttService parallel,
-                                  TranscriptReconciler reconciler,
-                                  ReconciliationProperties recProps,
-                                  TranscriptionMetrics metrics,
-                                  CaptureStateMachine captureStateMachine,
-                                  EngineSelectionStrategy engineSelector,
-                                  TimingCoordinator timingCoordinator) {
+    // CHECKSTYLE.OFF: ParameterNumber - Package-private constructor only used by builder
+    DualEngineOrchestrator(AudioCaptureService captureService,
+                           SttEngine vosk,
+                           SttEngine whisper,
+                           SttEngineWatchdog watchdog,
+                           OrchestrationProperties props,
+                           HotkeyProperties hotkeyProps,
+                           ApplicationEventPublisher publisher,
+                           ParallelSttService parallel,
+                           TranscriptReconciler reconciler,
+                           ReconciliationProperties recProps,
+                           TranscriptionMetrics metrics,
+                           CaptureStateMachine captureStateMachine,
+                           EngineSelectionStrategy engineSelector,
+                           TimingCoordinator timingCoordinator) {
         this.captureService = Objects.requireNonNull(captureService);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);

@@ -1,7 +1,6 @@
 package com.phillippitts.speaktomack.config.orchestration;
 
 import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
-import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
 import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
@@ -9,9 +8,7 @@ import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
 import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
-import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,17 +32,12 @@ public class OrchestrationConfig {
     private final HotkeyProperties hotkeyProperties;
     private final ApplicationEventPublisher publisher;
     private final TranscriptionMetrics metrics;
-
-    // Optional dependencies for reconciliation mode
-    private final ParallelSttService parallelSttService;
-    private final TranscriptReconciler transcriptReconciler;
-    private final ReconciliationProperties reconciliationProperties;
+    private final ReconciliationDependencies reconciliationDeps;
 
     /**
      * Constructor injection for all orchestration dependencies.
-     * Optional dependencies are for reconciliation mode only.
+     * Reconciliation dependencies are grouped in ReconciliationDependencies.
      */
-    // CHECKSTYLE.OFF: ParameterNumber - Configuration class requires all dependencies for injection
     public OrchestrationConfig(AudioCaptureService captureService,
                                SttEngine voskSttEngine,
                                SttEngine whisperSttEngine,
@@ -54,9 +46,7 @@ public class OrchestrationConfig {
                                HotkeyProperties hotkeyProperties,
                                ApplicationEventPublisher publisher,
                                TranscriptionMetrics metrics,
-                               ParallelSttService parallelSttService,
-                               TranscriptReconciler transcriptReconciler,
-                               ReconciliationProperties reconciliationProperties) {
+                               ReconciliationDependencies reconciliationDeps) {
         this.captureService = captureService;
         this.voskSttEngine = voskSttEngine;
         this.whisperSttEngine = whisperSttEngine;
@@ -65,11 +55,8 @@ public class OrchestrationConfig {
         this.hotkeyProperties = hotkeyProperties;
         this.publisher = publisher;
         this.metrics = metrics;
-        this.parallelSttService = parallelSttService;
-        this.transcriptReconciler = transcriptReconciler;
-        this.reconciliationProperties = reconciliationProperties;
+        this.reconciliationDeps = reconciliationDeps;
     }
-    // CHECKSTYLE.ON: ParameterNumber
 
     /**
      * Capture state machine for managing audio capture session lifecycle.
@@ -141,9 +128,9 @@ public class OrchestrationConfig {
                 .orchestrationProperties(this.orchestrationProperties)
                 .hotkeyProperties(this.hotkeyProperties)
                 .publisher(this.publisher)
-                .parallelSttService(this.parallelSttService)
-                .transcriptReconciler(this.transcriptReconciler)
-                .reconciliationProperties(this.reconciliationProperties)
+                .parallelSttService(this.reconciliationDeps.getParallelSttService())
+                .transcriptReconciler(this.reconciliationDeps.getTranscriptReconciler())
+                .reconciliationProperties(this.reconciliationDeps.getReconciliationProperties())
                 .metrics(this.metrics)
                 .captureStateMachine(captureStateMachine)
                 .engineSelector(engineSelector)
