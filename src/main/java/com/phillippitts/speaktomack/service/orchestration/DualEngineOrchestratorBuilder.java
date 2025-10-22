@@ -277,14 +277,12 @@ public final class DualEngineOrchestratorBuilder {
         CaptureOrchestrator captureOrchestrator = new DefaultCaptureOrchestrator(
                 captureService, captureStateMachine);
 
-        // Create orchestrator with all dependencies (nullable optional ones will be handled by constructor)
-        return new DualEngineOrchestrator(
-                captureOrchestrator,
+        // Create TranscriptionOrchestrator from all transcription-related dependencies
+        TranscriptionOrchestrator transcriptionOrchestrator = new DefaultTranscriptionOrchestrator(
                 voskEngine,
                 whisperEngine,
                 watchdog,
                 orchestrationProperties,
-                hotkeyProperties,
                 publisher,
                 parallelSttService,
                 transcriptReconciler,
@@ -292,6 +290,13 @@ public final class DualEngineOrchestratorBuilder {
                 engineSelector,
                 timingCoordinator,
                 effectiveMetricsPublisher
+        );
+
+        // Create DualEngineOrchestrator with simplified 3-parameter constructor
+        return new DualEngineOrchestrator(
+                captureOrchestrator,
+                transcriptionOrchestrator,
+                hotkeyProperties
         );
     }
 }

@@ -1,27 +1,14 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
-import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.capture.CaptureErrorEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
-import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
-import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
-import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
-import com.phillippitts.speaktomack.service.stt.SttEngine;
-import com.phillippitts.speaktomack.service.stt.SttEngineNames;
-import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
-import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
-import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -90,140 +77,38 @@ public class DualEngineOrchestrator {
 
     private static final Logger LOG = LogManager.getLogger(DualEngineOrchestrator.class);
 
-    // Engine name constants
-    private static final String ENGINE_RECONCILED = "reconciled";
-
-    // Timeout value indicating "use service default"
-    private static final long USE_DEFAULT_TIMEOUT = 0L;
-
     private final CaptureOrchestrator captureOrchestrator;
-    private final SttEngine vosk;
-    private final SttEngine whisper;
-    private final SttEngineWatchdog watchdog;
-    private final OrchestrationProperties props;
+    private final TranscriptionOrchestrator transcriptionOrchestrator;
     private final HotkeyProperties hotkeyProps;
-    private final ApplicationEventPublisher publisher;
-
-    // Optional Phase 4 components
-    private final ParallelSttService parallel;
-    private final TranscriptReconciler reconciler;
-    private final ReconciliationProperties recProps;
-
-    // State machines and services for managing complex state and logic
-    private final EngineSelectionStrategy engineSelector;
-    private final TimingCoordinator timingCoordinator;
-    private final TranscriptionMetricsPublisher metricsPublisher;
 
     // Active capture session tracking
     private UUID activeSessionId;
 
     /**
-     * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
-     *
-     * <p>This constructor is used when reconciliation is disabled. The orchestrator will
-     * select one engine per transcription based on primary preference and health status.
-     *
-     * @param captureOrchestrator orchestrator for audio capture lifecycle management
-     * @param vosk Vosk STT engine instance
-     * @param whisper Whisper STT engine instance
-     * @param watchdog engine health monitor and enablement controller
-     * @param props orchestration configuration (primary engine preference)
-     * @param hotkeyProps hotkey configuration (toggle mode, etc.)
-     * @param publisher Spring event publisher for transcription results
-     * @param engineSelector strategy for selecting STT engine
-     * @param timingCoordinator coordinator for timing and paragraph breaks
-     * @param metricsPublisher publisher for transcription metrics
-     * @throws NullPointerException if any parameter is null
-     * @see #DualEngineOrchestrator(CaptureOrchestrator, SttEngine, SttEngine, SttEngineWatchdog,
-     *      OrchestrationProperties, HotkeyProperties, ApplicationEventPublisher, ParallelSttService,
-     *      TranscriptReconciler, ReconciliationProperties, EngineSelectionStrategy,
-     *      TimingCoordinator, TranscriptionMetricsPublisher)
-     */
-    // CHECKSTYLE.OFF: ParameterNumber - Builder pattern used for construction
-    public DualEngineOrchestrator(CaptureOrchestrator captureOrchestrator,
-                                  SttEngine vosk,
-                                  SttEngine whisper,
-                                  SttEngineWatchdog watchdog,
-                                  OrchestrationProperties props,
-                                  HotkeyProperties hotkeyProps,
-                                  ApplicationEventPublisher publisher,
-                                  EngineSelectionStrategy engineSelector,
-                                  TimingCoordinator timingCoordinator,
-                                  TranscriptionMetricsPublisher metricsPublisher) {
-        this(captureOrchestrator, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null,
-                engineSelector, timingCoordinator, metricsPublisher);
-    }
-    // CHECKSTYLE.ON: ParameterNumber
-
-    /**
-     * Constructs a DualEngineOrchestrator with optional reconciliation and metrics support.
+     * Constructs a DualEngineOrchestrator.
      * Package-private to enforce use of DualEngineOrchestratorBuilder for construction.
      *
-     * <p>This constructor has 14 parameters, which exceeds checkstyle's 10-parameter limit.
-     * The suppression is justified because:
-     * <ul>
-     *   <li>Constructor is package-private, not part of public API</li>
-     *   <li>Only accessed via DualEngineOrchestratorBuilder (builder pattern)</li>
-     *   <li>All parameters represent required dependencies or state machine components</li>
-     *   <li>Further parameter reduction would require nested parameter objects,
-     *       adding complexity without improving readability</li>
-     * </ul>
-     *
-     * <p>When all Phase 4 parameters ({@code parallel}, {@code reconciler}, {@code recProps})
-     * are provided and {@code recProps.isEnabled() == true}, the orchestrator runs both engines
-     * in parallel and reconciles their results using the configured strategy.
-     *
-     * <p>If any Phase 4 parameter is {@code null} or reconciliation is disabled, the orchestrator
-     * falls back to single-engine mode (same behavior as the 7-parameter constructor).
+     * <p>This streamlined constructor has only 3 parameters after extracting CaptureOrchestrator
+     * (Phase 1) and TranscriptionOrchestrator (Phase 2). The orchestrator now focuses solely on
+     * coordinating hotkey events with capture and transcription workflows.
      *
      * @param captureOrchestrator orchestrator for audio capture lifecycle management
-     * @param vosk Vosk STT engine instance
-     * @param whisper Whisper STT engine instance
-     * @param watchdog engine health monitor and enablement controller
-     * @param props orchestration configuration (primary engine preference)
+     * @param transcriptionOrchestrator orchestrator for transcription execution and result publishing
      * @param hotkeyProps hotkey configuration (toggle mode, etc.)
-     * @param publisher Spring event publisher for transcription results
-     * @param parallel service for running both engines in parallel (nullable)
-     * @param reconciler strategy for merging dual-engine results (nullable)
-     * @param recProps reconciliation configuration and enablement flag (nullable)
-     * @param engineSelector strategy for selecting STT engine
-     * @param timingCoordinator coordinator for timing and paragraph breaks
-     * @param metricsPublisher metrics publishing service
-     * @throws NullPointerException if any required parameter is null (Phase 4 params are optional)
-     * @see ParallelSttService
-     * @see TranscriptReconciler
-     * @see ReconciliationProperties
+     * @throws NullPointerException if any parameter is null
+     * @see CaptureOrchestrator
+     * @see TranscriptionOrchestrator
      * @see DualEngineOrchestratorBuilder
+     * @since 1.1
      */
-    // CHECKSTYLE.OFF: ParameterNumber - Package-private constructor only used by builder
     DualEngineOrchestrator(CaptureOrchestrator captureOrchestrator,
-                           SttEngine vosk,
-                           SttEngine whisper,
-                           SttEngineWatchdog watchdog,
-                           OrchestrationProperties props,
-                           HotkeyProperties hotkeyProps,
-                           ApplicationEventPublisher publisher,
-                           ParallelSttService parallel,
-                           TranscriptReconciler reconciler,
-                           ReconciliationProperties recProps,
-                           EngineSelectionStrategy engineSelector,
-                           TimingCoordinator timingCoordinator,
-                           TranscriptionMetricsPublisher metricsPublisher) {
-        this.captureOrchestrator = Objects.requireNonNull(captureOrchestrator);
-        this.vosk = Objects.requireNonNull(vosk);
-        this.whisper = Objects.requireNonNull(whisper);
-        this.watchdog = Objects.requireNonNull(watchdog);
-        this.props = Objects.requireNonNull(props);
-        this.hotkeyProps = Objects.requireNonNull(hotkeyProps);
-        this.publisher = Objects.requireNonNull(publisher);
-        this.parallel = parallel;
-        this.reconciler = reconciler;
-        this.recProps = recProps;
-        this.engineSelector = Objects.requireNonNull(engineSelector);
-        this.timingCoordinator = Objects.requireNonNull(timingCoordinator);
-        this.metricsPublisher = Objects.requireNonNull(metricsPublisher);
+                           TranscriptionOrchestrator transcriptionOrchestrator,
+                           HotkeyProperties hotkeyProps) {
+        this.captureOrchestrator = Objects.requireNonNull(captureOrchestrator, "captureOrchestrator");
+        this.transcriptionOrchestrator = Objects.requireNonNull(transcriptionOrchestrator,
+                "transcriptionOrchestrator");
+        this.hotkeyProps = Objects.requireNonNull(hotkeyProps, "hotkeyProps");
     }
-    // CHECKSTYLE.ON: ParameterNumber
 
     /**
      * Handles hotkey press events by starting or stopping audio capture, depending on mode.
@@ -290,11 +175,7 @@ public class DualEngineOrchestrator {
             return; // Capture failed
         }
 
-        if (isReconciliationEnabled()) {
-            transcribeWithReconciliation(pcm);
-        } else {
-            transcribeWithSingleEngine(pcm);
-        }
+        transcriptionOrchestrator.transcribe(pcm);
     }
 
     /**
@@ -350,154 +231,7 @@ public class DualEngineOrchestrator {
             return; // Capture failed
         }
 
-        // If reconciliation is enabled and services are present, run both engines and reconcile
-        if (isReconciliationEnabled()) {
-            transcribeWithReconciliation(pcm);
-        } else {
-            transcribeWithSingleEngine(pcm);
-        }
-    }
-
-    /**
-     * Checks if reconciliation mode is enabled with all required dependencies.
-     *
-     * @return true if reconciliation is enabled and all services are available
-     */
-    private boolean isReconciliationEnabled() {
-        return recProps != null && recProps.isEnabled() && parallel != null && reconciler != null;
-    }
-
-    /**
-     * Transcribes audio using both engines in parallel and reconciles the results.
-     *
-     * <p><b>Failure semantics:</b> If reconciliation fails (either with a
-     * {@link TranscriptionException} from an engine or any other runtime exception), this method
-     * will record a failure metric for the "reconciled" engine and publish a
-     * {@link TranscriptionCompletedEvent} with an empty text result. It will not fall back to
-     * any previously computed single-engine result. This conservative behavior avoids emitting
-     * potentially inaccurate text when both engines disagree or fail.
-     *
-     * @param pcm PCM audio data to transcribe
-     */
-    private void transcribeWithReconciliation(byte[] pcm) {
-        long startTime = System.nanoTime();
-        try {
-            var pair = parallel.transcribeBoth(pcm, USE_DEFAULT_TIMEOUT);
-            TranscriptionResult result = reconciler.reconcile(pair.vosk(), pair.whisper());
-            String strategy = String.valueOf(recProps.getStrategy());
-
-            // Record metrics
-            long duration = System.nanoTime() - startTime;
-            metricsPublisher.recordSuccess(ENGINE_RECONCILED, duration, strategy);
-
-            logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
-            publishResult(result, ENGINE_RECONCILED);
-        } catch (TranscriptionException te) {
-            metricsPublisher.recordFailure(ENGINE_RECONCILED, "transcription_error");
-            LOG.warn("Reconciled transcription failed: {}", te.getMessage());
-            // Publish empty result to notify downstream consumers
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
-            publishResult(emptyResult, ENGINE_RECONCILED);
-        } catch (RuntimeException re) {
-            metricsPublisher.recordFailure(ENGINE_RECONCILED, "unexpected_error");
-            LOG.error("Unexpected error during reconciled transcription", re);
-            // Publish empty result to notify downstream consumers
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
-            publishResult(emptyResult, ENGINE_RECONCILED);
-        }
-    }
-
-    /**
-     * Transcribes audio using a single engine selected based on watchdog state.
-     * Implements smart reconciliation: if Vosk confidence is below threshold,
-     * automatically upgrades to dual-engine mode for better accuracy.
-     *
-     * <p><b>Upgrade and failure behavior:</b> When upgraded to reconciliation due to low
-     * Vosk confidence, this method delegates to {@link #transcribeWithReconciliation(byte[])} and
-     * returns immediately. If reconciliation then fails, an empty result is published and there
-     * is no fallback to the original single-engine (low-confidence) text. This avoids emitting
-     * potentially incorrect transcriptions.
-     *
-     * @param pcm PCM audio data to transcribe
-     */
-    private void transcribeWithSingleEngine(byte[] pcm) {
-        SttEngine engine = selectSingleEngine();
-        long startTime = System.nanoTime();
-
-        try {
-            TranscriptionResult result = engine.transcribe(pcm);
-            String engineName = engine.getEngineName();
-
-            // Smart reconciliation: Check if we should upgrade to dual-engine
-            // based on Vosk confidence threshold
-            if (isReconciliationEnabled() &&
-                SttEngineNames.VOSK.equals(engineName) &&
-                result.confidence() < recProps.getConfidenceThreshold()) {
-
-                LOG.info("Vosk confidence {} < threshold {}, upgrading to dual-engine reconciliation",
-                         String.format("%.3f", result.confidence()),
-                         String.format("%.3f", recProps.getConfidenceThreshold()));
-
-                // Upgrade to dual-engine mode for this transcription
-                transcribeWithReconciliation(pcm);
-                return; // Exit early - reconciliation handles metrics & publishing
-            }
-
-            // Record metrics for successful single-engine transcription
-            long duration = System.nanoTime() - startTime;
-            metricsPublisher.recordSuccess(engineName, duration, null);
-
-            logTranscriptionSuccess(engineName, startTime, result.text().length(), null);
-            publishResult(result, engineName);
-        } catch (TranscriptionException te) {
-            metricsPublisher.recordFailure(engine.getEngineName(), "transcription_error");
-            LOG.warn("Transcription failed: {}", te.getMessage());
-        } catch (RuntimeException re) {
-            metricsPublisher.recordFailure(engine.getEngineName(), "unexpected_error");
-            LOG.error("Unexpected error during transcription", re);
-        }
-    }
-
-    /**
-     * Logs successful transcription with timing and metadata.
-     *
-     * @param engineName name of the engine used
-     * @param startTimeNanos start time in nanoseconds
-     * @param textLength length of transcribed text
-     * @param strategy reconciliation strategy (nullable for single-engine)
-     */
-    private void logTranscriptionSuccess(String engineName, long startTimeNanos, int textLength, String strategy) {
-        long durationMs = TimeUtils.elapsedMillis(startTimeNanos);
-        if (strategy != null) {
-            LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", durationMs, strategy, textLength);
-        } else {
-            LOG.info("Transcription completed by {} in {} ms (chars={})", engineName, durationMs, textLength);
-        }
-    }
-
-    /**
-     * Publishes transcription result as an event for downstream processing.
-     * Prepends a newline if the gap since the last transcription exceeds the configured threshold.
-     *
-     * @param result the transcription result
-     * @param engineName name of the engine that produced the result
-     */
-    private void publishResult(TranscriptionResult result, String engineName) {
-        // Check if we should prepend a newline based on silence gap
-        TranscriptionResult finalResult = result;
-
-        if (timingCoordinator.shouldAddParagraphBreak()) {
-            // Prepend newline for new paragraph (avoid double newlines if text already starts with one)
-            String text = result.text();
-            String textWithNewline = text.startsWith("\n") ? text : "\n" + text;
-            finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
-            LOG.debug("Prepended newline after silence gap (threshold={}ms)", props.getSilenceGapMs());
-        }
-
-        // Record this transcription for future paragraph break decisions
-        timingCoordinator.recordTranscription();
-
-        publisher.publishEvent(new TranscriptionCompletedEvent(finalResult, Instant.now(), engineName));
+        transcriptionOrchestrator.transcribe(pcm);
     }
 
     /**
@@ -517,37 +251,5 @@ public class DualEngineOrchestrator {
             LOG.debug("Capture error when no active session: {}", event.reason());
         }
         // Phase 4.2: Publish user notification event for UI display
-    }
-
-    /**
-     * Selects the best available engine based on primary preference and health status.
-     *
-     * @return selected STT engine
-     * @throws TranscriptionException if both engines are unavailable
-     */
-    private SttEngine selectSingleEngine() {
-        // Delegate to strategy for engine selection
-        SttEngine selected = engineSelector.selectEngine();
-
-        // Verify both engines aren't unhealthy (strategy returns primary anyway, but we want to fail fast)
-        if (!engineSelector.areBothEnginesHealthy()) {
-            boolean voskReady = watchdog.isEngineEnabled(SttEngineNames.VOSK) && vosk.isHealthy();
-            boolean whisperReady = watchdog.isEngineEnabled(SttEngineNames.WHISPER) && whisper.isHealthy();
-
-            if (!voskReady && !whisperReady) {
-                // Both engines unavailable - construct detailed error message
-                String errorMsg = String.format(
-                        "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, "
-                                + "whisper.enabled=%s, whisper.healthy=%s)",
-                        watchdog.isEngineEnabled(SttEngineNames.VOSK),
-                        vosk.isHealthy(),
-                        watchdog.isEngineEnabled(SttEngineNames.WHISPER),
-                        whisper.isHealthy()
-                );
-                throw new TranscriptionException(errorMsg);
-            }
-        }
-
-        return selected;
     }
 }
