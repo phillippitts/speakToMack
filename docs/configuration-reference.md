@@ -271,10 +271,10 @@ Configures the global hotkey for push-to-talk.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `hotkey.type` | String | `single-key` | Hotkey type. Options: `single-key` (one key) or `combination` (modifier + key). |
-| `hotkey.key` | String | `RIGHT_META` | Primary key for hotkey. Examples: `RIGHT_META` (⌘ on macOS), `M`, `SPACE`. |
-| `hotkey.modifiers` | String | (empty) | Comma-separated modifiers for `combination` type. Options: `SHIFT`, `CTRL`, `ALT`, `META`. |
-| `hotkey.threshold-ms` | int | (no threshold) | Optional: Minimum hold duration (ms) before triggering. Useful to avoid accidental presses. |
+| `hotkey.type` | String | `single-key` | Hotkey type. Options: `single-key`, `double-tap`, or `modifier-combo`. |
+| `hotkey.key` | String | `RIGHT_META` | Primary key for hotkey. Examples: `RIGHT_META` (⌘ on macOS), `M`, `SPACE`, `F13`. |
+| `hotkey.modifiers` | String | (empty) | Comma-separated modifiers. Required for `modifier-combo`, optional for `single-key` and `double-tap`. Options: `SHIFT`, `CTRL`, `ALT`, `META`, `LEFT_META`, `RIGHT_META`. |
+| `hotkey.threshold-ms` | int | (no threshold) | Optional: For `double-tap`, this is the maximum time between taps (100-1000ms). For other types, it's the minimum hold duration. |
 | `hotkey.reserved` | String | (empty) | Comma-separated list of OS shortcuts to warn about. Platform-aware validation. |
 
 **Example - Single Key (Right Command on macOS):**
@@ -283,14 +283,31 @@ hotkey.type=single-key
 hotkey.key=RIGHT_META
 ```
 
-**Example - Combination (Cmd+Shift+M):**
+**Example - Single Key with Optional Modifier:**
 ```properties
-hotkey.type=combination
+hotkey.type=single-key
+hotkey.key=F13
+hotkey.modifiers=SHIFT
+```
+Note: `single-key` can optionally include modifiers.
+
+**Example - Modifier Combination (Cmd+Shift+M):**
+```properties
+hotkey.type=modifier-combo
 hotkey.key=M
 hotkey.modifiers=META,SHIFT
 ```
+Requires at least one modifier in `hotkey.modifiers`.
 
-**Example - With Threshold (Hold 300ms):**
+**Example - Double Tap (Double-tap D within 300ms):**
+```properties
+hotkey.type=double-tap
+hotkey.key=D
+hotkey.threshold-ms=300
+```
+**Note:** `threshold-ms` for `double-tap` must be between 100-1000 milliseconds.
+
+**Example - Hold Threshold (Hold 300ms to activate):**
 ```properties
 hotkey.type=single-key
 hotkey.key=RIGHT_META
@@ -366,7 +383,7 @@ Production monitoring and health check endpoints.
 | `management.endpoints.web.exposure.include` | String | `health,info,metrics,prometheus` | Comma-separated list of exposed actuator endpoints. |
 | `management.endpoints.web.base-path` | String | `/actuator` | Base path for actuator endpoints. |
 | `management.endpoint.health.show-details` | String | `when-authorized` | Health endpoint detail level. Options: `always`, `when-authorized`, `never`. |
-| `management.health.defaults.enabled` | boolean | `true` | Enable default health indicators (disk space, database, etc.). |
+| `management.health.defaults.enabled` | boolean | `true` | Enable default health indicators (disk space, etc.). Note: This application does not use a database; database health indicators are not applicable. |
 | `server.shutdown` | String | `graceful` | Shutdown mode. `graceful` waits for requests to complete before shutdown. |
 | `spring.lifecycle.timeout-per-shutdown-phase` | String | `30s` | Maximum time to wait per shutdown phase (e.g., "30s", "1m"). |
 

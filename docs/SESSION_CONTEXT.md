@@ -30,7 +30,7 @@ If session is lost, start here:
 - ✅ TranscriptionResult domain model
 - ✅ SttEngine interface (Adapter pattern)
 - ✅ Exception hierarchy with context
-- ✅ AudioValidator with format checking
+- ✅ AudioValidator utility (implemented at `service.validation.AudioValidator`; integration into capture flow planned for Phase 3)
 
 ### Phase 2: STT Engine Integration ✅ (9 tasks, ~5.75 hours)
 - ✅ Task 2.1: Model Validation Service (Vosk + Whisper fail-fast)
@@ -130,7 +130,7 @@ If session is lost, start here:
 - Thread pool configuration
 
 **Phase 1: Core Abstractions** ✅
-- TranscriptionResult, SttEngine interface, Exception hierarchy, AudioValidator
+- TranscriptionResult, SttEngine interface, Exception hierarchy, AudioValidator utility (not yet integrated)
 
 **Phase 2: STT Engine Integration (9 tasks)** ✅
 - Vosk engine (JNI, per-call recognizer for thread-safety)
