@@ -46,9 +46,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     // Timeout value indicating "use service default"
     private static final long USE_DEFAULT_TIMEOUT = 0L;
 
-    private final SttEngine vosk;
-    private final SttEngine whisper;
-    private final SttEngineWatchdog watchdog;
     private final OrchestrationProperties props;
     private final ApplicationEventPublisher publisher;
 
@@ -65,24 +62,17 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     /**
      * Constructs a DefaultTranscriptionOrchestrator.
      *
-     * @param vosk Vosk STT engine instance
-     * @param whisper Whisper STT engine instance
-     * @param watchdog engine health monitor and enablement controller
      * @param props orchestration configuration (silence gap threshold)
      * @param publisher Spring event publisher for transcription results
      * @param parallel service for running both engines in parallel (nullable for single-engine mode)
      * @param reconciler strategy for merging dual-engine results (nullable for single-engine mode)
      * @param recProps reconciliation configuration and enablement flag (nullable for single-engine mode)
-     * @param engineSelector strategy for selecting STT engine
+     * @param engineSelector strategy for selecting STT engine (also manages vosk, whisper, watchdog)
      * @param timingCoordinator coordinator for timing and paragraph breaks
      * @param metricsPublisher metrics publishing service
      * @throws NullPointerException if any required parameter is null
      */
-    // CHECKSTYLE.OFF: ParameterNumber - Complex orchestrator requires many dependencies
-    public DefaultTranscriptionOrchestrator(SttEngine vosk,
-                                            SttEngine whisper,
-                                            SttEngineWatchdog watchdog,
-                                            OrchestrationProperties props,
+    public DefaultTranscriptionOrchestrator(OrchestrationProperties props,
                                             ApplicationEventPublisher publisher,
                                             ParallelSttService parallel,
                                             TranscriptReconciler reconciler,
@@ -90,9 +80,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
                                             EngineSelectionStrategy engineSelector,
                                             TimingCoordinator timingCoordinator,
                                             TranscriptionMetricsPublisher metricsPublisher) {
-        this.vosk = Objects.requireNonNull(vosk, "vosk must not be null");
-        this.whisper = Objects.requireNonNull(whisper, "whisper must not be null");
-        this.watchdog = Objects.requireNonNull(watchdog, "watchdog must not be null");
         this.props = Objects.requireNonNull(props, "props must not be null");
         this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
         this.parallel = parallel;
@@ -102,7 +89,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
         this.timingCoordinator = Objects.requireNonNull(timingCoordinator, "timingCoordinator must not be null");
         this.metricsPublisher = Objects.requireNonNull(metricsPublisher, "metricsPublisher must not be null");
     }
-    // CHECKSTYLE.ON: ParameterNumber
 
     @Override
     public void transcribe(byte[] pcm) {
@@ -228,6 +214,10 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
 
         // Verify both engines aren't unhealthy (strategy returns primary anyway, but we want to fail fast)
         if (!engineSelector.areBothEnginesHealthy()) {
+            SttEngine vosk = engineSelector.getVoskEngine();
+            SttEngine whisper = engineSelector.getWhisperEngine();
+            SttEngineWatchdog watchdog = engineSelector.getWatchdog();
+
             boolean voskReady = watchdog.isEngineEnabled(SttEngineNames.VOSK) && vosk.isHealthy();
             boolean whisperReady = watchdog.isEngineEnabled(SttEngineNames.WHISPER) && whisper.isHealthy();
 

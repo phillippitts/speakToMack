@@ -134,4 +134,31 @@ public final class EngineSelectionStrategy {
         return watchdog.isEngineEnabled(SttEngineNames.VOSK)
                 && watchdog.isEngineEnabled(SttEngineNames.WHISPER);
     }
+
+    /**
+     * Returns the Vosk STT engine.
+     *
+     * @return Vosk engine instance
+     */
+    public SttEngine getVoskEngine() {
+        return vosk;
+    }
+
+    /**
+     * Returns the Whisper STT engine.
+     *
+     * @return Whisper engine instance
+     */
+    public SttEngine getWhisperEngine() {
+        return whisper;
+    }
+
+    /**
+     * Returns the engine watchdog for health monitoring.
+     *
+     * @return engine watchdog instance
+     */
+    public SttEngineWatchdog getWatchdog() {
+        return watchdog;
+    }
 }

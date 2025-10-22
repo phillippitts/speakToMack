@@ -278,10 +278,8 @@ public final class DualEngineOrchestratorBuilder {
                 captureService, captureStateMachine);
 
         // Create TranscriptionOrchestrator from all transcription-related dependencies
+        // Note: engineSelector already encapsulates voskEngine, whisperEngine, watchdog, orchestrationProperties
         TranscriptionOrchestrator transcriptionOrchestrator = new DefaultTranscriptionOrchestrator(
-                voskEngine,
-                whisperEngine,
-                watchdog,
                 orchestrationProperties,
                 publisher,
                 parallelSttService,
