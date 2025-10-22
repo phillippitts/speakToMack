@@ -1,10 +1,8 @@
 package com.phillippitts.speaktomack.service.stt.util;
 
 import com.phillippitts.speaktomack.exception.TranscriptionException;
-import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -77,7 +75,16 @@ public final class ConcurrencyGuard {
         try {
             boolean acquired = semaphore.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS);
             if (!acquired) {
-                publishConcurrencyLimitEvent();
+                Map<String, String> context = new HashMap<>();
+                context.put("reason", "concurrency-limit");
+                context.put("timeoutMs", String.valueOf(timeoutMs));
+                EngineEventPublisher.publishFailure(
+                    publisher,
+                    engineName,
+                    "concurrency limit reached after " + timeoutMs + "ms wait",
+                    null,
+                    context
+                );
                 throw new TranscriptionException(
                     engineName + " concurrency limit reached after " + timeoutMs + "ms wait",
                     engineName
@@ -101,25 +108,6 @@ public final class ConcurrencyGuard {
      */
     public void release() {
         semaphore.release();
-    }
-
-    /**
-     * Publishes an engine failure event when concurrency limit is reached.
-     */
-    private void publishConcurrencyLimitEvent() {
-        if (publisher != null) {
-            Map<String, String> context = new HashMap<>();
-            context.put("reason", "concurrency-limit");
-            context.put("timeoutMs", String.valueOf(timeoutMs));
-
-            publisher.publishEvent(new EngineFailureEvent(
-                engineName,
-                Instant.now(),
-                "concurrency limit reached after " + timeoutMs + "ms wait",
-                null,
-                context
-            ));
-        }
     }
 
     /**

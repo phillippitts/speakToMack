@@ -4,7 +4,7 @@ import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
-import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
+import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
@@ -114,7 +114,9 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         } catch (Throwable t) {
             // Ensure partial resources are closed on failure
             safeCloseUnlocked();
-            publishFailureEvent(
+            EngineEventPublisher.publishFailure(
+                publisher,
+                ENGINE_NAME,
                 "initialize failure",
                 t,
                 Map.of("modelPath", String.valueOf(config.modelPath()),
@@ -150,28 +152,6 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             return transcribeWithModel(localModel, audioData);
         } finally {
             concurrencyGuard.release();
-        }
-    }
-
-
-    /**
-     * Publishes an engine failure event if publisher is available.
-     *
-     * <p>Centralizes failure event publishing to ensure consistency across the engine.
-     *
-     * @param message descriptive failure message
-     * @param cause the exception that caused the failure (may be null)
-     * @param context additional context information for diagnostics
-     */
-    private void publishFailureEvent(String message, Throwable cause, Map<String, String> context) {
-        if (publisher != null) {
-            publisher.publishEvent(new EngineFailureEvent(
-                ENGINE_NAME,
-                java.time.Instant.now(),
-                message,
-                cause,
-                context
-            ));
         }
     }
 

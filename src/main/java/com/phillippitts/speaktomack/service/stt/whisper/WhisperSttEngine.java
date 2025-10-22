@@ -7,13 +7,13 @@ import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
+import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -119,13 +119,10 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             LOG.info("Whisper engine initialized: bin={}, model={}, timeout={}s, lang={}, threads={}",
                     cfg.binaryPath(), cfg.modelPath(), cfg.timeoutSeconds(), cfg.language(), cfg.threads());
         } catch (Throwable t) {
-            if (publisher != null) {
-                Map<String, String> ctx = new HashMap<>();
-                ctx.put("binaryPath", cfg.binaryPath());
-                ctx.put("modelPath", cfg.modelPath());
-                publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                        "initialize failure", t, ctx));
-            }
+            Map<String, String> ctx = new HashMap<>();
+            ctx.put("binaryPath", cfg.binaryPath());
+            ctx.put("modelPath", cfg.modelPath());
+            EngineEventPublisher.publishFailure(publisher, ENGINE, "initialize failure", t, ctx);
             throw new TranscriptionException("Whisper initialization failed", ENGINE, t);
         }
     }
@@ -150,7 +147,10 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 LOG.debug("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
                 return TranscriptionResult.of(text, confidence, ENGINE);
             } catch (Exception e) {
-                publishTranscribeFailureEvent(e);
+                Map<String, String> ctx = new HashMap<>();
+                ctx.put("binaryPath", cfg.binaryPath());
+                ctx.put("modelPath", cfg.modelPath());
+                EngineEventPublisher.publishFailure(publisher, ENGINE, "transcribe failure", e, ctx);
                 if (e instanceof TranscriptionException te) {
                     throw te;
                 }
@@ -195,21 +195,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             this.lastRawJson = null;
             this.lastTokens = null;
             return stdout == null ? "" : stdout.trim();
-        }
-    }
-
-    /**
-     * Publishes transcription failure event with context.
-     *
-     * @param cause the exception that caused the failure
-     */
-    private void publishTranscribeFailureEvent(Exception cause) {
-        if (publisher != null) {
-            Map<String, String> ctx = new HashMap<>();
-            ctx.put("binaryPath", cfg.binaryPath());
-            ctx.put("modelPath", cfg.modelPath());
-            publisher.publishEvent(new EngineFailureEvent(ENGINE, java.time.Instant.now(),
-                    "transcribe failure", cause, ctx));
         }
     }
 
