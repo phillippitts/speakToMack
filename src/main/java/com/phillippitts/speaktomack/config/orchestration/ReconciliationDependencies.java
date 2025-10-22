@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Groups optional reconciliation dependencies for cleaner constructor injection.
- * Reduces parameter count in OrchestrationConfig from 11 to 9 parameters.
+ * Keeps parameter count in OrchestrationConfig at 9 instead of 11 parameters.
  */
 @Component
 public final class ReconciliationDependencies {

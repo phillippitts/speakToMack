@@ -40,9 +40,7 @@ class SttEngineWatchdogTest {
                 .map(e -> (EngineRecoveredEvent) e)
                 .findFirst();
 
-        if (recovery.isPresent()) {
-            watchdog.onRecovered(recovery.get());
-        }
+        recovery.ifPresent(watchdog::onRecovered);
 
         // Assert: close and initialize should have been called once
         assertThat(engine.closedCount).isEqualTo(1);

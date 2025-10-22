@@ -33,7 +33,7 @@ public class HotkeyProperties {
     private final String key;
 
     /** Double-tap threshold (ms). Only used when type=double-tap. */
-    @Min(50)
+    @Min(100)
     @Max(1000)
     private final int thresholdMs;
 

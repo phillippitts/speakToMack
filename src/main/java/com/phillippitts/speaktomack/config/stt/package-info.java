@@ -17,7 +17,7 @@
  *   <li>Are immutable (Java records)</li>
  *   <li>Include Jakarta Bean Validation constraints ({@code @NotBlank}, {@code @Positive})</li>
  *   <li>Provide sensible defaults via no-arg constructors</li>
- *   <li>Comply with Checkstyle ParameterNumber rule (max 3 parameters)</li>
+ *   <li>Reduce constructor parameters using record syntax</li>
  * </ul>
  *
  * <p>Example application.properties:

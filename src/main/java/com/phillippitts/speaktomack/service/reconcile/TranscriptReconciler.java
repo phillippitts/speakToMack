@@ -45,8 +45,6 @@ public interface TranscriptReconciler {
      * @param vosk Vosk engine result (may be null if engine failed or timed out)
      * @param whisper Whisper engine result (may be null if engine failed or timed out)
      * @return reconciled transcription result with {@code "reconciled"} engine name
-     * @throws com.phillippitts.speaktomack.exception.TranscriptionException if reconciliation
-     *         fails (e.g., both inputs are null and strategy requires at least one result)
      */
     TranscriptionResult reconcile(EngineResult vosk, EngineResult whisper);
 }

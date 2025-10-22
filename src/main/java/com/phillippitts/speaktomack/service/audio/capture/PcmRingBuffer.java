@@ -3,8 +3,8 @@ package com.phillippitts.speaktomack.service.audio.capture;
 import java.util.Arrays;
 
 /**
- * Simple ring buffer for PCM bytes. Thread-safe for one producer (capture thread)
- * and one consumer (reader after stop).
+ * Simple ring buffer for PCM bytes. Thread-safe for concurrent access. Designed for
+ * single-producer (capture thread) single-consumer (reader) pattern.
  */
 final class PcmRingBuffer {
 

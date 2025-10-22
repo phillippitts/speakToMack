@@ -10,7 +10,7 @@ import java.time.Instant;
  *
  * @param result the transcription result with text and confidence
  * @param timestamp when the transcription completed
- * @param engineUsed name of the STT engine that produced this result (vosk/whisper)
+ * @param engineUsed name of the STT engine that produced this result (vosk/whisper/reconciled)
  */
 public record TranscriptionCompletedEvent(
         TranscriptionResult result,

@@ -23,10 +23,10 @@ import java.util.function.Consumer;
 /**
  * Production GlobalKeyHook backed by JNativeHook.
  * Converts NativeKeyEvent into NormalizedKeyEvent for the Hotkey subsystem.
- *
- * Special handling for modifier keys: JNativeHook on macOS doesn't fire key pressed/released
- * events for standalone modifier keys. We rely on keyboard and mouse motion events to detect
- * modifier state changes and avoid an unnecessary polling thread.
+ * Special handling for modifier keys: JNativeHook on macOS doesn't reliably fire key pressed/released
+ * events for modifier keys (Shift, Control, Alt, Meta) when pressed alone or in combination. We track
+ * modifier state changes through keyboard and mouse motion events to ensure accurate state tracking
+ * without requiring a polling thread.
  */
 @Component
 public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListener, NativeMouseMotionListener {

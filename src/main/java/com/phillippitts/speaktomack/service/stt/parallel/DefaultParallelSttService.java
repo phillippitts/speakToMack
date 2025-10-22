@@ -104,9 +104,10 @@ public class DefaultParallelSttService implements ParallelSttService {
      * the pair will contain one non-null result. Reconcilers must handle this gracefully
      * (typically by using the available result or throwing an exception).
      *
-     * <p><b>Token Extraction:</b> For Whisper, this method attempts to extract JSON-derived
-     * tokens via {@link com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine#consumeLastTokens()}.
-     * This provides more accurate word boundaries for overlap-based reconciliation.
+     * <p><b>Token Extraction:</b> This method attempts to extract engine-provided tokens
+     * via {@link com.phillippitts.speaktomack.service.stt.SttEngine#consumeTokens()}.
+     * For Whisper, this provides JSON-derived tokens with accurate word boundaries for
+     * overlap-based reconciliation.
      *
      * @param pcm PCM audio data (16-bit, 16kHz, mono)
      * @param timeoutMs timeout in milliseconds (use 0 for default)

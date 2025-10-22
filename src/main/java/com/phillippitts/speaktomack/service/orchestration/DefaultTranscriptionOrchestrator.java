@@ -243,6 +243,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     /**
      * Publishes transcription result as an event for downstream processing.
      * Prepends a newline if the gap since the last transcription exceeds the configured threshold.
+     * Avoids adding a double-newline if the text already starts with a newline.
      *
      * @param result the transcription result
      * @param engineName name of the engine that produced the result

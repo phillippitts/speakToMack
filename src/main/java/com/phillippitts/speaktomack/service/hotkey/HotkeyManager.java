@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 /**
  * Registers a global key hook and translates native events into domain hotkey events
  * using a configured HotkeyTrigger.
- *
  * Tests should inject a fake GlobalKeyHook and emit NormalizedKeyEvent instances
  * directly to the registered listener.
  */

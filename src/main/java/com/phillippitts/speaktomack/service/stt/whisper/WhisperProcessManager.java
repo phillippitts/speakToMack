@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * - Provide structured error context in {@link TranscriptionException}
  * - Idempotent {@link #close()} for cleanup
  *
- * <p>Temp-file WAV handling is performed by the caller (engine) in Task 2.5.
+ * <p>Temp-file WAV handling is performed by the caller (engine).
  */
 import org.springframework.stereotype.Component;
 
@@ -245,7 +245,7 @@ public final class WhisperProcessManager implements AutoCloseable {
                         }
                         continue; // Drain stream without accumulating
                     }
-                    if (sink.length() > 0) {
+                    if (!sink.isEmpty()) {
                         sink.append('\n');
                     }
                     // Truncate line if it would exceed the cap

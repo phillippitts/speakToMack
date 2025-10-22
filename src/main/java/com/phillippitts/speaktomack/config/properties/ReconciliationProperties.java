@@ -37,7 +37,7 @@ public class ReconciliationProperties {
     @ConstructorBinding
     public ReconciliationProperties(Boolean enabled, Strategy strategy, Double overlapThreshold,
                                     Double confidenceThreshold) {
-        this.enabled = enabled == null ? false : enabled;
+        this.enabled = enabled != null && enabled;
         this.strategy = strategy == null ? Strategy.SIMPLE : strategy;
         double t = overlapThreshold == null ? 0.6 : overlapThreshold;
         if (t < 0.0 || t > 1.0) {

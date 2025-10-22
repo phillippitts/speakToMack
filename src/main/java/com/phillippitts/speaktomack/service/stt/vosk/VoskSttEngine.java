@@ -175,9 +175,11 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     }
 
     /**
-     * Returns the engine name identifier.
+     * Transcribes audio data using the provided Vosk model.
      *
-     * @return "vosk"
+     * @param localModel the Vosk model to use for transcription
+     * @param audioData PCM audio data to transcribe
+     * @return transcription result with text, confidence, and metadata
      */
     private TranscriptionResult transcribeWithModel(org.vosk.Model localModel, byte[] audioData) {
         try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
