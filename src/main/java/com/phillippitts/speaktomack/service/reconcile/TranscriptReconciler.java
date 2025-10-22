@@ -12,9 +12,12 @@ import com.phillippitts.speaktomack.service.stt.EngineResult;
  *
  * <p><b>Available Strategies:</b>
  * <ul>
- *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.SimplePreferenceReconciler} - Always prefers primary engine unless empty</li>
- *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.ConfidenceReconciler} - Selects result with higher confidence score</li>
- *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler} - Uses Jaccard similarity to pick best coverage</li>
+ *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.SimplePreferenceReconciler} -
+ *       Always prefers primary engine unless empty</li>
+ *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.ConfidenceReconciler} -
+ *       Selects result with higher confidence score</li>
+ *   <li>{@link com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler} -
+ *       Uses Jaccard similarity to pick best coverage</li>
  * </ul>
  *
  * <p><b>Null Handling Contract:</b> Implementations must gracefully handle null engine results,
