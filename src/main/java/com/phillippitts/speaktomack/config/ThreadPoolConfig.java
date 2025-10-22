@@ -45,9 +45,8 @@ public class ThreadPoolConfig {
      */
     @Bean(name = "sttExecutor")
     public Executor sttExecutor() {
-        int processors = Runtime.getRuntime().availableProcessors();
-        int corePoolSize = processors;
-        int maxPoolSize = processors * 2;
+        int corePoolSize = Runtime.getRuntime().availableProcessors();
+        int maxPoolSize = corePoolSize * 2;
 
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(corePoolSize);

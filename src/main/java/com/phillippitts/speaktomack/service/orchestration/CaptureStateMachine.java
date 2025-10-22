@@ -118,21 +118,4 @@ public final class CaptureStateMachine {
         }
     }
 
-    /**
-     * Checks if a specific session is currently active.
-     *
-     * @param sessionId session ID to check
-     * @return {@code true} if the given session is active, {@code false} otherwise
-     */
-    public boolean isSessionActive(UUID sessionId) {
-        if (sessionId == null) {
-            return false;
-        }
-        lock.lock();
-        try {
-            return sessionId.equals(activeSession);
-        } finally {
-            lock.unlock();
-        }
-    }
 }

@@ -132,7 +132,7 @@ class ReconciliationEndToEndIntegrationTest {
         assertThat(results.whisper()).isNotNull();
 
         // Reconciler should use available result
-        TranscriptionResult finalResult = reconciler.reconcile(results.vosk(), results.whisper());
+        TranscriptionResult finalResult = reconciler.reconcile(null, results.whisper());
         assertThat(finalResult.text()).isEqualTo("whisper works");
     }
 
@@ -153,7 +153,7 @@ class ReconciliationEndToEndIntegrationTest {
         assertThat(results.whisper()).isNull();
 
         // Reconciler should use available result
-        TranscriptionResult finalResult = reconciler.reconcile(results.vosk(), results.whisper());
+        TranscriptionResult finalResult = reconciler.reconcile(results.vosk(), null);
         assertThat(finalResult.text()).isEqualTo("vosk works");
     }
 
@@ -290,7 +290,7 @@ class ReconciliationEndToEndIntegrationTest {
                 0.6,
                 0.7
         );
-        TranscriptReconciler reconciler1 = createReconciler(props1, OrchestrationProperties.PrimaryEngine.VOSK);
+        TranscriptReconciler reconciler1 = createReconciler(props1);
         ParallelSttService.EnginePair results = parallelService.transcribeBoth(DUMMY_PCM, TIMEOUT_MS);
         TranscriptionResult result1 = reconciler1.reconcile(results.vosk(), results.whisper());
         assertThat(result1.text()).isEqualTo("primary");
@@ -302,7 +302,7 @@ class ReconciliationEndToEndIntegrationTest {
                 0.6,
                 0.7
         );
-        TranscriptReconciler reconciler2 = createReconciler(props2, OrchestrationProperties.PrimaryEngine.VOSK);
+        TranscriptReconciler reconciler2 = createReconciler(props2);
         TranscriptionResult result2 = reconciler2.reconcile(results.vosk(), results.whisper());
         assertThat(result2.text()).isEqualTo("secondary"); // Higher confidence
     }
@@ -314,10 +314,9 @@ class ReconciliationEndToEndIntegrationTest {
         return new DefaultParallelSttService(vosk, whisper, executor, 10000L);
     }
 
-    private TranscriptReconciler createReconciler(ReconciliationProperties props,
-                                                   OrchestrationProperties.PrimaryEngine primaryEngine) {
+    private TranscriptReconciler createReconciler(ReconciliationProperties props) {
         return switch (props.getStrategy()) {
-            case SIMPLE -> new SimplePreferenceReconciler(primaryEngine);
+            case SIMPLE -> new SimplePreferenceReconciler(OrchestrationProperties.PrimaryEngine.VOSK);
             case CONFIDENCE -> new ConfidenceReconciler();
             case OVERLAP -> new WordOverlapReconciler(props.getOverlapThreshold());
         };

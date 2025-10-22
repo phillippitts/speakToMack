@@ -70,22 +70,4 @@ public final class TimingCoordinator {
         lastTranscriptionTimeMs.set(System.currentTimeMillis());
     }
 
-    /**
-     * Resets the timing state (clears last transcription timestamp).
-     *
-     * <p>This is primarily for testing purposes or resetting state after
-     * long inactivity periods.
-     */
-    public void reset() {
-        lastTranscriptionTimeMs.set(0);
-    }
-
-    /**
-     * Returns the timestamp of the last recorded transcription.
-     *
-     * @return milliseconds since epoch, or 0 if no transcription has been recorded
-     */
-    long getLastTranscriptionTimeMs() {
-        return lastTranscriptionTimeMs.get();
-    }
 }

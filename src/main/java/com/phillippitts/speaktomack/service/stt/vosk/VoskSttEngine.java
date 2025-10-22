@@ -303,7 +303,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 // Extract from alternatives[0]
                 // Note: Vosk returns unnormalized confidence scores in alternatives format
                 org.json.JSONArray alternatives = obj.getJSONArray("alternatives");
-                if (alternatives.length() > 0) {
+                if (!alternatives.isEmpty()) {
                     JSONObject firstAlt = alternatives.getJSONObject(0);
                     text = firstAlt.optString("text", "").trim();
                     double rawConfidence = firstAlt.optDouble("confidence", 1.0);
@@ -354,7 +354,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             return 1.0; // No result array, assume perfect confidence
         }
         org.json.JSONArray results = obj.getJSONArray("result");
-        if (results.length() == 0) {
+        if (results.isEmpty()) {
             return 1.0; // Empty result, no words recognized
         }
 

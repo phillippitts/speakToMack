@@ -110,12 +110,4 @@ public final class ConcurrencyGuard {
         semaphore.release();
     }
 
-    /**
-     * Returns the number of available permits.
-     *
-     * @return number of permits currently available
-     */
-    public int availablePermits() {
-        return semaphore.availablePermits();
-    }
 }

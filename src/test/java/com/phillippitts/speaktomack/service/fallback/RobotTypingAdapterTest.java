@@ -94,7 +94,7 @@ class RobotTypingAdapterTest {
 
         // Focus delay should be first event
         assertThat(robot.events).isNotEmpty();
-        assertThat(robot.events.get(0)).isEqualTo("delay:200");
+        assertThat(robot.events.getFirst()).isEqualTo("delay:200");
         assertThat(robot.delayMs).isGreaterThanOrEqualTo(200);
     }
 

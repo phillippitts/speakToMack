@@ -70,7 +70,7 @@ class HotkeyToTypingIntegrationTest {
 
         // Step 5: Verify text was typed via TypingService
         assertThat(ctx.typingService.typedTexts).hasSize(1);
-        assertThat(ctx.typingService.typedTexts.get(0)).isEqualTo("hello world");
+        assertThat(ctx.typingService.typedTexts.getFirst()).isEqualTo("hello world");
     }
 
     @Test
