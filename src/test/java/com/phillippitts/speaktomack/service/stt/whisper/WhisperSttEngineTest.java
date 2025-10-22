@@ -54,7 +54,7 @@ class WhisperSttEngineTest {
         byte[] pcm = new byte[32_000];
         assertThatThrownBy(() -> engine.transcribe(pcm))
                 .isInstanceOf(TranscriptionException.class)
-                .hasMessageContaining("engine=whisper");
+                .hasMessageContaining("engine: whisper");
         engine.close();
     }
 

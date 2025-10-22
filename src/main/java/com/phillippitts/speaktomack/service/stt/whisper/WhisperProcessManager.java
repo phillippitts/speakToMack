@@ -301,12 +301,21 @@ public final class WhisperProcessManager implements AutoCloseable {
         long durationMs = TimeUtils.nanosToMillis(System.nanoTime() - ctx.startNano());
         String stderrSnippet = ctx.stderr() == null ? ""
                 : snippet(ctx.stderr(), WhisperConstants.ERROR_SNIPPET_MAX_CHARS);
-        String detail = String.format(
-                "%s (engine=whisper, exit=%d, durationMs=%d, bin=%s, model=%s, stderr=%s)",
-                msg, ctx.exitCode(), durationMs, ctx.cfg().binaryPath(), ctx.cfg().modelPath(), stderrSnippet
-        );
-        return ctx.cause() == null ? new TranscriptionException(detail, "whisper")
-                                   : new TranscriptionException(detail, "whisper", ctx.cause());
+
+        com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder builder =
+                com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder.create(msg)
+                        .engine("whisper")
+                        .exitCode(ctx.exitCode())
+                        .durationMs(durationMs)
+                        .metadata("binaryPath", ctx.cfg().binaryPath())
+                        .metadata("modelPath", ctx.cfg().modelPath())
+                        .metadata("stderr", stderrSnippet);
+
+        if (ctx.cause() != null) {
+            builder.cause(ctx.cause());
+        }
+
+        return builder.build();
     }
 
     private static String snippet(StringBuilder sb, int maxChars) {

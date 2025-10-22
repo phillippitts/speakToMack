@@ -47,7 +47,7 @@ class WhisperProcessManagerHermeticTest {
             .isInstanceOf(TranscriptionException.class)
             .hasMessageContaining("Non-zero exit")
             .hasMessageContaining("stderr=")
-            .hasMessageContaining("engine=whisper");
+            .hasMessageContaining("engine: whisper");
     }
 
     @Test

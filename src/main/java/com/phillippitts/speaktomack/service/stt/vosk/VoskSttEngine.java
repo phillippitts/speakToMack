@@ -122,9 +122,13 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 Map.of("modelPath", String.valueOf(config.modelPath()),
                        "sampleRate", String.valueOf(config.sampleRate()))
             );
-            throw new TranscriptionException(
-                "Failed to initialize Vosk (model=" + config.modelPath()
-                    + ", sampleRate=" + config.sampleRate() + ")", SttEngineNames.VOSK, t);
+            throw com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder
+                    .create("Failed to initialize Vosk")
+                    .engine(SttEngineNames.VOSK)
+                    .cause(t)
+                    .metadata("modelPath", config.modelPath())
+                    .metadata("sampleRate", config.sampleRate())
+                    .build();
         }
     }
 
@@ -181,7 +185,11 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
             String json = processAudioAndGetResult(localRecognizer, audioData);
             return parseJsonAndCreateResult(json);
         } catch (Throwable t) {
-            throw new TranscriptionException("Vosk transcription failed", SttEngineNames.VOSK, t);
+            throw com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder
+                    .create("Vosk transcription failed")
+                    .engine(SttEngineNames.VOSK)
+                    .cause(t)
+                    .build();
         }
     }
 
