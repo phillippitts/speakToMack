@@ -273,9 +273,13 @@ public final class DualEngineOrchestratorBuilder {
                 ? metricsPublisher
                 : TranscriptionMetricsPublisher.NOOP;
 
+        // Create CaptureOrchestrator from capture service and state machine
+        CaptureOrchestrator captureOrchestrator = new DefaultCaptureOrchestrator(
+                captureService, captureStateMachine);
+
         // Create orchestrator with all dependencies (nullable optional ones will be handled by constructor)
         return new DualEngineOrchestrator(
-                captureService,
+                captureOrchestrator,
                 voskEngine,
                 whisperEngine,
                 watchdog,
@@ -285,7 +289,6 @@ public final class DualEngineOrchestratorBuilder {
                 parallelSttService,
                 transcriptReconciler,
                 reconciliationProperties,
-                captureStateMachine,
                 engineSelector,
                 timingCoordinator,
                 effectiveMetricsPublisher

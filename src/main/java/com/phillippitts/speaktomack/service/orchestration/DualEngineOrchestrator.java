@@ -4,7 +4,6 @@ import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
-import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.CaptureErrorEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
@@ -97,7 +96,7 @@ public class DualEngineOrchestrator {
     // Timeout value indicating "use service default"
     private static final long USE_DEFAULT_TIMEOUT = 0L;
 
-    private final AudioCaptureService captureService;
+    private final CaptureOrchestrator captureOrchestrator;
     private final SttEngine vosk;
     private final SttEngine whisper;
     private final SttEngineWatchdog watchdog;
@@ -111,10 +110,12 @@ public class DualEngineOrchestrator {
     private final ReconciliationProperties recProps;
 
     // State machines and services for managing complex state and logic
-    private final CaptureStateMachine captureStateMachine;
     private final EngineSelectionStrategy engineSelector;
     private final TimingCoordinator timingCoordinator;
     private final TranscriptionMetricsPublisher metricsPublisher;
+
+    // Active capture session tracking
+    private UUID activeSessionId;
 
     /**
      * Constructs a DualEngineOrchestrator in single-engine mode (no reconciliation).
@@ -122,32 +123,35 @@ public class DualEngineOrchestrator {
      * <p>This constructor is used when reconciliation is disabled. The orchestrator will
      * select one engine per transcription based on primary preference and health status.
      *
-     * @param captureService service for audio capture lifecycle management
+     * @param captureOrchestrator orchestrator for audio capture lifecycle management
      * @param vosk Vosk STT engine instance
      * @param whisper Whisper STT engine instance
      * @param watchdog engine health monitor and enablement controller
      * @param props orchestration configuration (primary engine preference)
      * @param hotkeyProps hotkey configuration (toggle mode, etc.)
      * @param publisher Spring event publisher for transcription results
+     * @param engineSelector strategy for selecting STT engine
+     * @param timingCoordinator coordinator for timing and paragraph breaks
+     * @param metricsPublisher publisher for transcription metrics
      * @throws NullPointerException if any parameter is null
-     * @see #DualEngineOrchestrator(AudioCaptureService, SttEngine, SttEngine, SttEngineWatchdog,
+     * @see #DualEngineOrchestrator(CaptureOrchestrator, SttEngine, SttEngine, SttEngineWatchdog,
      *      OrchestrationProperties, HotkeyProperties, ApplicationEventPublisher, ParallelSttService,
-     *      TranscriptReconciler, ReconciliationProperties)
+     *      TranscriptReconciler, ReconciliationProperties, EngineSelectionStrategy,
+     *      TimingCoordinator, TranscriptionMetricsPublisher)
      */
     // CHECKSTYLE.OFF: ParameterNumber - Builder pattern used for construction
-    public DualEngineOrchestrator(AudioCaptureService captureService,
+    public DualEngineOrchestrator(CaptureOrchestrator captureOrchestrator,
                                   SttEngine vosk,
                                   SttEngine whisper,
                                   SttEngineWatchdog watchdog,
                                   OrchestrationProperties props,
                                   HotkeyProperties hotkeyProps,
                                   ApplicationEventPublisher publisher,
-                                  CaptureStateMachine captureStateMachine,
                                   EngineSelectionStrategy engineSelector,
                                   TimingCoordinator timingCoordinator,
                                   TranscriptionMetricsPublisher metricsPublisher) {
-        this(captureService, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null,
-                captureStateMachine, engineSelector, timingCoordinator, metricsPublisher);
+        this(captureOrchestrator, vosk, whisper, watchdog, props, hotkeyProps, publisher, null, null, null,
+                engineSelector, timingCoordinator, metricsPublisher);
     }
     // CHECKSTYLE.ON: ParameterNumber
 
@@ -172,7 +176,7 @@ public class DualEngineOrchestrator {
      * <p>If any Phase 4 parameter is {@code null} or reconciliation is disabled, the orchestrator
      * falls back to single-engine mode (same behavior as the 7-parameter constructor).
      *
-     * @param captureService service for audio capture lifecycle management
+     * @param captureOrchestrator orchestrator for audio capture lifecycle management
      * @param vosk Vosk STT engine instance
      * @param whisper Whisper STT engine instance
      * @param watchdog engine health monitor and enablement controller
@@ -182,6 +186,8 @@ public class DualEngineOrchestrator {
      * @param parallel service for running both engines in parallel (nullable)
      * @param reconciler strategy for merging dual-engine results (nullable)
      * @param recProps reconciliation configuration and enablement flag (nullable)
+     * @param engineSelector strategy for selecting STT engine
+     * @param timingCoordinator coordinator for timing and paragraph breaks
      * @param metricsPublisher metrics publishing service
      * @throws NullPointerException if any required parameter is null (Phase 4 params are optional)
      * @see ParallelSttService
@@ -190,7 +196,7 @@ public class DualEngineOrchestrator {
      * @see DualEngineOrchestratorBuilder
      */
     // CHECKSTYLE.OFF: ParameterNumber - Package-private constructor only used by builder
-    DualEngineOrchestrator(AudioCaptureService captureService,
+    DualEngineOrchestrator(CaptureOrchestrator captureOrchestrator,
                            SttEngine vosk,
                            SttEngine whisper,
                            SttEngineWatchdog watchdog,
@@ -200,11 +206,10 @@ public class DualEngineOrchestrator {
                            ParallelSttService parallel,
                            TranscriptReconciler reconciler,
                            ReconciliationProperties recProps,
-                           CaptureStateMachine captureStateMachine,
                            EngineSelectionStrategy engineSelector,
                            TimingCoordinator timingCoordinator,
                            TranscriptionMetricsPublisher metricsPublisher) {
-        this.captureService = Objects.requireNonNull(captureService);
+        this.captureOrchestrator = Objects.requireNonNull(captureOrchestrator);
         this.vosk = Objects.requireNonNull(vosk);
         this.whisper = Objects.requireNonNull(whisper);
         this.watchdog = Objects.requireNonNull(watchdog);
@@ -214,7 +219,6 @@ public class DualEngineOrchestrator {
         this.parallel = parallel;
         this.reconciler = reconciler;
         this.recProps = recProps;
-        this.captureStateMachine = Objects.requireNonNull(captureStateMachine);
         this.engineSelector = Objects.requireNonNull(engineSelector);
         this.timingCoordinator = Objects.requireNonNull(timingCoordinator);
         this.metricsPublisher = Objects.requireNonNull(metricsPublisher);
@@ -243,31 +247,29 @@ public class DualEngineOrchestrator {
      *
      * @param evt the hotkey pressed event with timestamp
      * @see HotkeyPressedEvent
-     * @see AudioCaptureService#startSession()
+     * @see CaptureOrchestrator#startCapture()
      */
     @EventListener
     @Async("eventExecutor")
     public void onHotkeyPressed(HotkeyPressedEvent evt) {
-        if (captureStateMachine.isActive()) {
+        if (captureOrchestrator.isCapturing()) {
             // In toggle mode, pressing again stops the capture
             if (hotkeyProps.isToggleMode()) {
-                LOG.info("Toggle mode: stopping capture on second press (session={})",
-                        captureStateMachine.getActiveSession());
+                LOG.info("Toggle mode: stopping capture on second press (session={})", activeSessionId);
                 processToggleStop();
             } else {
-                LOG.debug("Capture already active (session={})", captureStateMachine.getActiveSession());
+                LOG.debug("Capture already active (session={})", activeSessionId);
             }
             return;
         }
 
-        UUID sessionId = captureService.startSession();
-        if (captureStateMachine.startCapture(sessionId)) {
+        UUID sessionId = captureOrchestrator.startCapture();
+        if (sessionId != null) {
+            activeSessionId = sessionId;
             LOG.info("Capture session started at {} (session={}, toggleMode={})",
                      evt.at(), sessionId, hotkeyProps.isToggleMode());
         } else {
-            // Race condition: another session started between our check and start attempt
-            LOG.warn("Failed to start capture session {}, another session already active", sessionId);
-            captureService.cancelSession(sessionId);
+            LOG.warn("Failed to start capture session, another session already active");
         }
     }
 
@@ -275,18 +277,16 @@ public class DualEngineOrchestrator {
      * Processes toggle mode stop: stops capture and initiates transcription.
      */
     private void processToggleStop() {
-        UUID session = captureStateMachine.getActiveSession();
-        if (session == null) {
+        if (activeSessionId == null) {
             LOG.warn("processToggleStop called but no active session");
             return;
         }
 
-        captureService.stopSession(session);
-        captureStateMachine.stopCapture(session);
+        byte[] pcm = captureOrchestrator.stopCapture(activeSessionId);
+        activeSessionId = null;
 
-        // Process transcription asynchronously (same as onHotkeyReleased)
-        byte[] pcm = finalizeCaptureSession(session);
         if (pcm == null) {
+            LOG.warn("Failed to retrieve audio data from capture session");
             return; // Capture failed
         }
 
@@ -325,8 +325,7 @@ public class DualEngineOrchestrator {
      *
      * @param evt the hotkey released event with timestamp
      * @see HotkeyReleasedEvent
-     * @see AudioCaptureService#stopSession(UUID)
-     * @see AudioCaptureService#readAll(UUID)
+     * @see CaptureOrchestrator#stopCapture(UUID)
      * @see TranscriptionCompletedEvent
      */
     @EventListener
@@ -338,13 +337,16 @@ public class DualEngineOrchestrator {
             return;
         }
 
-        UUID session = stopCaptureSession();
-        if (session == null) {
-            return; // No active session
+        if (activeSessionId == null) {
+            LOG.debug("No active capture session on release; ignoring");
+            return;
         }
 
-        byte[] pcm = finalizeCaptureSession(session);
+        byte[] pcm = captureOrchestrator.stopCapture(activeSessionId);
+        activeSessionId = null;
+
         if (pcm == null) {
+            LOG.warn("Failed to retrieve audio data from capture session");
             return; // Capture failed
         }
 
@@ -353,41 +355,6 @@ public class DualEngineOrchestrator {
             transcribeWithReconciliation(pcm);
         } else {
             transcribeWithSingleEngine(pcm);
-        }
-    }
-
-    /**
-     * Stops the active capture session and returns the session ID.
-     *
-     * @return session ID if an active session exists, null otherwise
-     */
-    private UUID stopCaptureSession() {
-        UUID session = captureStateMachine.getActiveSession();
-        if (session == null) {
-            LOG.debug("No active capture session on release; ignoring");
-            return null;
-        }
-
-        captureService.stopSession(session);
-        if (!captureStateMachine.stopCapture(session)) {
-            LOG.warn("Failed to stop capture session {} - session ID mismatch or not active", session);
-        }
-        return session;
-    }
-
-    /**
-     * Reads captured audio data from the session and handles cleanup on failure.
-     *
-     * @param session the capture session ID
-     * @return PCM audio data, or null if finalization failed
-     */
-    private byte[] finalizeCaptureSession(UUID session) {
-        try {
-            return captureService.readAll(session);
-        } catch (Exception e) {
-            LOG.warn("Failed to finalize capture session {}: {}", session, e.toString());
-            captureService.cancelSession(session);
-            return null;
         }
     }
 
@@ -542,10 +509,10 @@ public class DualEngineOrchestrator {
      */
     @EventListener
     public void onCaptureError(CaptureErrorEvent event) {
-        UUID cancelledSession = captureStateMachine.cancelCapture();
-        if (cancelledSession != null) {
-            LOG.warn("Capture error during session {}: {}", cancelledSession, event.reason());
-            captureService.cancelSession(cancelledSession);
+        if (activeSessionId != null) {
+            LOG.warn("Capture error during session {}: {}", activeSessionId, event.reason());
+            captureOrchestrator.cancelCapture(activeSessionId);
+            activeSessionId = null;
         } else {
             LOG.debug("Capture error when no active session: {}", event.reason());
         }
