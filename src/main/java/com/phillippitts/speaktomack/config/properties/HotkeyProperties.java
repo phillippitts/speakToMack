@@ -1,5 +1,6 @@
-package com.phillippitts.speaktomack.config.hotkey;
+package com.phillippitts.speaktomack.config.properties;
 
+import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -63,7 +64,7 @@ public class HotkeyProperties {
         this.reserved = (reserved == null || reserved.isEmpty())
                 ? List.of("META+TAB", "META+L")
                 : List.copyOf(reserved);
-        this.toggleMode = toggleMode == null ? false : toggleMode;
+        this.toggleMode = toggleMode != null && toggleMode;
     }
 
     public TriggerType getType() {

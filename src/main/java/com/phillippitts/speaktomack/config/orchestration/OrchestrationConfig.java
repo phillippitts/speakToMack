@@ -1,9 +1,10 @@
 package com.phillippitts.speaktomack.config.orchestration;
 
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
 import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;

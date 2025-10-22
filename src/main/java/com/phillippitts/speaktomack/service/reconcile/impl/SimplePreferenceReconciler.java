@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.reconcile.impl;
 
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.EngineResult;

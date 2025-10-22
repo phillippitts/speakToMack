@@ -1,4 +1,4 @@
-package com.phillippitts.speaktomack.config.orchestration;
+package com.phillippitts.speaktomack.config.properties;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

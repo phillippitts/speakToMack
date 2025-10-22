@@ -1,5 +1,7 @@
 package com.phillippitts.speaktomack.service.validation;
 
+import com.phillippitts.speaktomack.config.properties.AudioValidationProperties;
+
 import com.phillippitts.speaktomack.exception.InvalidAudioException;
 import com.phillippitts.speaktomack.service.audio.WavFormat;
 import org.springframework.stereotype.Component;

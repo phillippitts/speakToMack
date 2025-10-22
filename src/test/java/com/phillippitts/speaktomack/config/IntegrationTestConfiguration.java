@@ -1,9 +1,9 @@
 package com.phillippitts.speaktomack.config;
 
-import com.phillippitts.speaktomack.config.audio.AudioCaptureProperties;
+import com.phillippitts.speaktomack.config.properties.AudioCaptureProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.JavaSoundAudioCaptureService;
-import com.phillippitts.speaktomack.service.validation.AudioValidationProperties;
+import com.phillippitts.speaktomack.config.properties.AudioValidationProperties;
 import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

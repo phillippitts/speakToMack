@@ -11,14 +11,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties({
         VoskConfig.class,
         WhisperConfig.class,
-        com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties.class,
-        com.phillippitts.speaktomack.config.stt.SttWatchdogProperties.class,
-        com.phillippitts.speaktomack.config.audio.AudioCaptureProperties.class,
-        com.phillippitts.speaktomack.service.validation.AudioValidationProperties.class,
-        com.phillippitts.speaktomack.config.hotkey.HotkeyProperties.class,
-        com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties.class,
-        com.phillippitts.speaktomack.config.typing.TypingProperties.class,
-        com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties.class
+        com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties.class,
+        com.phillippitts.speaktomack.config.properties.SttWatchdogProperties.class,
+        com.phillippitts.speaktomack.config.properties.AudioCaptureProperties.class,
+        com.phillippitts.speaktomack.config.properties.AudioValidationProperties.class,
+        com.phillippitts.speaktomack.config.properties.HotkeyProperties.class,
+        com.phillippitts.speaktomack.config.properties.OrchestrationProperties.class,
+        com.phillippitts.speaktomack.config.properties.TypingProperties.class,
+        com.phillippitts.speaktomack.config.properties.ReconciliationProperties.class
 })
 @EnableScheduling
 public class SpeakToMackApplication {

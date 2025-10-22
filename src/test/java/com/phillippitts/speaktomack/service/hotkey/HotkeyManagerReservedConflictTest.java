@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.hotkey;
 
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyConflictEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;

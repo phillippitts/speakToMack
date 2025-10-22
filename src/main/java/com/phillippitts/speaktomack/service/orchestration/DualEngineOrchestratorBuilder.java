@@ -1,8 +1,8 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.SttEngine;

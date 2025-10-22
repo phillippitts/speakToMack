@@ -8,7 +8,7 @@
  * <ul>
  *   <li>{@link com.phillippitts.speaktomack.service.validation.AudioValidator} - Service
  *       that validates audio byte arrays against duration and size constraints</li>
- *   <li>{@link com.phillippitts.speaktomack.service.validation.AudioValidationProperties} -
+ *   <li>{@link com.phillippitts.speaktomack.config.properties.AudioValidationProperties} -
  *       Configuration properties bound from {@code audio.validation.*} settings</li>
  * </ul>
  *

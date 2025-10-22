@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.stt.whisper;
 
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
+import com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
@@ -90,7 +91,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
 
     @Autowired
     public WhisperSttEngine(WhisperConfig cfg,
-                             com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
+                             SttConcurrencyProperties concurrencyProperties,
                              WhisperProcessManager manager,
                              ApplicationEventPublisher publisher,
                              @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")

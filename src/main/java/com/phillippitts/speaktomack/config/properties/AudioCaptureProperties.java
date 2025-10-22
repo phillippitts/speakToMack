@@ -1,4 +1,4 @@
-package com.phillippitts.speaktomack.config.audio;
+package com.phillippitts.speaktomack.config.properties;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

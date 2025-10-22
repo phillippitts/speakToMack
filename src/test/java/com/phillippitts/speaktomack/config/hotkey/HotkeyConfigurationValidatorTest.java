@@ -2,6 +2,8 @@ package com.phillippitts.speaktomack.config.hotkey;
 
 import org.junit.jupiter.api.Test;
 
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
+
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

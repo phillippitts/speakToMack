@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.hotkey;
 
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
 import org.junit.jupiter.api.Test;

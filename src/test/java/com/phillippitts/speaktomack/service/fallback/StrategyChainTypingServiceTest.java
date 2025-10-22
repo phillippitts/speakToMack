@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.fallback;
 
-import com.phillippitts.speaktomack.config.typing.TypingProperties;
+import com.phillippitts.speaktomack.config.properties.TypingProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

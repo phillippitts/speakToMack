@@ -38,7 +38,7 @@
  *
  * <h2>Configuration</h2>
  * <p>The watchdog is configured via
- * {@link com.phillippitts.speaktomack.config.stt.SttWatchdogProperties SttWatchdogProperties}
+ * {@link com.phillippitts.speaktomack.config.properties.SttWatchdogProperties SttWatchdogProperties}
  * with the following properties (prefix: {@code stt.watchdog}):</p>
  * <ul>
  *   <li>{@code enabled} - Enable/disable watchdog globally (default: true)</li>
@@ -135,6 +135,6 @@
  * @see com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog
  * @see com.phillippitts.speaktomack.service.stt.watchdog.EngineFailureEvent
  * @see com.phillippitts.speaktomack.service.stt.watchdog.EngineRecoveredEvent
- * @see com.phillippitts.speaktomack.config.stt.SttWatchdogProperties
+ * @see com.phillippitts.speaktomack.config.properties.SttWatchdogProperties
  */
 package com.phillippitts.speaktomack.service.stt.watchdog;

@@ -1,9 +1,9 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.config.hotkey.TriggerType;
-import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
+import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
@@ -195,7 +195,7 @@ class DualEngineOrchestratorReconciledTest {
         final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
             super(java.util.List.of(),
-                    new com.phillippitts.speaktomack.config.stt.SttWatchdogProperties(),
+                    new com.phillippitts.speaktomack.config.properties.SttWatchdogProperties(),
                     e -> { });
             this.voskEnabled = voskEnabled;
             this.whisperEnabled = whisperEnabled;

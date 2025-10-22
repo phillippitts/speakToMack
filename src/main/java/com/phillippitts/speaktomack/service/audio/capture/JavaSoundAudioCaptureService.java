@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.audio.capture;
 
-import com.phillippitts.speaktomack.config.audio.AudioCaptureProperties;
+import com.phillippitts.speaktomack.config.properties.AudioCaptureProperties;
 import com.phillippitts.speaktomack.service.audio.AudioFormat;
 import com.phillippitts.speaktomack.service.validation.AudioValidator;
 import com.phillippitts.speaktomack.util.ProcessTimeouts;

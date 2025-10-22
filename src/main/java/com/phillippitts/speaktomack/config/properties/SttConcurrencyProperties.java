@@ -1,4 +1,4 @@
-package com.phillippitts.speaktomack.config.stt;
+package com.phillippitts.speaktomack.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;

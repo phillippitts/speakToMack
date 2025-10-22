@@ -80,7 +80,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      */
     @Autowired
     public VoskSttEngine(VoskConfig config,
-            com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties concurrencyProperties,
+            com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
             ApplicationEventPublisher publisher) {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());

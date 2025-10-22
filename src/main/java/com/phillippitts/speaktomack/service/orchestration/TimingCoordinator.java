@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;

@@ -1,6 +1,8 @@
 package com.phillippitts.speaktomack.service.validation;
 
 import com.phillippitts.speaktomack.exception.InvalidAudioException;
+
+import com.phillippitts.speaktomack.config.properties.AudioValidationProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

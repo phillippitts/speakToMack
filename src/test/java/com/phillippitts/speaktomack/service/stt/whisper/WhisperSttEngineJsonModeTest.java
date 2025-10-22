@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.stt.whisper;
 
-import com.phillippitts.speaktomack.config.stt.SttConcurrencyProperties;
+import com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties;
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import org.junit.jupiter.api.Test;

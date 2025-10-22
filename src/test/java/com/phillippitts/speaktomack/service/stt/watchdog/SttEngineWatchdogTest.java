@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.stt.watchdog;
 
-import com.phillippitts.speaktomack.config.stt.SttWatchdogProperties;
+import com.phillippitts.speaktomack.config.properties.SttWatchdogProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.service.fallback;
 
-import com.phillippitts.speaktomack.config.typing.TypingProperties;
+import com.phillippitts.speaktomack.config.properties.TypingProperties;
 import com.phillippitts.speaktomack.service.fallback.event.AllTypingFallbacksFailedEvent;
 import com.phillippitts.speaktomack.service.fallback.event.TypingFallbackEvent;
 import com.phillippitts.speaktomack.util.LogSanitizer;

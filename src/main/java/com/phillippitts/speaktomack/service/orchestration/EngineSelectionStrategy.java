@@ -1,7 +1,7 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties.PrimaryEngine;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties.PrimaryEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import org.apache.logging.log4j.LogManager;

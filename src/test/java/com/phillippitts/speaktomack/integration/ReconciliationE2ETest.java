@@ -1,10 +1,10 @@
 package com.phillippitts.speaktomack.integration;
 
-import com.phillippitts.speaktomack.config.orchestration.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.hotkey.HotkeyProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.config.hotkey.TriggerType;
-import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
-import com.phillippitts.speaktomack.config.stt.SttWatchdogProperties;
+import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
+import com.phillippitts.speaktomack.config.properties.SttWatchdogProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
 import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;

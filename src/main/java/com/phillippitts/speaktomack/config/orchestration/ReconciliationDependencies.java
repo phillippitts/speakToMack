@@ -1,6 +1,6 @@
 package com.phillippitts.speaktomack.config.orchestration;
 
-import com.phillippitts.speaktomack.config.reconcile.ReconciliationProperties;
+import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
 import org.springframework.stereotype.Component;

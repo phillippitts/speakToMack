@@ -1,5 +1,7 @@
 package com.phillippitts.speaktomack.config.hotkey;
 
+import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
+
 import com.phillippitts.speaktomack.service.hotkey.KeyNameMapper;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
