@@ -31,6 +31,10 @@ public final class WavWriter {
     public static void writePcm16LeMono16kHz(byte[] pcm, Path wavPath) {
         Objects.requireNonNull(pcm, "pcm must not be null");
         Objects.requireNonNull(wavPath, "wavPath must not be null");
+        if ((pcm.length & 1) != 0) {
+            throw new IllegalArgumentException(
+                    "PCM data length must be even (16-bit samples = 2 bytes each), got " + pcm.length);
+        }
         try (OutputStream os = Files.newOutputStream(wavPath)) {
             // RIFF header (44 bytes total)
             // ChunkID: "RIFF"

@@ -435,8 +435,9 @@ public final class DualEngineOrchestrator {
                 SttEngineNames.VOSK.equals(engineName) &&
                 result.confidence() < recProps.getConfidenceThreshold()) {
 
-                LOG.info("Vosk confidence {:.3f} < threshold {:.3f}, upgrading to dual-engine reconciliation",
-                         result.confidence(), recProps.getConfidenceThreshold());
+                LOG.info("Vosk confidence {} < threshold {}, upgrading to dual-engine reconciliation",
+                         String.format("%.3f", result.confidence()),
+                         String.format("%.3f", recProps.getConfidenceThreshold()));
 
                 // Upgrade to dual-engine mode for this transcription
                 transcribeWithReconciliation(pcm);
