@@ -269,10 +269,10 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         int start = 0;
         for (int boundary : boundaries) {
             if (boundary > start) {
-                SegmentResult result = transcribeSegmentRange(localModel, audioData, start, boundary);
-                if (result.hasText()) {
-                    segments.add(result.text);
-                    totalConfidence += result.confidence;
+                TranscriptionResult result = transcribeSegmentRange(localModel, audioData, start, boundary);
+                if (!result.text().isBlank()) {
+                    segments.add(result.text());
+                    totalConfidence += result.confidence();
                     segmentCount++;
                 }
                 start = boundary;
@@ -281,10 +281,10 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
 
         // Handle remaining audio after last boundary
         if (start < audioData.length) {
-            SegmentResult result = transcribeSegmentRange(localModel, audioData, start, audioData.length);
-            if (result.hasText()) {
-                segments.add(result.text);
-                totalConfidence += result.confidence;
+            TranscriptionResult result = transcribeSegmentRange(localModel, audioData, start, audioData.length);
+            if (!result.text().isBlank()) {
+                segments.add(result.text());
+                totalConfidence += result.confidence();
                 segmentCount++;
             }
         }
@@ -299,22 +299,12 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      * @param audioData the complete audio data
      * @param start start byte offset (inclusive)
      * @param end end byte offset (exclusive)
-     * @return segment result containing text and confidence
+     * @return transcription result containing text and confidence
      */
-    private SegmentResult transcribeSegmentRange(
+    private TranscriptionResult transcribeSegmentRange(
             org.vosk.Model localModel, byte[] audioData, int start, int end) {
         byte[] segment = Arrays.copyOfRange(audioData, start, end);
-        TranscriptionResult result = transcribeSingleSegment(localModel, segment);
-        return new SegmentResult(result.text(), result.confidence());
-    }
-
-    /**
-     * Holds the result of transcribing a single audio segment.
-     */
-    private record SegmentResult(String text, double confidence) {
-        boolean hasText() {
-            return text != null && !text.isBlank();
-        }
+        return transcribeSingleSegment(localModel, segment);
     }
 
     /**

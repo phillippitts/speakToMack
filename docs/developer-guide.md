@@ -3,7 +3,7 @@
 This guide helps contributors understand the architecture, patterns, testing strategy, and contribution flow for speakToMack.
 
 ## Architecture Overview
-- 3‑tier layering: Presentation → Service → Data (no reverse deps)
+- 2‑tier layering: Presentation → Service (no reverse deps; Data layer planned for Phase 6)
 - Event-driven orchestration (Spring ApplicationEvents)
 - Strategy/Factory/Adapter patterns:
   - Strategy: TranscriptReconciler, HotkeyTrigger, TypingAdapter

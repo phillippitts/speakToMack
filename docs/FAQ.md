@@ -140,7 +140,6 @@ stt.reconciliation.strategy=confidence
 | Model | Size | Speed | Accuracy | Recommended For |
 |-------|------|-------|----------|-----------------|
 | `vosk-model-en-us-0.22` | 1.8GB | Fast | Excellent | Daily use (default) |
-| `vosk-model-small-en-us-0.15` | 40MB | Very Fast | Good | Lightweight alternative (deprecated) |
 
 **Whisper Models:**
 | Model | Size | Speed | Accuracy | Recommended For |
@@ -323,7 +322,7 @@ Increase `inter-chunk-delay-ms` if chunks are being lost.
 
 ### How fast is transcription?
 
-**Vosk (small model):** 0.5-1.5 seconds for 5-second clip
+**Vosk (0.22 model):** 1-2 seconds for 5-second clip
 **Whisper (base model):** 1-3 seconds for 5-second clip
 **Reconciliation (both):** 1-3 seconds (parallel execution)
 
@@ -331,7 +330,7 @@ Actual speed depends on CPU, model size, and audio length.
 
 ### How accurate is transcription?
 
-**Vosk (small model):** ~85-90% accuracy (casual speech)
+**Vosk (0.22 model):** ~90-93% accuracy (casual speech)
 **Whisper (base model):** ~92-95% accuracy (casual speech)
 **Reconciliation (confidence):** ~95-97% accuracy (10-25% improvement)
 

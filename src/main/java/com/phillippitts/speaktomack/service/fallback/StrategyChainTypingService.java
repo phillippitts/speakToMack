@@ -53,7 +53,6 @@ public class StrategyChainTypingService implements TypingService {
 
     @Override
     public boolean paste(String text) {
-        String preview = LogSanitizer.truncate(text, 120);
         for (TypingAdapter a : chain) {
             if (!a.canType()) {
                 LOG.debug("Skipping adapter {}: unavailable", a.name());
@@ -73,7 +72,12 @@ public class StrategyChainTypingService implements TypingService {
                 publisher.publishEvent(new TypingFallbackEvent(a.name(), e.getClass().getSimpleName(), Instant.now()));
             }
         }
-        LOG.info("No typing adapters succeeded (chars={}, preview='{}')", text == null ? 0 : text.length(), preview);
+        // Privacy-safe: only log character count at INFO level
+        LOG.info("No typing adapters succeeded (chars={})", text == null ? 0 : text.length());
+        if (LOG.isDebugEnabled()) {
+            String preview = LogSanitizer.truncate(text, 120);
+            LOG.debug("Failed text preview: '{}'", preview);
+        }
         publisher.publishEvent(new AllTypingFallbacksFailedEvent("no adapters succeeded", Instant.now()));
         return false;
     }

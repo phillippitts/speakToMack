@@ -17,16 +17,14 @@ Run Vosk and Whisper **in parallel** on separate threads, reconcile results usin
 - `ParallelSttService` uses `ExecutorService` with 2 threads
 - Both engines process same audio buffer simultaneously
 - `TranscriptReconciler` (Strategy pattern) selects final text
-- 5 reconciliation strategies: Simple, Overlap, Diff, Confidence, Weighted
+- 3 reconciliation strategies: Simple, Confidence, Word-Overlap
 
 **Configuration:**
-```yaml
-stt:
-  parallel:
-    enabled: true
-    timeout-ms: 5000
-  reconciliation:
-    strategy: overlap  # simple|overlap|diff|weighted|confidence
+```properties
+stt.reconciliation.enabled=true
+stt.reconciliation.strategy=word-overlap  # simple | confidence | word-overlap
+stt.reconciliation.overlap-threshold=0.6
+stt.parallel.timeout-ms=10000
 ```
 
 ## Consequences

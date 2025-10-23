@@ -40,7 +40,7 @@ hotkey.type=single-key            # single-key | double-tap | modifier-combo
 hotkey.key=RIGHT_META             # e.g., RIGHT_META, F13, D
 # hotkey.modifiers=META,SHIFT     # for modifier-combo (required for this type)
 # hotkey.threshold-ms=300         # for double-tap (100-1000ms)
-# hotkey.toggle-mode=false        # true for click-to-toggle, false for push-to-talk
+hotkey.toggle-mode=false          # true for click-to-toggle, false for push-to-talk
 # hotkey.reserved=META+TAB,META+L # flag conflicts (platform-aware)
 ```
 

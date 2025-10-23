@@ -26,42 +26,37 @@ graph TB
     style FM fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
-## 3-Tier Architecture Layers
+## 2-Tier Architecture Layers
 
 ```mermaid
 graph LR
     subgraph Presentation["Presentation Layer (Tier 1)"]
-        Controllers[REST Controllers<br/>DTOs<br/>Exception Handlers]
+        Controllers[REST Controllers<br/>DTOs<br/>Exception Handlers<br/>Actuator Endpoints]
     end
-    
+
     subgraph Service["Service Layer (Tier 2)"]
         Orchestrator[DictationOrchestrator]
         STT[STT Engines]
         Audio[Audio Capture]
         Hotkey[Hotkey Manager]
         Reconcile[Reconciliation]
+        Typing[Typing/Fallback]
     end
-    
-    subgraph Data["Data Access Layer (Tier 3)"]
-        Repos[Repositories<br/>JPA Entities]
-        DB[(PostgreSQL)]
-    end
-    
+
     Presentation -->|Uses| Service
-    Service -->|Uses| Data
-    Data -->|JDBC| DB
-    
+
     style Presentation fill:#e1f5ff
     style Service fill:#fff4e1
-    style Data fill:#e8f5e9
 ```
+
+**Note:** Database persistence is planned for Phase 6 but not yet implemented. Current architecture is in-memory only.
 
 ## Design Patterns Applied
 
 ```mermaid
 graph TD
     subgraph Patterns["Design Patterns in speakToMack"]
-        Strategy[Strategy Pattern<br/>TranscriptReconciler<br/>5 implementations]
+        Strategy[Strategy Pattern<br/>TranscriptReconciler<br/>3 implementations]
         Factory[Factory Pattern<br/>HotkeyTriggerFactory<br/>SttEngineFactory]
         Adapter[Adapter Pattern<br/>VoskSttEngine wraps JNI<br/>WhisperSttEngine wraps binary]
         Observer[Observer Pattern<br/>Hotkey events<br/>Spring ApplicationEvent]

@@ -81,7 +81,6 @@ stt.vosk.max-alternatives=1
 
 **Supported Models:**
 - `vosk-model-en-us-0.22` (1.8GB, high accuracy) **← Current default**
-- `vosk-model-small-en-us-0.15` (40MB, fast, moderate accuracy, deprecated)
 - See [Vosk Models](https://alphacephei.com/vosk/models) for more options
 
 ---
@@ -274,7 +273,8 @@ Configures the global hotkey for push-to-talk.
 | `hotkey.type` | String | `single-key` | Hotkey type. Options: `single-key`, `double-tap`, or `modifier-combo`. |
 | `hotkey.key` | String | `RIGHT_META` | Primary key for hotkey. Examples: `RIGHT_META` (⌘ on macOS), `M`, `SPACE`, `F13`. |
 | `hotkey.modifiers` | String | (empty) | Comma-separated modifiers. Required for `modifier-combo`, optional for `single-key` and `double-tap`. Options: `SHIFT`, `CTRL`, `ALT`, `META`, `LEFT_META`, `RIGHT_META`. |
-| `hotkey.threshold-ms` | int | (no threshold) | Optional: For `double-tap`, this is the maximum time between taps (100-1000ms). For other types, it's the minimum hold duration. |
+| `hotkey.threshold-ms` | int | (no threshold) | Optional: For `double-tap`, this is the maximum time between taps (100-1000ms recommended). For other types, it's the minimum hold duration. |
+| `hotkey.toggle-mode` | boolean | `false` | Toggle mode: `true` = click once to start recording, click again to stop and transcribe. `false` = push-to-talk (press to start, release to stop). |
 | `hotkey.reserved` | String | (empty) | Comma-separated list of OS shortcuts to warn about. Platform-aware validation. |
 
 **Example - Single Key (Right Command on macOS):**
@@ -305,7 +305,7 @@ hotkey.type=double-tap
 hotkey.key=D
 hotkey.threshold-ms=300
 ```
-**Note:** `threshold-ms` for `double-tap` must be between 100-1000 milliseconds. The validator enforces this range at startup, though the property annotation in `HotkeyProperties.java` currently specifies `@Min(50)` - the actual effective minimum is 100ms.
+**Note:** `threshold-ms` for `double-tap` should be between 100-1000 milliseconds for best results.
 
 **Example - Hold Threshold (Hold 300ms to activate):**
 ```properties

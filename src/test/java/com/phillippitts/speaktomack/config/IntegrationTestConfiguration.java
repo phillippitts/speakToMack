@@ -1,6 +1,10 @@
 package com.phillippitts.speaktomack.config;
 
 import com.phillippitts.speaktomack.config.properties.AudioCaptureProperties;
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties;
+import com.phillippitts.speaktomack.config.stt.VoskConfig;
+import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.JavaSoundAudioCaptureService;
 import com.phillippitts.speaktomack.config.properties.AudioValidationProperties;

@@ -57,6 +57,17 @@ public final class WhisperProcessManager implements AutoCloseable {
             Throwable cause
     ) {}
 
+    /**
+     * Holds process execution state including process reference and stream gobblers.
+     */
+    private record ProcessExecution(
+            Process process,
+            Thread outGobbler,
+            Thread errGobbler,
+            StringBuilder stdout,
+            StringBuilder stderr
+    ) {}
+
     @org.springframework.beans.factory.annotation.Autowired
     public WhisperProcessManager(
             @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
@@ -87,6 +98,77 @@ public final class WhisperProcessManager implements AutoCloseable {
     }
 
     /**
+     * Starts the whisper.cpp process and initializes stream gobblers.
+     *
+     * @param command CLI command to execute
+     * @param wavPath path to working directory
+     * @param cfg whisper configuration
+     * @return process execution state with process and gobblers
+     * @throws IOException if process creation fails
+     */
+    private ProcessExecution startProcessWithGobblers(List<String> command, Path wavPath, WhisperConfig cfg)
+            throws IOException {
+        StringBuilder stdout = new StringBuilder();
+        StringBuilder stderr = new StringBuilder();
+
+        Process whisperProcess = processFactory.start(command, wavPath.getParent());
+        this.current = whisperProcess;
+
+        // Start gobblers before waiting to avoid deadlock
+        // Cap stdout to prevent pathological memory usage; stderr capped for diagnostics
+        Thread outGobbler = startGobbler(whisperProcess.getInputStream(), stdout, "whisper-out",
+                cfg.maxStdoutBytes());
+        Thread errGobbler = startGobbler(whisperProcess.getErrorStream(), stderr, "whisper-err",
+                WhisperConstants.STDERR_MAX_BYTES);
+
+        return new ProcessExecution(whisperProcess, outGobbler, errGobbler, stdout, stderr);
+    }
+
+    /**
+     * Waits for process completion with timeout and ensures gobblers finish.
+     *
+     * @param exec process execution state
+     * @param cfg whisper configuration
+     * @param startTime start time in nanoseconds
+     * @throws InterruptedException if wait is interrupted
+     * @throws TranscriptionException if process times out
+     */
+    private void waitForProcessCompletion(ProcessExecution exec, WhisperConfig cfg, long startTime)
+            throws InterruptedException {
+        boolean finished = exec.process().waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
+        if (!finished) {
+            destroyProcess(exec.process());
+            ErrorContext ctx = new ErrorContext(cfg, -1, exec.stderr(), startTime, null);
+            throw whisperError("Timeout after " + cfg.timeoutSeconds() + "s", ctx);
+        }
+
+        // Ensure gobblers have a moment to flush
+        joinQuietly(exec.outGobbler(), ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
+        joinQuietly(exec.errGobbler(), ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
+    }
+
+    /**
+     * Validates process exit code and returns stdout output.
+     *
+     * @param exec process execution state
+     * @param cfg whisper configuration
+     * @param startTime start time in nanoseconds
+     * @return stdout output from whisper.cpp
+     * @throws TranscriptionException if exit code is non-zero
+     */
+    private String handleProcessResult(ProcessExecution exec, WhisperConfig cfg, long startTime) {
+        int exitCode = exec.process().exitValue();
+        if (exitCode != 0) {
+            ErrorContext ctx = new ErrorContext(cfg, exitCode, exec.stderr(), startTime, null);
+            throw whisperError("Non-zero exit: " + exitCode, ctx);
+        }
+
+        String output = exec.stdout().toString();
+        LOG.debug("Whisper stdout size={} bytes", output.length());
+        return output;
+    }
+
+    /**
      * Executes whisper.cpp for the given WAV file and returns its stdout as the transcription output.
      *
      * <p>CLI contract (text mode by default):
@@ -104,48 +186,20 @@ public final class WhisperProcessManager implements AutoCloseable {
         Objects.requireNonNull(cfg, "cfg");
 
         List<String> command = buildCommand(cfg, wavPath);
-        StringBuilder stdout = new StringBuilder();
-        StringBuilder stderr = new StringBuilder();
-
         long startTime = System.nanoTime();
-        Process whisperProcess = null;
+
         try {
-            whisperProcess = processFactory.start(command, wavPath.getParent());
-            this.current = whisperProcess;
+            ProcessExecution exec = startProcessWithGobblers(command, wavPath, cfg);
+            this.outGobbler = exec.outGobbler();
+            this.errGobbler = exec.errGobbler();
 
-            // Start gobblers before waiting to avoid deadlock
-            // Cap stdout to prevent pathological memory usage; stderr capped for diagnostics
-            outGobbler = startGobbler(whisperProcess.getInputStream(), stdout, "whisper-out",
-                    cfg.maxStdoutBytes());
-            errGobbler = startGobbler(whisperProcess.getErrorStream(), stderr, "whisper-err",
-                    WhisperConstants.STDERR_MAX_BYTES);
-
-            boolean finished = whisperProcess.waitFor(cfg.timeoutSeconds(), TimeUnit.SECONDS);
-            if (!finished) {
-                destroyProcess(whisperProcess);
-                ErrorContext ctx = new ErrorContext(cfg, -1, stderr, startTime, null);
-                throw whisperError("Timeout after " + cfg.timeoutSeconds() + "s", ctx);
-            }
-
-            // Ensure gobblers have a moment to flush
-            joinQuietly(outGobbler, ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
-            joinQuietly(errGobbler, ProcessTimeouts.GOBBLER_FLUSH_TIMEOUT);
-
-            int exitCode = whisperProcess.exitValue();
-            if (exitCode != 0) {
-                ErrorContext ctx = new ErrorContext(cfg, exitCode, stderr, startTime, null);
-                throw whisperError("Non-zero exit: " + exitCode, ctx);
-            }
-
-            String output = stdout.toString();
-            LOG.debug("Whisper stdout size={} bytes", output.length());
-            return output;
+            waitForProcessCompletion(exec, cfg, startTime);
+            return handleProcessResult(exec, cfg, startTime);
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            int exitCode = (whisperProcess != null && !whisperProcess.isAlive()) ? whisperProcess.exitValue() : -1;
-            ErrorContext ctx = new ErrorContext(cfg, exitCode, null, startTime, e);
+            ErrorContext ctx = new ErrorContext(cfg, -1, null, startTime, e);
             throw whisperError("I/O failure: " + e.getMessage(), ctx);
         } finally {
             close();
