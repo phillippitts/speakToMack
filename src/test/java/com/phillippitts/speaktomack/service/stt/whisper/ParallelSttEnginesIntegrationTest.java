@@ -2,6 +2,7 @@ package com.phillippitts.speaktomack.service.stt.whisper;
 
 import com.phillippitts.speaktomack.TestResourceLoader;
 import com.phillippitts.speaktomack.config.ThreadPoolConfig;
+import com.phillippitts.speaktomack.config.properties.ThreadPoolProperties;
 import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
@@ -59,7 +60,8 @@ class ParallelSttEnginesIntegrationTest {
                 () -> "Vosk model not found at " + VOSK_MODEL + ". Run ./setup-models.sh first.");
 
         // Create thread pool using same configuration as Task 1.5
-        ThreadPoolConfig threadPoolConfig = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig threadPoolConfig = new ThreadPoolConfig(properties);
         sttExecutor = threadPoolConfig.sttExecutor();
 
         vosk = new VoskSttEngine(new VoskConfig(VOSK_MODEL, 16_000, 1));

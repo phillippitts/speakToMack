@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.config;
 
+import com.phillippitts.speaktomack.config.properties.ThreadPoolProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -14,23 +15,25 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldCreateExecutorWithCorrectConfiguration() {
-        ThreadPoolConfig config = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
         assertThat(executor).isNotNull();
         assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
 
         ThreadPoolTaskExecutor taskExecutor = (ThreadPoolTaskExecutor) executor;
-        int processors = Runtime.getRuntime().availableProcessors();
 
-        assertThat(taskExecutor.getCorePoolSize()).isEqualTo(processors);
-        assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(processors * 2);
+        // Check against default property values
+        assertThat(taskExecutor.getCorePoolSize()).isEqualTo(4);
+        assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(8);
         assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("stt-pool-");
     }
 
     @Test
     void shouldHandleConcurrentTasks() throws InterruptedException {
-        ThreadPoolConfig config = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
         int taskCount = 10;
@@ -58,7 +61,8 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldNotExhaustThreadsUnderLoad() throws InterruptedException {
-        ThreadPoolConfig config = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig config = new ThreadPoolConfig(properties);
         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.sttExecutor();
 
         int taskCount = 20;
@@ -84,7 +88,8 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldUseCorrectThreadNamePrefix() throws InterruptedException {
-        ThreadPoolConfig config = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -102,7 +107,8 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldShutdownGracefully() {
-        ThreadPoolConfig config = new ThreadPoolConfig();
+        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolConfig config = new ThreadPoolConfig(properties);
         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.sttExecutor();
 
         executor.execute(() -> {

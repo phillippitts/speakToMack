@@ -71,31 +71,40 @@ public class DualEngineOrchestrator {
 
 ## Paragraph Break Semantics
 
-The application automatically inserts paragraph breaks (newlines) between transcriptions when a silence gap exceeds the configured threshold.
+The application automatically inserts paragraph breaks (newlines) within transcriptions when silence gaps exceed the configured threshold.
 
-**Behavior:**
-- `TimingCoordinator` tracks the timestamp of the last transcription
-- If elapsed time since last transcription exceeds `stt.orchestration.silence-gap-ms` (default: 2000ms), a paragraph break is inserted
-- `DualEngineOrchestrator.publishResult()` prepends a newline (`"\n"`) directly to `TranscriptionResult.text()` before publishing the event
-- The newline becomes part of the transcription result, not a separate formatting instruction
+**Architecture:**
+- Pause detection happens **within each STT engine** by analyzing the audio/transcription data
+- **Vosk:** Uses Voice Activity Detection (VAD) with RMS amplitude analysis on PCM audio to detect silence periods
+- **Whisper:** Uses segment timestamps from JSON output to identify silence gaps between spoken segments
+- Both engines insert newlines (`"\n"`) directly into the transcription text when silence exceeds the threshold
+- Configuration: `stt.orchestration.silence-gap-ms` (default: 1000ms / 1 second)
+
+**Implementation Details:**
+- **VoskSttEngine:** `AudioSilenceDetector` analyzes PCM amplitude; when consecutive silence frames exceed threshold, a newline is prepended to subsequent text
+- **WhisperSttEngine:** `WhisperJsonParser.extractTextWithPauseDetection()` calculates time gaps between segment timestamps; newlines inserted at pause boundaries
+- Whisper JSON mode must be enabled (`stt.whisper.output=json`) for pause detection to work
 
 **Consumer Expectations:**
-- Downstream consumers (typing adapters, UI displays) receive `TranscriptionResult` with a **leading newline** when paragraph breaks occur
-- Consumers must handle leading newlines gracefully (e.g., `RobotTypingAdapter` types the newline as a keystroke, creating a new paragraph in the target application)
-- No post-processing or stripping of leading newlines should occur - they are intentional formatting
+- Downstream consumers (typing adapters, UI displays) receive `TranscriptionResult` with **embedded newlines** when pauses are detected
+- Consumers must handle newlines gracefully (e.g., `RobotTypingAdapter` types newlines as keystrokes, creating paragraph breaks)
+- No post-processing or stripping of newlines should occur - they are intentional formatting from the STT engines
 
 **Configuration:**
 ```properties
 # Silence gap threshold for automatic paragraph breaks (milliseconds)
-stt.orchestration.silence-gap-ms=2000
+# Vosk: Uses Voice Activity Detection (VAD) to detect silence in PCM audio
+# Whisper: Uses segment timestamps from JSON output (requires stt.whisper.output=json)
+# Set to 0 to disable. Default: 1000 (1 second)
+stt.orchestration.silence-gap-ms=1000
 ```
 
 **Example Flow:**
-1. User transcribes "Hello world" at 10:00:00
-2. 3 seconds later (exceeds 2000ms threshold), user transcribes "New paragraph"
-3. `TimingCoordinator.shouldAddParagraphBreak()` returns `true`
-4. Result published with text: `"\nNew paragraph"` (note leading newline)
-5. Typing adapter outputs newline + text, creating a paragraph break in the document
+1. User dictates "Hello world" → pauses 1.5 seconds → "New paragraph"
+2. Vosk/Whisper detects the 1.5-second silence gap (exceeds 1000ms threshold)
+3. Engine returns transcription text: `"Hello world\nNew paragraph"` (embedded newline)
+4. `TranscriptionResult` published with text containing the newline
+5. Typing adapter outputs the text with newline, creating a paragraph break in the document
 
 ## Testing Strategy
 - Hermetic by default: all OS / native integrations behind seams
