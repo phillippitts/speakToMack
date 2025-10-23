@@ -1,16 +1,14 @@
 package com.phillippitts.speaktomack.config;
 
 import com.phillippitts.speaktomack.config.properties.AudioCaptureProperties;
-import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
-import com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties;
-import com.phillippitts.speaktomack.config.stt.VoskConfig;
-import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.JavaSoundAudioCaptureService;
 import com.phillippitts.speaktomack.config.properties.AudioValidationProperties;
 import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -31,8 +29,19 @@ import org.springframework.context.annotation.Primary;
  * take precedence over production beans. The {@link AudioCaptureService} bean is conditionally
  * created only if no other AudioCaptureService bean exists (preventing conflicts with production
  * {@link JavaSoundAudioCaptureService}).
+ * STT engine components are excluded from component scanning to prevent bean conflicts.
  */
 @Configuration
+@ComponentScan(
+        basePackages = "com.phillippitts.speaktomack",
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = {
+                        com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine.class,
+                        com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine.class
+                }
+        )
+)
 public class IntegrationTestConfiguration {
 
     /**
@@ -80,5 +89,55 @@ public class IntegrationTestConfiguration {
     @Primary
     public AudioCaptureService testAudioCaptureService() {
         return new FakeAudioCaptureService();
+    }
+
+    /**
+     * Provides mock SttEngineWatchdog bean for tests.
+     *
+     * <p>Returns a Mockito mock that avoids actual engine monitoring and restart logic.
+     * The watchdog is disabled in test properties (stt.watchdog.enabled=false), but
+     * a bean is still required as a dependency for OrchestrationConfig.
+     *
+     * @return mock STT engine watchdog for tests
+     */
+    @Bean
+    public com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog sttEngineWatchdog() {
+        return org.mockito.Mockito.mock(com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog.class);
+    }
+
+    /**
+     * Provides mock VoskSttEngine bean for tests.
+     *
+     * <p>Returns a Mockito mock that avoids model loading and initialization.
+     * Stubbed to return "vosk" for getEngineName() to satisfy SttEngineWatchdog.
+     * Tests that need transcription behavior should configure this mock.
+     * Bean name matches production for autowiring by name.
+     *
+     * @return mock vosk STT engine for tests
+     */
+    @Bean("voskSttEngine")
+    public com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine voskSttEngine() {
+        com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine mock =
+                org.mockito.Mockito.mock(com.phillippitts.speaktomack.service.stt.vosk.VoskSttEngine.class);
+        org.mockito.Mockito.when(mock.getEngineName()).thenReturn("vosk");
+        return mock;
+    }
+
+    /**
+     * Provides mock WhisperSttEngine bean for tests.
+     *
+     * <p>Returns a Mockito mock that avoids binary execution and initialization.
+     * Stubbed to return "whisper" for getEngineName() to satisfy SttEngineWatchdog.
+     * Tests that need transcription behavior should configure this mock.
+     * Bean name matches production for autowiring by name.
+     *
+     * @return mock whisper STT engine for tests
+     */
+    @Bean("whisperSttEngine")
+    public com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine whisperSttEngine() {
+        com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine mock =
+                org.mockito.Mockito.mock(com.phillippitts.speaktomack.service.stt.whisper.WhisperSttEngine.class);
+        org.mockito.Mockito.when(mock.getEngineName()).thenReturn("whisper");
+        return mock;
     }
 }
