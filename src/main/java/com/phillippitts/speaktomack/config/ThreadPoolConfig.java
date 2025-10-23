@@ -4,6 +4,7 @@ import com.phillippitts.speaktomack.config.properties.ThreadPoolProperties;
 import org.apache.logging.log4j.ThreadContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -65,24 +66,7 @@ public class ThreadPoolConfig {
         executor.setAwaitTerminationSeconds(30);
 
         // Propagate MDC to worker threads
-        executor.setTaskDecorator(runnable -> {
-            Map<String, String> contextMap = ThreadContext.getImmutableContext();
-            return () -> {
-                Map<String, String> previous = ThreadContext.getImmutableContext();
-                try {
-                    if (contextMap != null && !contextMap.isEmpty()) {
-                        ThreadContext.putAll(contextMap);
-                    }
-                    runnable.run();
-                } finally {
-                    ThreadContext.clearAll();
-                    if (previous != null && !previous.isEmpty()) {
-                        ThreadContext.putAll(previous);
-                    }
-                }
-            };
-
-        });
+        executor.setTaskDecorator(createMdcPropagatingTaskDecorator());
 
         executor.initialize();
         return executor;
@@ -128,7 +112,31 @@ public class ThreadPoolConfig {
         executor.setAwaitTerminationSeconds(30);
 
         // Propagate MDC to worker threads (same decorator as sttExecutor)
-        executor.setTaskDecorator(runnable -> {
+        executor.setTaskDecorator(createMdcPropagatingTaskDecorator());
+
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Creates a task decorator that propagates Log4j2 MDC (ThreadContext) from the
+     * submitting thread to worker threads.
+     *
+     * <p>This ensures that correlation IDs and other contextual information stored in
+     * the MDC are available in async tasks, enabling proper log correlation across
+     * thread boundaries.
+     *
+     * <p><b>Implementation Details:</b>
+     * <ul>
+     *   <li>Captures the MDC context from the submitting thread</li>
+     *   <li>Restores it in the worker thread before task execution</li>
+     *   <li>Cleans up and restores the previous worker thread MDC after execution</li>
+     * </ul>
+     *
+     * @return TaskDecorator that propagates MDC context
+     */
+    private TaskDecorator createMdcPropagatingTaskDecorator() {
+        return runnable -> {
             Map<String, String> contextMap = ThreadContext.getImmutableContext();
             return () -> {
                 Map<String, String> previous = ThreadContext.getImmutableContext();
@@ -144,9 +152,6 @@ public class ThreadPoolConfig {
                     }
                 }
             };
-        });
-
-        executor.initialize();
-        return executor;
+        };
     }
 }
