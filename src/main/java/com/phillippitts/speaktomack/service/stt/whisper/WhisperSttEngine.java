@@ -14,7 +14,6 @@ import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,7 +93,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         this.silenceGapMs = 0; // Disabled in basic constructor
     }
 
-    @Autowired
     public WhisperSttEngine(WhisperConfig cfg,
                              SttConcurrencyProperties concurrencyProperties,
                              WhisperProcessManager manager,

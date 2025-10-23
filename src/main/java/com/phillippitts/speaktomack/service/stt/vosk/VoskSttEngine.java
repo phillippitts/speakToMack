@@ -11,7 +11,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.ArrayList;
@@ -86,7 +85,6 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     /**
      * Spring-friendly constructor to inject concurrency limits and pause detection config.
      */
-    @Autowired
     public VoskSttEngine(VoskConfig config,
             com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
             ApplicationEventPublisher publisher,
