@@ -9,7 +9,6 @@ import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -37,12 +36,6 @@ import java.util.concurrent.Semaphore;
 public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine {
 
     private static final Logger LOG = LogManager.getLogger(VoskSttEngine.class);
-
-    /**
-     * Maximum allowed JSON response size from Vosk recognizer (1MB).
-     * Protects against malicious/custom Vosk builds returning unbounded output.
-     */
-    private static final int MAX_JSON_SIZE = 1_048_576; // 1MB
 
     /**
      * Default concurrency limit for Vosk transcription when no configuration provided.
@@ -239,48 +232,95 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 return transcribeSingleSegment(localModel, audioData);
             }
 
-            // Split audio at silence boundaries and transcribe each segment
-            List<String> segments = new ArrayList<>();
-            double totalConfidence = 0.0;
-            int segmentCount = 0;
-
-            int start = 0;
-            for (int boundary : boundaries) {
-                if (boundary > start) {
-                    byte[] segment = Arrays.copyOfRange(audioData, start, boundary);
-                    TranscriptionResult segmentResult = transcribeSingleSegment(localModel, segment);
-                    String text = segmentResult.text();
-                    if (!text.isBlank()) {
-                        segments.add(text);
-                        totalConfidence += segmentResult.confidence();
-                        segmentCount++;
-                    }
-                    start = boundary;
-                }
-            }
-
-            // Handle remaining audio after last boundary
-            if (start < audioData.length) {
-                byte[] segment = Arrays.copyOfRange(audioData, start, audioData.length);
-                TranscriptionResult segmentResult = transcribeSingleSegment(localModel, segment);
-                String text = segmentResult.text();
-                if (!text.isBlank()) {
-                    segments.add(text);
-                    totalConfidence += segmentResult.confidence();
-                    segmentCount++;
-                }
-            }
+            // Process audio segments at detected boundaries
+            SegmentAggregation result = transcribeAudioSegments(localModel, audioData, boundaries);
 
             // Join segments with newlines
-            String fullText = String.join("\n", segments);
-            double avgConfidence = segmentCount > 0 ? totalConfidence / segmentCount : 1.0;
+            String fullText = String.join("\n", result.segments);
+            double avgConfidence = result.segmentCount > 0
+                    ? result.totalConfidence / result.segmentCount
+                    : 1.0;
 
-            LOG.debug("Vosk pause detection: split into {} segments", segmentCount);
+            LOG.debug("Vosk pause detection: split into {} segments", result.segmentCount);
             return TranscriptionResult.of(fullText, avgConfidence, getEngineName());
 
         } catch (Exception e) {
             throw handleTranscriptionError(e, publisher, null);
         }
+    }
+
+    /**
+     * Transcribes audio segments split at silence boundaries.
+     *
+     * <p>Processes each segment between boundaries and the remaining audio after the last boundary.
+     * Only includes non-blank transcriptions in the result.
+     *
+     * @param localModel the Vosk model to use for transcription
+     * @param audioData the complete PCM audio data
+     * @param boundaries list of byte offsets marking silence boundaries
+     * @return aggregated results containing segments, total confidence, and count
+     */
+    private SegmentAggregation transcribeAudioSegments(
+            org.vosk.Model localModel, byte[] audioData, List<Integer> boundaries) {
+        List<String> segments = new ArrayList<>();
+        double totalConfidence = 0.0;
+        int segmentCount = 0;
+
+        int start = 0;
+        for (int boundary : boundaries) {
+            if (boundary > start) {
+                SegmentResult result = transcribeSegmentRange(localModel, audioData, start, boundary);
+                if (result.hasText()) {
+                    segments.add(result.text);
+                    totalConfidence += result.confidence;
+                    segmentCount++;
+                }
+                start = boundary;
+            }
+        }
+
+        // Handle remaining audio after last boundary
+        if (start < audioData.length) {
+            SegmentResult result = transcribeSegmentRange(localModel, audioData, start, audioData.length);
+            if (result.hasText()) {
+                segments.add(result.text);
+                totalConfidence += result.confidence;
+                segmentCount++;
+            }
+        }
+
+        return new SegmentAggregation(segments, totalConfidence, segmentCount);
+    }
+
+    /**
+     * Transcribes a single audio segment defined by byte range.
+     *
+     * @param localModel the Vosk model to use
+     * @param audioData the complete audio data
+     * @param start start byte offset (inclusive)
+     * @param end end byte offset (exclusive)
+     * @return segment result containing text and confidence
+     */
+    private SegmentResult transcribeSegmentRange(
+            org.vosk.Model localModel, byte[] audioData, int start, int end) {
+        byte[] segment = Arrays.copyOfRange(audioData, start, end);
+        TranscriptionResult result = transcribeSingleSegment(localModel, segment);
+        return new SegmentResult(result.text(), result.confidence());
+    }
+
+    /**
+     * Holds the result of transcribing a single audio segment.
+     */
+    private record SegmentResult(String text, double confidence) {
+        boolean hasText() {
+            return text != null && !text.isBlank();
+        }
+    }
+
+    /**
+     * Holds aggregated results from transcribing multiple audio segments.
+     */
+    private record SegmentAggregation(List<String> segments, double totalConfidence, int segmentCount) {
     }
 
     /**
@@ -321,7 +361,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      * @return TranscriptionResult containing text, confidence, and engine name
      */
     private TranscriptionResult parseJsonAndCreateResult(String json) {
-        VoskTranscription transcription = parseVoskJson(json);
+        VoskJsonParser.VoskTranscription transcription = VoskJsonParser.parse(json);
         LOG.debug("VoskSttEngine: parsed transcription text='{}' (length={} chars), confidence={}",
                  transcription.text(), transcription.text().length(), transcription.confidence());
         // Empty text is valid (e.g., silence or unclear audio)
@@ -362,115 +402,4 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         }
     }
 
-    /**
-     * Parses Vosk JSON response and extracts both text and confidence.
-     *
-     * <p>This method parses the JSON once and extracts both values for efficiency.
-     *
-     * <p>Protects against unbounded output from malicious/custom Vosk builds by
-     * capping JSON response size at {@link #MAX_JSON_SIZE}.
-     *
-     * <p>Package-private for testing purposes.
-     *
-     * @param json JSON string from Vosk recognizer
-     * @return VoskTranscription containing text and confidence
-     */
-    static VoskTranscription parseVoskJson(String json) {
-        if (json == null || json.isBlank()) {
-            return new VoskTranscription("", 1.0);
-        }
-        json = truncateJsonIfNeeded(json);
-        try {
-            JSONObject obj = new JSONObject(json);
-
-            // Vosk can return two formats:
-            // 1. Final result: {"text": "...", "result": [...]}
-            // 2. Alternatives format: {"alternatives": [{"text": "...", "confidence": ...}]}
-            String text;
-            double confidence;
-
-            if (obj.has("alternatives")) {
-                // Extract from alternatives[0]
-                // Note: Vosk returns unnormalized confidence scores in alternatives format
-                org.json.JSONArray alternatives = obj.getJSONArray("alternatives");
-                if (!alternatives.isEmpty()) {
-                    JSONObject firstAlt = alternatives.getJSONObject(0);
-                    text = firstAlt.optString("text", "").trim();
-                    double rawConfidence = firstAlt.optDouble("confidence", 1.0);
-                    // Normalize to [0.0, 1.0] range - Vosk alternatives may return values > 1.0
-                    confidence = Math.min(1.0, Math.max(0.0, rawConfidence));
-                } else {
-                    text = "";
-                    confidence = 1.0;
-                }
-            } else {
-                // Extract from root level (original format)
-                text = obj.optString("text", "").trim();
-                confidence = extractConfidenceFromJson(obj);
-            }
-
-            return new VoskTranscription(text, confidence);
-        } catch (Exception e) {
-            LOG.warn("Failed to parse Vosk JSON response: {}", json, e);
-            return new VoskTranscription("", 1.0);
-        }
-    }
-
-    /**
-     * Truncates JSON string to MAX_JSON_SIZE if needed to prevent OOM attacks.
-     *
-     * <p>Protects against malicious/custom Vosk builds returning unbounded output.
-     *
-     * @param json JSON string to validate
-     * @return original string if within limit, truncated string otherwise
-     */
-    private static String truncateJsonIfNeeded(String json) {
-        if (json.length() > MAX_JSON_SIZE) {
-            LOG.warn("Vosk JSON response exceeds {}B cap (actual: {}B); truncating to prevent OOM",
-                    MAX_JSON_SIZE, json.length());
-            return json.substring(0, MAX_JSON_SIZE);
-        }
-        return json;
-    }
-
-    /**
-     * Extracts confidence from already-parsed JSONObject.
-     *
-     * @param obj parsed JSON object
-     * @return average confidence (0.0-1.0), or 1.0 if no confidence data
-     */
-    private static double extractConfidenceFromJson(JSONObject obj) {
-        if (!obj.has("result")) {
-            return 1.0; // No result array, assume perfect confidence
-        }
-        org.json.JSONArray results = obj.getJSONArray("result");
-        if (results.isEmpty()) {
-            return 1.0; // Empty result, no words recognized
-        }
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < results.length(); i++) {
-            JSONObject wordObj = results.getJSONObject(i);
-            if (wordObj.has("conf")) {
-                sum += wordObj.getDouble("conf");
-                count++;
-            }
-        }
-
-        double rawConfidence = count > 0 ? sum / count : 1.0;
-        // Clamp to [0.0, 1.0] to satisfy TranscriptionResult contract
-        return Math.min(1.0, Math.max(0.0, rawConfidence));
-    }
-
-    /**
-     * Internal record to hold parsed Vosk transcription data.
-     *
-     * <p>Package-private for testing purposes.
-     *
-     * @param text transcribed text (may be empty)
-     * @param confidence confidence score (0.0-1.0)
-     */
-    record VoskTranscription(String text, double confidence) {
-    }
 }
