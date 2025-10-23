@@ -19,7 +19,7 @@ class WhisperSttEngineJsonModeTest {
         SttConcurrencyProperties conc = new SttConcurrencyProperties();
         ApplicationEventPublisher publisher = e -> { };
 
-        WhisperSttEngine engine = new WhisperSttEngine(cfg, conc, fakeManager, publisher, "json");
+        WhisperSttEngine engine = new WhisperSttEngine(cfg, conc, fakeManager, publisher, "json", null);
         engine.initialize();
         TranscriptionResult r = engine.transcribe(new byte[3200]);
         assertThat(r.text()).isEqualTo("json parsed text");

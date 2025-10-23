@@ -11,7 +11,6 @@ import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
-import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.reconcile.impl.ConfidenceReconciler;
@@ -89,8 +88,6 @@ class ReconciliationE2ETest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
 
         // Act: Full hotkey flow
@@ -137,8 +134,6 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
 
@@ -189,8 +184,6 @@ class ReconciliationE2ETest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
 
         // Act
@@ -240,8 +233,6 @@ class ReconciliationE2ETest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER)))
-                .timingCoordinator(new TimingCoordinator(
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER)))
                 .build();
 
         // Act
@@ -289,8 +280,6 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
 
@@ -367,8 +356,6 @@ class ReconciliationE2ETest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
 
         // Act
@@ -412,8 +399,6 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
-                .timingCoordinator(new TimingCoordinator(
                         new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
                 .build();
     }

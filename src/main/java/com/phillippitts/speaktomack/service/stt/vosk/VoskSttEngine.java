@@ -3,6 +3,7 @@ package com.phillippitts.speaktomack.service.stt.vosk;
 import com.phillippitts.speaktomack.config.stt.VoskConfig;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.service.audio.AudioSilenceDetector;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
@@ -13,6 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -59,6 +63,9 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     // Optional event publisher for watchdog events
     private ApplicationEventPublisher publisher;
 
+    // Silence gap threshold for pause-based paragraph detection (milliseconds)
+    private final int silenceGapMs;
+
     // Native resources (created in initialize, closed in close)
     // @GuardedBy("lock")
     private org.vosk.Model model;           // JNI resource
@@ -73,15 +80,17 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 SttEngineNames.VOSK,
                 null // No publisher in basic constructor
         );
+        this.silenceGapMs = 0; // Disabled in basic constructor
     }
 
     /**
-     * Spring-friendly constructor to inject concurrency limits.
+     * Spring-friendly constructor to inject concurrency limits and pause detection config.
      */
     @Autowired
     public VoskSttEngine(VoskConfig config,
             com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
-            ApplicationEventPublisher publisher) {
+            ApplicationEventPublisher publisher,
+            com.phillippitts.speaktomack.config.properties.OrchestrationProperties orchestrationProperties) {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
         long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
@@ -92,6 +101,8 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 publisher
         );
         this.publisher = publisher;
+        this.silenceGapMs = orchestrationProperties != null ?
+                orchestrationProperties.getSilenceGapMs() : 0;
     }
 
     /**
@@ -177,15 +188,98 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     /**
      * Transcribes audio data using the provided Vosk model.
      *
+     * <p>If pause detection is enabled ({@code silenceGapMs > 0}), splits audio at
+     * detected silence boundaries and joins transcriptions with newlines.
+     *
      * @param localModel the Vosk model to use for transcription
      * @param audioData PCM audio data to transcribe
      * @return transcription result with text, confidence, and metadata
      */
     private TranscriptionResult transcribeWithModel(org.vosk.Model localModel, byte[] audioData) {
+        if (silenceGapMs > 0) {
+            return transcribeWithPauseDetection(localModel, audioData);
+        } else {
+            return transcribeSingleSegment(localModel, audioData);
+        }
+    }
+
+    /**
+     * Transcribes a single audio segment without pause detection.
+     *
+     * @param localModel the Vosk model to use
+     * @param audioData PCM audio data
+     * @return transcription result
+     */
+    private TranscriptionResult transcribeSingleSegment(org.vosk.Model localModel, byte[] audioData) {
         try (org.vosk.Recognizer localRecognizer = new org.vosk.Recognizer(localModel, config.sampleRate())) {
             configureRecognizer(localRecognizer);
             String json = processAudioAndGetResult(localRecognizer, audioData);
             return parseJsonAndCreateResult(json);
+        } catch (Exception e) {
+            throw handleTranscriptionError(e, publisher, null);
+        }
+    }
+
+    /**
+     * Transcribes audio with pause detection, inserting newlines at silence boundaries.
+     *
+     * <p>Detects silence regions in the PCM audio buffer, splits at those boundaries,
+     * transcribes each segment separately, and joins with newlines.
+     *
+     * @param localModel the Vosk model to use
+     * @param audioData PCM audio data
+     * @return transcription result with newlines at pause boundaries
+     */
+    private TranscriptionResult transcribeWithPauseDetection(org.vosk.Model localModel, byte[] audioData) {
+        try {
+            // Detect silence boundaries in the audio
+            List<Integer> boundaries = AudioSilenceDetector.detectSilenceBoundaries(
+                    audioData, silenceGapMs, config.sampleRate());
+
+            if (boundaries.isEmpty()) {
+                // No pauses detected, transcribe as single segment
+                return transcribeSingleSegment(localModel, audioData);
+            }
+
+            // Split audio at silence boundaries and transcribe each segment
+            List<String> segments = new ArrayList<>();
+            double totalConfidence = 0.0;
+            int segmentCount = 0;
+
+            int start = 0;
+            for (int boundary : boundaries) {
+                if (boundary > start) {
+                    byte[] segment = Arrays.copyOfRange(audioData, start, boundary);
+                    TranscriptionResult segmentResult = transcribeSingleSegment(localModel, segment);
+                    String text = segmentResult.text();
+                    if (!text.isBlank()) {
+                        segments.add(text);
+                        totalConfidence += segmentResult.confidence();
+                        segmentCount++;
+                    }
+                    start = boundary;
+                }
+            }
+
+            // Handle remaining audio after last boundary
+            if (start < audioData.length) {
+                byte[] segment = Arrays.copyOfRange(audioData, start, audioData.length);
+                TranscriptionResult segmentResult = transcribeSingleSegment(localModel, segment);
+                String text = segmentResult.text();
+                if (!text.isBlank()) {
+                    segments.add(text);
+                    totalConfidence += segmentResult.confidence();
+                    segmentCount++;
+                }
+            }
+
+            // Join segments with newlines
+            String fullText = String.join("\n", segments);
+            double avgConfidence = segmentCount > 0 ? totalConfidence / segmentCount : 1.0;
+
+            LOG.debug("Vosk pause detection: split into {} segments", segmentCount);
+            return TranscriptionResult.of(fullText, avgConfidence, getEngineName());
+
         } catch (Exception e) {
             throw handleTranscriptionError(e, publisher, null);
         }

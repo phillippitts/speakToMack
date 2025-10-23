@@ -48,7 +48,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
 
     // State machines and services
     private final EngineSelectionStrategy engineSelector;
-    private final TimingCoordinator timingCoordinator;
     private final TranscriptionMetricsPublisher metricsPublisher;
 
     /**
@@ -58,7 +57,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @param publisher Spring event publisher for transcription results
      * @param reconciliation service for dual-engine reconciliation (encapsulates parallel, reconciler, recProps)
      * @param engineSelector strategy for selecting STT engine (also manages vosk, whisper, watchdog)
-     * @param timingCoordinator coordinator for timing and paragraph breaks
      * @param metricsPublisher metrics publishing service
      * @throws NullPointerException if any required parameter is null
      */
@@ -66,13 +64,11 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
                                             ApplicationEventPublisher publisher,
                                             ReconciliationService reconciliation,
                                             EngineSelectionStrategy engineSelector,
-                                            TimingCoordinator timingCoordinator,
                                             TranscriptionMetricsPublisher metricsPublisher) {
         this.props = Objects.requireNonNull(props, "props must not be null");
         this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
         this.reconciliation = Objects.requireNonNull(reconciliation, "reconciliation must not be null");
         this.engineSelector = Objects.requireNonNull(engineSelector, "engineSelector must not be null");
-        this.timingCoordinator = Objects.requireNonNull(timingCoordinator, "timingCoordinator must not be null");
         this.metricsPublisher = Objects.requireNonNull(metricsPublisher, "metricsPublisher must not be null");
     }
 
@@ -242,27 +238,14 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
 
     /**
      * Publishes transcription result as an event for downstream processing.
-     * Prepends a newline if the gap since the last transcription exceeds the configured threshold.
-     * Avoids adding a double-newline if the text already starts with a newline.
+     *
+     * <p>Pause-based newlines are now inserted directly by the STT engines
+     * (Vosk via audio silence detection, Whisper via segment timestamps).
      *
      * @param result the transcription result
      * @param engineName name of the engine that produced the result
      */
     private void publishResult(TranscriptionResult result, String engineName) {
-        // Check if we should prepend a newline based on silence gap
-        TranscriptionResult finalResult = result;
-
-        if (timingCoordinator.shouldAddParagraphBreak()) {
-            // Prepend newline for new paragraph (avoid double newlines if text already starts with one)
-            String text = result.text();
-            String textWithNewline = text.startsWith("\n") ? text : "\n" + text;
-            finalResult = TranscriptionResult.of(textWithNewline, result.confidence(), result.engineName());
-            LOG.debug("Prepended newline after silence gap (threshold={}ms)", props.getSilenceGapMs());
-        }
-
-        // Record this transcription for future paragraph break decisions
-        timingCoordinator.recordTranscription();
-
-        publisher.publishEvent(new TranscriptionCompletedEvent(finalResult, Instant.now(), engineName));
+        publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engineName));
     }
 }

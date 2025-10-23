@@ -72,7 +72,6 @@ class DualEngineOrchestratorReconciledTest {
                         new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         // Act
@@ -130,7 +129,6 @@ class DualEngineOrchestratorReconciledTest {
                         new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
@@ -239,7 +237,6 @@ class DualEngineOrchestratorReconciledTest {
                         new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
     }
 

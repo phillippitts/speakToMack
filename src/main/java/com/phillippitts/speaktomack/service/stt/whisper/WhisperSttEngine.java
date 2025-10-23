@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.stt.whisper;
 
+import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.stt.WhisperConfig;
 import com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
@@ -73,6 +74,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private final WhisperProcessManager manager;
     private ApplicationEventPublisher publisher;
     private final boolean jsonMode;
+    private final int silenceGapMs;
     // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
     // SYNCHRONIZED ACCESS ONLY - use cachedDataLock to ensure atomic read/write of paired values
     private final Object cachedDataLock = new Object();
@@ -89,6 +91,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 null // No publisher in basic constructor
         );
         this.jsonMode = false;
+        this.silenceGapMs = 0; // Disabled in basic constructor
     }
 
     @Autowired
@@ -97,7 +100,8 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                              WhisperProcessManager manager,
                              ApplicationEventPublisher publisher,
                              @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
-                             String outputMode) {
+                             String outputMode,
+                             OrchestrationProperties orchestrationProperties) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
@@ -110,6 +114,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         );
         this.publisher = publisher;
         this.jsonMode = "json".equalsIgnoreCase(outputMode);
+        this.silenceGapMs = orchestrationProperties != null ? orchestrationProperties.getSilenceGapMs() : 0;
     }
 
     @Override
@@ -142,6 +147,8 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             try {
                 wav = createTempWavFile(audioData);
                 String stdout = manager.transcribe(wav, cfg);
+                LOG.debug("WhisperSttEngine: Whisper returned {} output (length={} chars): {}",
+                         jsonMode ? "JSON" : "text", stdout.length(), stdout);
                 String text = extractTranscriptionText(stdout);
                 double confidence = 1.0;
 
@@ -185,7 +192,8 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private String extractTranscriptionText(String stdout) {
         if (jsonMode) {
             // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
-            String text = WhisperJsonParser.extractText(stdout);
+            // Use pause detection if silenceGapMs > 0
+            String text = WhisperJsonParser.extractTextWithPauseDetection(stdout, silenceGapMs);
             synchronized (cachedDataLock) {
                 this.lastRawJson = stdout;
                 this.lastTokens = WhisperJsonParser.extractTokens(stdout);

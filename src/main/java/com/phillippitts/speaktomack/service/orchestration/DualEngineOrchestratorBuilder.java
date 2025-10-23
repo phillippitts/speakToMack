@@ -68,7 +68,6 @@ public final class DualEngineOrchestratorBuilder {
     private ApplicationEventPublisher publisher;
     private CaptureStateMachine captureStateMachine;
     private EngineSelectionStrategy engineSelector;
-    private TimingCoordinator timingCoordinator;
 
     // Optional dependencies (for reconciliation mode)
     private ParallelSttService parallelSttService;
@@ -189,16 +188,6 @@ public final class DualEngineOrchestratorBuilder {
         return this;
     }
 
-    /**
-     * Sets the timing coordinator.
-     *
-     * @param timingCoordinator coordinator for paragraph break timing (required)
-     * @return this builder
-     */
-    public DualEngineOrchestratorBuilder timingCoordinator(TimingCoordinator timingCoordinator) {
-        this.timingCoordinator = timingCoordinator;
-        return this;
-    }
 
     /**
      * Sets the parallel STT service (optional, for reconciliation mode).
@@ -266,7 +255,6 @@ public final class DualEngineOrchestratorBuilder {
         Objects.requireNonNull(publisher, "publisher is required");
         Objects.requireNonNull(captureStateMachine, "captureStateMachine is required");
         Objects.requireNonNull(engineSelector, "engineSelector is required");
-        Objects.requireNonNull(timingCoordinator, "timingCoordinator is required");
 
         // Provide default no-op metricsPublisher if not set (for tests)
         TranscriptionMetricsPublisher effectiveMetricsPublisher = metricsPublisher != null
@@ -296,7 +284,6 @@ public final class DualEngineOrchestratorBuilder {
                 publisher,
                 reconciliation,
                 engineSelector,
-                timingCoordinator,
                 effectiveMetricsPublisher
         );
 

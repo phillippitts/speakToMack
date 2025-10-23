@@ -7,7 +7,6 @@ import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
-import com.phillippitts.speaktomack.service.orchestration.TimingCoordinator;
 import com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
@@ -77,14 +76,6 @@ public class OrchestrationConfig {
     }
 
     /**
-     * Timing coordinator for paragraph break logic.
-     */
-    @Bean
-    public TimingCoordinator timingCoordinator() {
-        return new TimingCoordinator(orchestrationProperties);
-    }
-
-    /**
      * Default orchestrator (no reconciliation).
      * Active when stt.reconciliation.enabled is false or missing.
      */
@@ -96,8 +87,7 @@ public class OrchestrationConfig {
             matchIfMissing = true
     )
     public DualEngineOrchestrator dualEngineOrchestrator(CaptureStateMachine captureStateMachine,
-                                                         EngineSelectionStrategy engineSelector,
-                                                         TimingCoordinator timingCoordinator) {
+                                                         EngineSelectionStrategy engineSelector) {
         return DualEngineOrchestratorBuilder.builder()
                 .captureService(this.captureService)
                 .voskEngine(this.voskSttEngine)
@@ -109,7 +99,6 @@ public class OrchestrationConfig {
                 .metricsPublisher(this.metricsPublisher)
                 .captureStateMachine(captureStateMachine)
                 .engineSelector(engineSelector)
-                .timingCoordinator(timingCoordinator)
                 .build();
     }
 
@@ -119,8 +108,7 @@ public class OrchestrationConfig {
     @Bean
     @ConditionalOnProperty(prefix = "stt.reconciliation", name = "enabled", havingValue = "true")
     public DualEngineOrchestrator reconciledDualEngineOrchestrator(CaptureStateMachine captureStateMachine,
-                                                                   EngineSelectionStrategy engineSelector,
-                                                                   TimingCoordinator timingCoordinator) {
+                                                                   EngineSelectionStrategy engineSelector) {
         return DualEngineOrchestratorBuilder.builder()
                 .captureService(this.captureService)
                 .voskEngine(this.voskSttEngine)
@@ -135,7 +123,6 @@ public class OrchestrationConfig {
                 .metricsPublisher(this.metricsPublisher)
                 .captureStateMachine(captureStateMachine)
                 .engineSelector(engineSelector)
-                .timingCoordinator(timingCoordinator)
                 .build();
     }
 }

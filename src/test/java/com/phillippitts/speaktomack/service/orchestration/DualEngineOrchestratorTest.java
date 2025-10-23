@@ -46,7 +46,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         // Act
@@ -83,7 +82,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -115,7 +113,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
@@ -143,7 +140,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         // Start session, then receive capture error
@@ -177,7 +173,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(csm)
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(new TimingCoordinator(props))
                 .build();
 
         // Simulate: press (start), press again (ignored - already active), release (complete)
@@ -202,6 +197,7 @@ class DualEngineOrchestratorTest {
         assertThat(completedCount).isEqualTo(1);
     }
 
+    @org.junit.jupiter.api.Disabled("TimingCoordinator removed - pause detection now done by STT engines")
     @Test
     void shouldPrependParagraphBreakAfterSilenceGap() throws InterruptedException {
         // Arrange
@@ -216,7 +212,6 @@ class DualEngineOrchestratorTest {
         );
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
 
         DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
                 .captureService(cap)
@@ -228,7 +223,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(timingCoordinator)
                 .build();
 
         // Act: First transcription - no paragraph break
@@ -255,6 +249,7 @@ class DualEngineOrchestratorTest {
         assertThat(evt2.result().text()).isEqualTo("\ntext");
     }
 
+    @org.junit.jupiter.api.Disabled("TimingCoordinator removed - pause detection now done by STT engines")
     @Test
     void shouldNotAddDoubleNewlineWhenTextAlreadyStartsWithNewline() throws InterruptedException {
         // Arrange
@@ -316,7 +311,6 @@ class DualEngineOrchestratorTest {
                 100
         );
         ApplicationEventPublisher pub = events::add;
-        TimingCoordinator timingCoordinator = new TimingCoordinator(props);
 
         return DualEngineOrchestratorBuilder.builder()
                 .captureService(cap)
@@ -328,7 +322,6 @@ class DualEngineOrchestratorTest {
                 .publisher(pub)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
-                .timingCoordinator(timingCoordinator)
                 .build();
     }
 
