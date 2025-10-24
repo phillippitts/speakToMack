@@ -33,7 +33,7 @@ import java.util.concurrent.Semaphore;
  * <p><b>Architecture:</b>
  * <ul>
  *   <li>Converts PCM audio to temporary WAV file using {@link WavWriter}</li>
- *   <li>Invokes whisper.cpp via {@link WhisperProcessManager} with configured timeout</li>
+ *   <li>Invokes whisper.cpp via {@link ProcessManager} with configured timeout</li>
  *   <li>Parses output (plain text or JSON) and cleans up temporary files</li>
  *   <li>Supports concurrency limiting via semaphore to prevent CPU saturation</li>
  * </ul>
@@ -63,14 +63,15 @@ import java.util.concurrent.Semaphore;
  * @since 1.0
  */
 @Component
-public final class WhisperSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine {
+public final class WhisperSttEngine extends com.phillippitts.speaktomack.service.stt.AbstractSttEngine
+        implements com.phillippitts.speaktomack.service.stt.DetailedTranscriptionEngine {
 
     private final ConcurrencyGuard concurrencyGuard;
 
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
 
     private final WhisperConfig cfg;
-    private final WhisperProcessManager manager;
+    private final ProcessManager manager;
     private ApplicationEventPublisher publisher;
     private final boolean jsonMode;
     private final int silenceGapMs;
@@ -80,7 +81,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private String lastRawJson;
     private java.util.List<String> lastTokens;
 
-    public WhisperSttEngine(WhisperConfig cfg, WhisperProcessManager manager) {
+    public WhisperSttEngine(WhisperConfig cfg, ProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         this.concurrencyGuard = new ConcurrencyGuard(
@@ -95,7 +96,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
 
     public WhisperSttEngine(WhisperConfig cfg,
                              SttConcurrencyProperties concurrencyProperties,
-                             WhisperProcessManager manager,
+                             ProcessManager manager,
                              ApplicationEventPublisher publisher,
                              @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
                              String outputMode,

@@ -2,6 +2,7 @@ package com.phillippitts.speaktomack.service.stt.parallel;
 
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.service.stt.DetailedTranscriptionEngine;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.TokenizerUtil;
@@ -105,7 +106,7 @@ public class DefaultParallelSttService implements ParallelSttService {
      * (typically by using the available result or throwing an exception).
      *
      * <p><b>Token Extraction:</b> This method attempts to extract engine-provided tokens
-     * via {@link com.phillippitts.speaktomack.service.stt.SttEngine#consumeTokens()}.
+     * from engines implementing {@link com.phillippitts.speaktomack.service.stt.DetailedTranscriptionEngine}.
      * For Whisper, this provides JSON-derived tokens with accurate word boundaries for
      * overlap-based reconciliation.
      *
@@ -164,13 +165,15 @@ public class DefaultParallelSttService implements ParallelSttService {
             List<String> tokens = TokenizerUtil.tokenize(tr.text());
             String rawJson = null;
 
-            // Use interface methods to get tokens and JSON if engine supports them
-            // This uses polymorphism instead of instanceof check
-            java.util.Optional<List<String>> engineTokens = engine.consumeTokens();
-            if (engineTokens.isPresent() && !engineTokens.get().isEmpty()) {
-                tokens = engineTokens.get();
+            // Check if engine provides detailed transcription data (tokens and JSON)
+            // Only DetailedTranscriptionEngine implementations (like Whisper in JSON mode) support this
+            if (engine instanceof DetailedTranscriptionEngine detailedEngine) {
+                java.util.Optional<List<String>> engineTokens = detailedEngine.consumeTokens();
+                if (engineTokens.isPresent() && !engineTokens.get().isEmpty()) {
+                    tokens = engineTokens.get();
+                }
+                rawJson = detailedEngine.consumeRawJson().orElse(null);
             }
-            rawJson = engine.consumeRawJson().orElse(null);
 
             return new EngineResult(tr.text(), tr.confidence(), tokens, elapsedMs, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
