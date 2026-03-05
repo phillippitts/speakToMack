@@ -68,6 +68,40 @@ graph TD
     style Observer fill:#fff9c4
 ```
 
+## Live Caption Overlay
+
+```mermaid
+graph TB
+    subgraph CaptureLayer["Audio Capture"]
+        Mic[Microphone] --> JSACS[JavaSoundAudioCaptureService]
+    end
+
+    subgraph LiveFeedback["Live Caption System"]
+        PCMEvent[PcmChunkCapturedEvent]
+        VSS[VoskStreamingService<br/>Streaming recognizer]
+        LCM[LiveCaptionManager<br/>Event → JavaFX bridge]
+        LCW[LiveCaptionWindow<br/>Oscilloscope + Captions]
+    end
+
+    subgraph TrayLayer["System Tray"]
+        STM[SystemTrayManager]
+        Toggle[CheckboxMenuItem<br/>Live Caption]
+    end
+
+    JSACS -->|publish| PCMEvent
+    PCMEvent --> VSS
+    PCMEvent --> LCM
+    VSS -->|VoskPartialResultEvent| LCM
+    LCM -->|Platform.runLater| LCW
+    Toggle -->|enable/disable| LCM
+
+    style CaptureLayer fill:#e1f5ff
+    style LiveFeedback fill:#c8e6c9
+    style TrayLayer fill:#f3e5f5
+```
+
+The live caption overlay is conditionally loaded via `live-caption.enabled=true` and adds zero overhead when disabled. See [Live Caption System](live-caption-system.md) for detailed diagrams.
+
 ## Key Architectural Characteristics
 
 | Characteristic | Priority | Implementation |
@@ -87,6 +121,7 @@ For deeper technical details, see:
 - **[Class Dependencies](class-dependencies.md)** - UML class diagrams, package structure, design patterns, dependency rules
 - **[Thread Model & Concurrency](thread-model-concurrency.md)** - Thread pools, synchronization points, lock ordering, MDC propagation
 - **[Data Flow Diagram](data-flow-diagram.md)** - Sequence diagrams, state machines, error handling flows
+- **[Live Caption System](live-caption-system.md)** - Oscilloscope waveform, streaming Vosk captions, JavaFX overlay architecture
 
 ### User Diagrams
 - **[User Journey Map](user-journey.md)** - Onboarding timeline, decision trees, usage scenarios, emotional journey

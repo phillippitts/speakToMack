@@ -4,7 +4,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -29,7 +28,6 @@ public class AudioCaptureProperties {
     /** Optional input device name hint; falls back to system default when null/blank. */
     private final String deviceName;
 
-    @ConstructorBinding
     public AudioCaptureProperties(@NotNull Integer chunkMillis,
                                   @NotNull Integer maxDurationMs,
                                   String deviceName) {

@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -49,7 +48,6 @@ public class HotkeyProperties {
      */
     private final boolean toggleMode;
 
-    @ConstructorBinding
     public HotkeyProperties(TriggerType type,
                             String key,
                             Integer thresholdMs,

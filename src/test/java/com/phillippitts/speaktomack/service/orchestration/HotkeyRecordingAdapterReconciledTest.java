@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Verifies reconciled path behaviour when stt.reconciliation.enabled=true.
  */
-class DualEngineOrchestratorReconciledTest {
+class HotkeyRecordingAdapterReconciledTest {
 
     @Test
     void shouldPublishReconciledEventWhenEnabled() {
@@ -57,7 +57,7 @@ class DualEngineOrchestratorReconciledTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orch = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -114,7 +114,7 @@ class DualEngineOrchestratorReconciledTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orch = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -153,7 +153,7 @@ class DualEngineOrchestratorReconciledTest {
         final int[] parallelCallCount = {0};
         List<Object> events = new ArrayList<>();
 
-        DualEngineOrchestrator orch = buildOrchestratorForSmartReconciliation(
+        HotkeyRecordingAdapter orch = buildOrchestratorForSmartReconciliation(
                 cap, vosk, whisper, parallelCallCount, events);
 
         // Act
@@ -194,7 +194,7 @@ class DualEngineOrchestratorReconciledTest {
         };
     }
 
-    private DualEngineOrchestrator buildOrchestratorForSmartReconciliation(
+    private HotkeyRecordingAdapter buildOrchestratorForSmartReconciliation(
             FakeCapture cap, SttEngine vosk, SttEngine whisper,
             int[] parallelCallCount, List<Object> events) {
         FakeWatchdog wd = new FakeWatchdog(true, true);
@@ -222,7 +222,7 @@ class DualEngineOrchestratorReconciledTest {
 
         ApplicationEventPublisher pub = events::add;
 
-        return DualEngineOrchestratorBuilder.builder()
+        return HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)

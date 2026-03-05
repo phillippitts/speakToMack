@@ -187,6 +187,43 @@ flowchart TD
     style Reconcile fill:#fff9c4
 ```
 
+## Live Caption Data Flow (During Recording)
+
+```mermaid
+sequenceDiagram
+    participant Mic as Microphone
+    participant JSACS as JavaSoundAudioCaptureService
+    participant VSS as VoskStreamingService
+    participant LCM as LiveCaptionManager
+    participant JFX as JavaFX Thread
+    participant LCW as LiveCaptionWindow
+
+    Note over Mic,LCW: Every 40ms during recording
+
+    Mic->>JSACS: PCM chunk (640 bytes)
+    JSACS->>JSACS: buffer.write(buf, 0, n)
+    JSACS->>JSACS: Defensive copy: new byte[n]
+
+    par Waveform Path
+        JSACS-->>LCM: PcmChunkCapturedEvent
+        LCM->>LCM: PcmSampleConverter.toSamples()
+        LCM->>JFX: Platform.runLater(updateWaveform)
+        JFX->>LCW: Draw oscilloscope line
+    and Caption Path
+        JSACS-->>VSS: PcmChunkCapturedEvent
+        VSS->>VSS: recognizer.acceptWaveForm()
+        alt Partial result
+            VSS-->>LCM: VoskPartialResultEvent(text, false)
+            LCM->>JFX: Platform.runLater(updateCaption)
+            JFX->>LCW: Set gray text
+        else Final result
+            VSS-->>LCM: VoskPartialResultEvent(text, true)
+            LCM->>JFX: Platform.runLater(updateCaption)
+            JFX->>LCW: Set white text
+        end
+    end
+```
+
 ## Audio Format Validation Pipeline
 
 ```mermaid

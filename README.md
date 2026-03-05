@@ -31,6 +31,7 @@ Current capabilities (implemented):
 - ✅ Fallback typing chain (Robot → Clipboard → Notify), chunked paste, privacy-safe logging
 - ✅ Event-driven watchdog with bounded auto-restart and cooldown
 - ✅ Metrics (Micrometer): engine latency/success/failure; reconciliation strategy/selected (PII-safe)
+- ✅ Live Caption overlay: real-time oscilloscope waveform + streaming Vosk captions (JavaFX, toggleable from tray menu)
 
 Planned (later phases):
 - ❌ Database persistence and search
@@ -43,6 +44,7 @@ Planned (later phases):
 - **Smart Dual-Engine Transcription:** Starts with Vosk (fast), automatically upgrades to Whisper verification when confidence is low - saves 70-80% resources while maintaining accuracy
 - **100% Local:** No cloud APIs, no internet required after setup
 - **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties or application.yml)
+- **Live Caption Overlay:** Real-time oscilloscope waveform and streaming Vosk captions during recording
 - **Graceful Fallback:** Works even if Accessibility permission denied
 
 ## Key Terms & Acronyms
@@ -422,8 +424,9 @@ Properties are bound to typed records for compile-time safety:
 - `VoskConfig` → `stt.vosk.*`
 - `WhisperConfig` → `stt.whisper.*`
 - `AudioValidationProperties` → `audio.validation.*`
+- `LiveCaptionProperties` → `live-caption.*`
 
-See: `src/main/java/com/phillippitts/speaktomack/config/stt/`
+See: `src/main/java/com/phillippitts/speaktomack/config/`
 
 ---
 
@@ -502,6 +505,7 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 - [Data Flow Diagram](docs/diagrams/data-flow-diagram.md) - Sequence diagrams, state machines, error flows
 - [Class Dependencies](docs/diagrams/class-dependencies.md) - UML class diagrams, package structure, design patterns
 - [Thread Model & Concurrency](docs/diagrams/thread-model-concurrency.md) - Thread pools, synchronization, MDC propagation
+- [Live Caption System](docs/diagrams/live-caption-system.md) - Oscilloscope waveform, streaming Vosk captions, JavaFX overlay
 
 **User Guides:**
 - [User Journey Map](docs/diagrams/user-journey.md) - Onboarding timeline, decision trees, usage scenarios
@@ -556,6 +560,11 @@ Notes:
 src/main/java/com/phillippitts/speaktomack/
 ├── presentation/       # Controllers, DTOs, exception handlers
 ├── service/           # Business logic, STT engines, orchestration, audio capture
+│   ├── audio/         # Audio capture, PCM events
+│   ├── stt/           # STT engines (Vosk, Whisper), streaming
+│   ├── orchestration/ # State tracking, recording service
+│   ├── livecaption/   # JavaFX overlay (oscilloscope + captions)
+│   └── tray/          # System tray icon and menu
 ├── domain/           # Domain entities (TranscriptionResult, etc.)
 ├── config/           # Spring configuration and typed properties
 ├── exception/        # Custom exceptions and global handlers

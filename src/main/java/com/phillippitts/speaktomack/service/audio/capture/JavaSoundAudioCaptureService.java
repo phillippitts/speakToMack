@@ -219,6 +219,9 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
                     continue;
                 }
                 s.buffer.write(buf, 0, n);
+                byte[] chunk = new byte[n];
+                System.arraycopy(buf, 0, chunk, 0, n);
+                publisher.publishEvent(new PcmChunkCapturedEvent(chunk, n, s.id));
                 written += n;
                 LOG.debug("Audio capture: read {} bytes, total written {} bytes", n, written);
                 if (written >= hardStopBytes) {

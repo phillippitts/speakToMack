@@ -4,7 +4,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -49,7 +48,6 @@ public class TypingProperties {
     /** Optional override for paste shortcut: os-default | META+V | CONTROL+V. */
     private final String pasteShortcut;
 
-    @ConstructorBinding
     public TypingProperties(Integer chunkSize,
                             Integer interChunkDelayMs,
                             Integer focusDelayMs,

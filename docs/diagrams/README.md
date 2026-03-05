@@ -101,6 +101,24 @@ This directory contains comprehensive visual documentation for the speakToMack p
 
 ---
 
+### [Live Caption System](live-caption-system.md)
+**Purpose:** Understand the real-time waveform and streaming caption overlay
+
+**Contains:**
+- Architecture overview with event flow
+- Event flow sequence diagram (full recording lifecycle)
+- Component data flow (waveform path + caption path)
+- Class diagram (all 8 new classes)
+- State machine (window visibility + internal states)
+- Thread model (Audio → Spring → JavaFX)
+- Feature toggle (conditional bean loading)
+- PCM sample conversion detail
+- Window layout ASCII mockup
+
+**Best for:** Understanding the live feedback system, debugging event flow, extending the UI
+
+---
+
 ## High-Level Overview
 
 ### [Architecture Overview](architecture-overview.md)
@@ -145,20 +163,22 @@ mmdc -i architecture-overview.md -o architecture-overview.svg
 | **Developer** | Code Structure | [class-dependencies.md](class-dependencies.md) |
 | **Developer** | Threading | [thread-model-concurrency.md](thread-model-concurrency.md) |
 | **Developer** | Data Flow | [data-flow-diagram.md](data-flow-diagram.md) |
+| **Developer** | Live Caption | [live-caption-system.md](live-caption-system.md) |
 | **User** | Onboarding | [user-journey.md](user-journey.md) |
 | **User** | Troubleshooting | [troubleshooting-guide.md](troubleshooting-guide.md) |
 | **All** | Overview | [architecture-overview.md](architecture-overview.md) |
 
 ## Total Diagram Count
 
-- **9 diagrams** in architecture-overview.md (pre-existing)
-- **11 diagrams** in class-dependencies.md (new)
-- **18 diagrams** in thread-model-concurrency.md (new)
-- **5 diagrams** in data-flow-diagram.md (pre-existing)
-- **11 diagrams** in user-journey.md (new)
-- **6 diagrams** in troubleshooting-guide.md (new)
+- **10 diagrams** in architecture-overview.md
+- **12 diagrams** in class-dependencies.md
+- **20 diagrams** in thread-model-concurrency.md
+- **6 diagrams** in data-flow-diagram.md
+- **12 diagrams** in user-journey.md
+- **6 diagrams** in troubleshooting-guide.md
+- **8 diagrams** in live-caption-system.md (new)
 
-**Total: 60 diagrams** across 6 documentation files
+**Total: 74 diagrams** across 7 documentation files
 
 ## Recommended Reading Order
 
@@ -166,7 +186,8 @@ mmdc -i architecture-overview.md -o architecture-overview.svg
 1. [Architecture Overview](architecture-overview.md) - Start here
 2. [Data Flow Diagram](data-flow-diagram.md) - Understand the happy path
 3. [Class Dependencies](class-dependencies.md) - Dive into code structure
-4. [Thread Model & Concurrency](thread-model-concurrency.md) - Master threading (advanced)
+4. [Live Caption System](live-caption-system.md) - Real-time UI overlay
+5. [Thread Model & Concurrency](thread-model-concurrency.md) - Master threading (advanced)
 
 ### For New Users
 1. [User Journey Map](user-journey.md) - What to expect

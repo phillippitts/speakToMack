@@ -78,6 +78,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     /**
      * Spring-friendly constructor to inject concurrency limits and pause detection config.
      */
+    @org.springframework.beans.factory.annotation.Autowired
     public VoskSttEngine(VoskConfig config,
             com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
             ApplicationEventPublisher publisher,

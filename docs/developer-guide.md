@@ -22,6 +22,8 @@ See diagrams: `docs/diagrams/architecture-overview.md`.
 - Orchestrator: `service.orchestration.DualEngineOrchestrator`
 - Fallback typing: `service.fallback.*`
 - Watchdog: `service.stt.watchdog.*`
+- Live caption: `service.livecaption.*` (JavaFX overlay with oscilloscope + streaming Vosk captions)
+- System tray: `service.tray.SystemTrayManager`
 
 ## Configuration Properties (typed)
 - `config.audio.AudioCaptureProperties`
@@ -31,6 +33,7 @@ See diagrams: `docs/diagrams/architecture-overview.md`.
 - `config.stt.{VoskConfig, WhisperConfig, SttConcurrencyProperties, SttWatchdogProperties}`
 - `config.orchestration.OrchestrationProperties`
 - `config.reconcile.ReconciliationProperties`
+- `config.properties.LiveCaptionProperties` (live-caption.enabled, window dimensions, opacity)
 
 ## Event Threading & Responsiveness
 
@@ -68,6 +71,29 @@ public class DualEngineOrchestrator {
 - `sttExecutor` thread pool is configured in `AppConfig`
 - Pool size matches STT engine concurrency limits to prevent resource exhaustion
 - Callers should never block event listener threads with long-running STT operations
+
+## Live Caption System
+
+The live caption feature provides real-time visual feedback during recording via a JavaFX overlay window.
+
+**Architecture:**
+- `JavaSoundAudioCaptureService` publishes `PcmChunkCapturedEvent` after each 40ms PCM chunk
+- `VoskStreamingService` feeds chunks to a streaming Vosk recognizer and publishes `VoskPartialResultEvent`
+- `LiveCaptionManager` bridges Spring events to the JavaFX Application Thread via `Platform.runLater()`
+- `LiveCaptionWindow` renders an oscilloscope waveform (Canvas) and caption text (Label)
+
+**Threading:**
+- Audio capture thread → publishes events on Spring event bus
+- Spring event listeners process on the publishing thread (synchronous)
+- All JavaFX UI mutations go through `Platform.runLater()` for thread safety
+- `VoskStreamingService` uses `synchronized(recognizerLock)` to protect its recognizer
+
+**Feature Toggle:**
+- `@ConditionalOnProperty(name = "live-caption.enabled", havingValue = "true")` on all live caption beans
+- When disabled: no JavaFX initialization, no streaming recognizer, no tray checkbox — zero overhead
+- `SystemTrayManager` accepts `Optional<LiveCaptionManager>` so it works with or without the feature
+
+See diagrams: `docs/diagrams/live-caption-system.md`.
 
 ## Paragraph Break Semantics
 
@@ -148,6 +174,9 @@ The project uses the following key dependencies:
 - Configuration: `config/checkstyle/checkstyle.xml`
 - Build fails on any violations (`maxWarnings = 0`)
 - Checkstyle version: 10.12.0
+
+**UI:**
+- JavaFX 21 (`org.openjfx.javafxplugin`) - Live caption overlay window (oscilloscope + captions)
 
 **Other Dependencies:**
 - JNativeHook (`com.github.kwhat:jnativehook:2.2.2`) - Global hotkey support

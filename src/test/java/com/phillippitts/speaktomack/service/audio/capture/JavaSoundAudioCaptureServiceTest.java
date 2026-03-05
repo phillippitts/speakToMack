@@ -28,7 +28,11 @@ class JavaSoundAudioCaptureServiceTest {
         vprops.setMaxDurationMs(60000);
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger events = new AtomicInteger();
-        ApplicationEventPublisher publisher = e -> events.incrementAndGet();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof CaptureErrorEvent) {
+                events.incrementAndGet();
+            }
+        };
 
         // Fake provider that returns a repeating data line
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {

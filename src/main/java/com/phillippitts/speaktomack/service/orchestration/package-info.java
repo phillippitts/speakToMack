@@ -6,7 +6,7 @@
  *
  * <p>Key Components:
  * <ul>
- *   <li>{@link com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator} -
+ *   <li>{@link com.phillippitts.speaktomack.service.orchestration.HotkeyRecordingAdapter} -
  *       Orchestrates push-to-talk with dual-engine STT (Vosk + Whisper), automatic failover,
  *       and optional reconciliation-based transcription</li>
  * </ul>

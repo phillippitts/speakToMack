@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * dependencies on real hardware/binaries.
  *
  * <p><b>Architecture Note:</b> This test uses a simplified {@link TestableOrchestrator}
- * instead of the real {@link com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator}
+ * instead of the real {@link com.phillippitts.speaktomack.service.orchestration.HotkeyRecordingAdapter}
  * to avoid complex watchdog wiring. The real orchestrator is tested separately in unit tests.
  */
 class HotkeyToTypingIntegrationTest {
@@ -181,7 +181,7 @@ class HotkeyToTypingIntegrationTest {
      * Simplified orchestrator for integration testing without full watchdog wiring.
      *
      * <p><b>Why this exists:</b> The real
-     * {@link com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator}
+     * {@link com.phillippitts.speaktomack.service.orchestration.HotkeyRecordingAdapter}
      * requires a fully configured
      * {@link com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog},
      * which is a complex Spring component with its own lifecycle and dependencies. For integration

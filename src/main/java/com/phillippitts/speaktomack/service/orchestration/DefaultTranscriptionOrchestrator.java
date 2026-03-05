@@ -6,7 +6,6 @@ import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
-import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -146,10 +145,11 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @param pcm PCM audio data to transcribe
      */
     private void transcribeWithSingleEngine(byte[] pcm) {
-        SttEngine engine = selectSingleEngine();
+        SttEngine engine = null;
         long startTime = System.nanoTime();
 
         try {
+            engine = selectSingleEngine();
             TranscriptionResult result = engine.transcribe(pcm);
             String engineName = engine.getEngineName();
 
@@ -175,11 +175,17 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             logTranscriptionSuccess(engineName, startTime, result.text().length(), null);
             publishResult(result, engineName);
         } catch (TranscriptionException te) {
-            metricsPublisher.recordFailure(engine.getEngineName(), "transcription_error");
+            String engineName = engine != null ? engine.getEngineName() : "unknown";
+            metricsPublisher.recordFailure(engineName, "transcription_error");
             LOG.warn("Transcription failed: {}", te.getMessage());
+            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, engineName);
+            publishResult(emptyResult, engineName);
         } catch (RuntimeException re) {
-            metricsPublisher.recordFailure(engine.getEngineName(), "unexpected_error");
+            String engineName = engine != null ? engine.getEngineName() : "unknown";
+            metricsPublisher.recordFailure(engineName, "unexpected_error");
             LOG.error("Unexpected error during transcription", re);
+            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, engineName);
+            publishResult(emptyResult, engineName);
         }
     }
 
@@ -190,33 +196,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @throws TranscriptionException if both engines are unavailable
      */
     private SttEngine selectSingleEngine() {
-        // Delegate to strategy for engine selection
-        SttEngine selected = engineSelector.selectEngine();
-
-        // Verify both engines aren't unhealthy (strategy returns primary anyway, but we want to fail fast)
-        if (!engineSelector.areBothEnginesHealthy()) {
-            SttEngine vosk = engineSelector.getVoskEngine();
-            SttEngine whisper = engineSelector.getWhisperEngine();
-            SttEngineWatchdog watchdog = engineSelector.getWatchdog();
-
-            boolean voskReady = watchdog.isEngineEnabled(SttEngineNames.VOSK) && vosk.isHealthy();
-            boolean whisperReady = watchdog.isEngineEnabled(SttEngineNames.WHISPER) && whisper.isHealthy();
-
-            if (!voskReady && !whisperReady) {
-                // Both engines unavailable - construct detailed error message
-                String errorMsg = String.format(
-                        "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, "
-                                + "whisper.enabled=%s, whisper.healthy=%s)",
-                        watchdog.isEngineEnabled(SttEngineNames.VOSK),
-                        vosk.isHealthy(),
-                        watchdog.isEngineEnabled(SttEngineNames.WHISPER),
-                        whisper.isHealthy()
-                );
-                throw new TranscriptionException(errorMsg);
-            }
-        }
-
-        return selected;
+        return engineSelector.selectEngine();
     }
 
     /**

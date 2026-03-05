@@ -267,6 +267,39 @@ flowchart TB
     style Limited2 fill:#ffe0b2
 ```
 
+## Scenario 4: Using Live Caption for Visual Feedback
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Tray as System Tray
+    participant LCW as Live Caption Window
+    participant STM as speakToMack
+
+    User->>Tray: Check "Live Caption"
+    Note over User,LCW: Live Caption enabled
+
+    User->>STM: Press hotkey
+    LCW->>LCW: Window appears (bottom-center)
+    Note over LCW: Flat green line (no audio yet)
+
+    User->>User: Start speaking
+    loop Every 40ms
+        LCW->>LCW: Oscilloscope updates with waveform
+    end
+
+    Note over LCW: Caption appears: "the quick brown fox..."
+    Note over LCW: Gray text = still listening
+
+    User->>User: Pause briefly
+    Note over LCW: Caption turns white = phrase complete
+    Note over LCW: New partial text appears in gray
+
+    User->>STM: Release hotkey
+    LCW->>LCW: Window hides
+    STM-->>User: Full text pasted at cursor
+```
+
 ## User Mental Model: How It Works
 
 ```mermaid
@@ -274,12 +307,15 @@ graph TB
     subgraph UserView["What User Sees"]
         Press["1. Press hotkey<br/>(visual feedback)"]
         Speak["2. Speak into mic<br/>(indicator active)"]
+        LiveFB["2b. Waveform + captions<br/>(Live Caption overlay)"]
         Release["3. Release hotkey<br/>(processing...)"]
         Text["4. Text appears<br/>(in current app)"]
     end
 
     subgraph Behind["What Happens Behind the Scenes"]
         Audio["Audio capture starts<br/>(ring buffer)"]
+        Stream["PCM chunks published<br/>(PcmChunkCapturedEvent)"]
+        VoskStream["Vosk streaming<br/>(partial results)"]
         Process["Both engines run<br/>(Vosk + Whisper)"]
         Choose["Best result selected<br/>(reconciliation)"]
         Paste["Text pasted<br/>(fallback chain)"]
@@ -287,6 +323,9 @@ graph TB
 
     Press --> Audio
     Speak --> Audio
+    Audio --> Stream
+    Stream --> VoskStream
+    VoskStream --> LiveFB
     Release --> Process
     Process --> Choose
     Choose --> Paste

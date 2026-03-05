@@ -205,6 +205,61 @@ classDiagram
     TranscriptionOrchestrator --> FallbackManager : uses
 ```
 
+## Live Caption Package
+
+```mermaid
+classDiagram
+    class LiveCaptionManager {
+        -LiveCaptionProperties props
+        -AtomicBoolean enabled
+        -LiveCaptionWindow window
+        +isEnabled() boolean
+        +setEnabled(boolean)
+        +onStateChanged(ApplicationStateChangedEvent)
+        +onPcmChunk(PcmChunkCapturedEvent)
+        +onVoskPartialResult(VoskPartialResultEvent)
+    }
+
+    class LiveCaptionWindow {
+        -Stage stage
+        -Canvas canvas
+        -Label captionLabel
+        +show()
+        +hide()
+        +updateWaveform(short[])
+        +updateCaption(String, boolean)
+    }
+
+    class VoskStreamingService {
+        -VoskConfig config
+        -ApplicationEventPublisher publisher
+        -Model model
+        -Recognizer recognizer
+        +onStateChanged(ApplicationStateChangedEvent)
+        +onPcmChunk(PcmChunkCapturedEvent)
+    }
+
+    class PcmChunkCapturedEvent {
+        <<record>>
+        +byte[] pcmData
+        +int length
+        +UUID sessionId
+    }
+
+    class VoskPartialResultEvent {
+        <<record>>
+        +String text
+        +boolean isFinal
+    }
+
+    LiveCaptionManager --> LiveCaptionWindow : creates
+    LiveCaptionManager --> PcmSampleConverter : uses
+    LiveCaptionManager ..> PcmChunkCapturedEvent : listens
+    LiveCaptionManager ..> VoskPartialResultEvent : listens
+    VoskStreamingService ..> PcmChunkCapturedEvent : listens
+    VoskStreamingService ..> VoskPartialResultEvent : publishes
+```
+
 ## Package Dependency Graph
 
 ```mermaid
@@ -221,6 +276,8 @@ graph TB
         Reconcile[reconcile]
         Fallback[fallback]
         Typing[typing]
+        LiveCaption[livecaption]
+        Tray[tray]
     end
 
     subgraph domain["com.phillippitts.speaktomack.domain"]
@@ -249,6 +306,10 @@ graph TB
     STT --> domain
     Reconcile --> domain
     Audio --> domain
+    LiveCaption --> Audio
+    LiveCaption --> STT
+    LiveCaption --> config
+    Tray --> LiveCaption
 
     Controller --> exception
     STT --> exception
@@ -314,6 +375,8 @@ flowchart LR
 | `service.orchestration` | Facade | DualEngineOrchestrator coordinates subsystems |
 | `service.*` | Observer | ApplicationEventPublisher for loose coupling |
 | `service.stt` | Object Pool | ConcurrencyGuard with Semaphore |
+| `service.livecaption` | Bridge | LiveCaptionManager bridges Spring events to JavaFX thread |
+| `service.livecaption` | Feature Toggle | @ConditionalOnProperty for zero-overhead disable |
 
 ## Thread Safety Guarantees
 
@@ -329,6 +392,9 @@ flowchart LR
 | HotkeyManager | Thread-safe | CopyOnWriteArrayList for listeners |
 | All Reconcilers | Thread-safe | Stateless (no shared mutable state) |
 | FallbackManager | Thread-safe | Stateless operations |
+| VoskStreamingService | Thread-safe | synchronized(recognizerLock) for recognizer access |
+| LiveCaptionManager | Thread-safe | AtomicBoolean for enabled flag, JavaFX thread for UI |
+| LiveCaptionWindow | Single-thread | JavaFX Application Thread only |
 
 ## Immutable Value Objects
 

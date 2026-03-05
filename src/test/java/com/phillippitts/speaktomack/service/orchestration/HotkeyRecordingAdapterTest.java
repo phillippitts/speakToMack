@@ -4,7 +4,6 @@ import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
-import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.audio.capture.CaptureErrorEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
@@ -21,9 +20,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class DualEngineOrchestratorTest {
+class HotkeyRecordingAdapterTest {
 
     @Test
     void usesPrimaryWhenHealthy() {
@@ -36,7 +34,7 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -49,8 +47,8 @@ class DualEngineOrchestratorTest {
                 .build();
 
         // Act
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
         // Assert
         boolean published = events.stream().anyMatch(e -> e instanceof TranscriptionCompletedEvent);
@@ -72,7 +70,7 @@ class DualEngineOrchestratorTest {
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -84,8 +82,8 @@ class DualEngineOrchestratorTest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .build();
 
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
         TranscriptionCompletedEvent evt = (TranscriptionCompletedEvent) events.stream()
                 .filter(e -> e instanceof TranscriptionCompletedEvent).findFirst().orElseThrow();
@@ -95,15 +93,16 @@ class DualEngineOrchestratorTest {
     }
 
     @Test
-    void throwsWhenBothDisabled() {
+    void publishesEmptyResultWhenBothDisabled() {
         FakeCapture cap = new FakeCapture();
         cap.pcm = new byte[3200];
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, false);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
-        ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        List<Object> events = new ArrayList<>();
+        ApplicationEventPublisher pub = events::add;
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -115,10 +114,15 @@ class DualEngineOrchestratorTest {
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .build();
 
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        assertThatThrownBy(() -> orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now())))
-                .isInstanceOf(TranscriptionException.class)
-                .hasMessageContaining("Both engines unavailable");
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+
+        TranscriptionCompletedEvent evt = events.stream()
+                .filter(e -> e instanceof TranscriptionCompletedEvent)
+                .map(e -> (TranscriptionCompletedEvent) e)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected TranscriptionCompletedEvent"));
+        assertThat(evt.result().text()).isEmpty();
     }
 
     @Test
@@ -130,7 +134,7 @@ class DualEngineOrchestratorTest {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
         ApplicationEventPublisher pub = e -> { };
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -143,8 +147,8 @@ class DualEngineOrchestratorTest {
                 .build();
 
         // Start session, then receive capture error
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onCaptureError(new CaptureErrorEvent("Microphone permission denied", Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onCaptureError(new CaptureErrorEvent("Microphone permission denied", Instant.now()));
 
         // Verify session was canceled
         assertThat(cap.canceledSession).isNotNull();
@@ -163,7 +167,7 @@ class DualEngineOrchestratorTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         CaptureStateMachine csm = new CaptureStateMachine();
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -176,18 +180,18 @@ class DualEngineOrchestratorTest {
                 .build();
 
         // Simulate: press (start), press again (ignored - already active), release (complete)
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         UUID firstSession = cap.id;
         assertThat(firstSession).isNotNull();
         assertThat(csm.isActive()).isTrue();
 
         // Second press should be ignored since session is already active
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
         assertThat(cap.id).isEqualTo(firstSession); // Same session, not a new one
         assertThat(csm.isActive()).isTrue();
 
         // Release completes the transcription
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
         assertThat(csm.isActive()).isFalse();
 
         // Verify only one transcription completed
@@ -213,7 +217,7 @@ class DualEngineOrchestratorTest {
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 
-        DualEngineOrchestrator orch = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -226,8 +230,8 @@ class DualEngineOrchestratorTest {
                 .build();
 
         // Act: First transcription - no paragraph break
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
         TranscriptionCompletedEvent evt1 = (TranscriptionCompletedEvent) events.stream()
                 .filter(e -> e instanceof TranscriptionCompletedEvent)
@@ -239,8 +243,8 @@ class DualEngineOrchestratorTest {
         Thread.sleep(150);
 
         // Second transcription - should have paragraph break prepended
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
         TranscriptionCompletedEvent evt2 = (TranscriptionCompletedEvent) events.stream()
                 .filter(e -> e instanceof TranscriptionCompletedEvent)
@@ -258,19 +262,19 @@ class DualEngineOrchestratorTest {
         SttEngine vosk = createVoskEngineWithNewlinePrefix();
         List<Object> events = new ArrayList<>();
 
-        DualEngineOrchestrator orch = buildOrchestratorForParagraphBreakTest(cap, vosk, events);
+        HotkeyRecordingAdapter adapter = buildAdapterForParagraphBreakTest(cap, vosk, events);
 
         // First transcription
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
         events.clear();
 
         // Wait for silence gap
         Thread.sleep(150);
 
         // Second transcription - engine returns text starting with newline
-        orch.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
-        orch.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
+        adapter.onHotkeyPressed(new HotkeyPressedEvent(Instant.now()));
+        adapter.onHotkeyReleased(new HotkeyReleasedEvent(Instant.now()));
 
         TranscriptionCompletedEvent evt = (TranscriptionCompletedEvent) events.stream()
                 .filter(e -> e instanceof TranscriptionCompletedEvent)
@@ -302,7 +306,7 @@ class DualEngineOrchestratorTest {
         };
     }
 
-    private DualEngineOrchestrator buildOrchestratorForParagraphBreakTest(
+    private HotkeyRecordingAdapter buildAdapterForParagraphBreakTest(
             FakeCapture cap, SttEngine vosk, List<Object> events) {
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
@@ -312,7 +316,7 @@ class DualEngineOrchestratorTest {
         );
         ApplicationEventPublisher pub = events::add;
 
-        return DualEngineOrchestratorBuilder.builder()
+        return HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)

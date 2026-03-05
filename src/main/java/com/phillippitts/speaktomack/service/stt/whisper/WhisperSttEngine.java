@@ -94,6 +94,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         this.silenceGapMs = 0; // Disabled in basic constructor
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public WhisperSttEngine(WhisperConfig cfg,
                              SttConcurrencyProperties concurrencyProperties,
                              ProcessManager manager,

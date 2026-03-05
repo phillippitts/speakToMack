@@ -2,6 +2,7 @@ package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties.PrimaryEngine;
+import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
@@ -62,9 +63,11 @@ public final class EngineSelectionStrategy {
      * Selects a healthy engine based on primary preference and watchdog health.
      *
      * <p>This method prefers the configured primary engine but falls back to
-     * the secondary if the primary is unhealthy.
+     * the secondary if the primary is unhealthy. If both engines are unavailable,
+     * throws {@link TranscriptionException}.
      *
      * @return selected STT engine (never null)
+     * @throws TranscriptionException if both engines are unavailable
      */
     public SttEngine selectEngine() {
         SttEngine primary = getPrimaryEngine();
@@ -72,8 +75,8 @@ public final class EngineSelectionStrategy {
         String primaryName = getPrimaryEngineName();
         String secondaryName = getSecondaryEngineName();
 
-        boolean primaryHealthy = watchdog.isEngineEnabled(primaryName);
-        boolean secondaryHealthy = watchdog.isEngineEnabled(secondaryName);
+        boolean primaryHealthy = watchdog.isEngineEnabled(primaryName) && primary.isHealthy();
+        boolean secondaryHealthy = watchdog.isEngineEnabled(secondaryName) && secondary.isHealthy();
 
         if (primaryHealthy) {
             LOG.debug("Selected primary engine: {}", primaryName);
@@ -85,8 +88,11 @@ public final class EngineSelectionStrategy {
             return secondary;
         }
 
-        LOG.error("Both engines unhealthy, using primary {} anyway", primaryName);
-        return primary;
+        throw new TranscriptionException(String.format(
+                "Both engines unavailable (vosk.enabled=%s, vosk.healthy=%s, "
+                        + "whisper.enabled=%s, whisper.healthy=%s)",
+                watchdog.isEngineEnabled(SttEngineNames.VOSK), vosk.isHealthy(),
+                watchdog.isEngineEnabled(SttEngineNames.WHISPER), whisper.isHealthy()));
     }
 
     /**
@@ -125,40 +131,4 @@ public final class EngineSelectionStrategy {
         return props.getPrimaryEngine() == PrimaryEngine.VOSK ? SttEngineNames.WHISPER : SttEngineNames.VOSK;
     }
 
-    /**
-     * Checks if both engines are currently healthy.
-     *
-     * @return {@code true} if both engines are enabled, {@code false} otherwise
-     */
-    public boolean areBothEnginesHealthy() {
-        return watchdog.isEngineEnabled(SttEngineNames.VOSK)
-                && watchdog.isEngineEnabled(SttEngineNames.WHISPER);
-    }
-
-    /**
-     * Returns the Vosk STT engine.
-     *
-     * @return Vosk engine instance
-     */
-    public SttEngine getVoskEngine() {
-        return vosk;
-    }
-
-    /**
-     * Returns the Whisper STT engine.
-     *
-     * @return Whisper engine instance
-     */
-    public SttEngine getWhisperEngine() {
-        return whisper;
-    }
-
-    /**
-     * Returns the engine watchdog for health monitoring.
-     *
-     * @return engine watchdog instance
-     */
-    public SttEngineWatchdog getWatchdog() {
-        return watchdog;
-    }
 }

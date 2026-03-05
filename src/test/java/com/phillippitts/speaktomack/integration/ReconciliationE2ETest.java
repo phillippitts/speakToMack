@@ -8,8 +8,8 @@ import com.phillippitts.speaktomack.config.properties.SttWatchdogProperties;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyPressedEvent;
 import com.phillippitts.speaktomack.service.hotkey.event.HotkeyReleasedEvent;
 import com.phillippitts.speaktomack.service.orchestration.CaptureStateMachine;
-import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestrator;
-import com.phillippitts.speaktomack.service.orchestration.DualEngineOrchestratorBuilder;
+import com.phillippitts.speaktomack.service.orchestration.HotkeyRecordingAdapter;
+import com.phillippitts.speaktomack.service.orchestration.HotkeyRecordingAdapterBuilder;
 import com.phillippitts.speaktomack.service.orchestration.EngineSelectionStrategy;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
@@ -71,7 +71,7 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new WordOverlapReconciler(0.5);
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -118,7 +118,7 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -167,7 +167,7 @@ class ReconciliationE2ETest {
                 OrchestrationProperties.PrimaryEngine.VOSK
         );
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -216,7 +216,7 @@ class ReconciliationE2ETest {
                 OrchestrationProperties.PrimaryEngine.WHISPER
         );
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -264,7 +264,7 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -302,7 +302,7 @@ class ReconciliationE2ETest {
         FakeSttEngine vosk = new FakeSttEngine("vosk", "test text", 0.9);
         FakeSttEngine whisper = new FakeSttEngine("whisper", "test text", 0.95);
 
-        DualEngineOrchestrator orchestrator = buildConfidenceOrchestrator(
+        HotkeyRecordingAdapter orchestrator = buildConfidenceOrchestrator(
                 capture, vosk, whisper, publisher);
 
         // Measure memory before
@@ -339,7 +339,7 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        DualEngineOrchestrator orchestrator = DualEngineOrchestratorBuilder.builder()
+        HotkeyRecordingAdapter orchestrator = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
@@ -373,7 +373,7 @@ class ReconciliationE2ETest {
                 java.util.List.of("META"), java.util.List.of(), false);
     }
 
-    private static DualEngineOrchestrator buildConfidenceOrchestrator(FakeAudioCaptureService capture,
+    private static HotkeyRecordingAdapter buildConfidenceOrchestrator(FakeAudioCaptureService capture,
                                                                       FakeSttEngine vosk,
                                                                       FakeSttEngine whisper,
                                                                       EventCapturingPublisher publisher) {
@@ -383,7 +383,7 @@ class ReconciliationE2ETest {
                 new SyncExecutor(), 10000);
         TranscriptReconciler reconciler = new ConfidenceReconciler();
 
-        return DualEngineOrchestratorBuilder.builder()
+        return HotkeyRecordingAdapterBuilder.builder()
                 .captureService(capture)
                 .voskEngine(vosk)
                 .whisperEngine(whisper)

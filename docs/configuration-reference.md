@@ -18,6 +18,7 @@ Complete reference for all configuration properties in speakToMack.
   - [Engine Watchdog](#engine-watchdog)
 - [Hotkey Configuration](#hotkey-configuration)
 - [Typing Configuration](#typing-configuration)
+- [Live Caption Configuration](#live-caption-configuration)
 - [Spring Boot Actuator](#spring-boot-actuator)
 
 ---
@@ -374,6 +375,47 @@ Useful for pasting into Windows-specific apps.
 
 ---
 
+## Live Caption Configuration
+
+Controls the real-time overlay window that displays an oscilloscope waveform and streaming Vosk captions during recording.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `live-caption.enabled` | boolean | `true` | Enable the live caption overlay. When `false`, no JavaFX initialization occurs and no tray menu item is shown. Zero overhead when disabled. |
+| `live-caption.window-width` | int | `600` | Width of the overlay window in pixels. |
+| `live-caption.window-height` | int | `250` | Height of the overlay window in pixels. |
+| `live-caption.window-opacity` | double | `0.85` | Window opacity (0.0 = fully transparent, 1.0 = fully opaque). |
+
+**Example - Default Configuration:**
+```properties
+live-caption.enabled=true
+live-caption.window-width=600
+live-caption.window-height=250
+live-caption.window-opacity=0.85
+```
+
+**Example - Larger, More Opaque Window:**
+```properties
+live-caption.window-width=800
+live-caption.window-height=300
+live-caption.window-opacity=0.95
+```
+
+**Example - Disable Live Caption:**
+```properties
+live-caption.enabled=false
+```
+No JavaFX initialization, no streaming Vosk recognizer, no tray menu checkbox. The application behaves exactly as before this feature was added.
+
+**Runtime Toggle:**
+When enabled, the "Live Caption" checkbox in the system tray menu allows toggling the overlay on/off without restarting the application.
+
+**Dependencies:**
+- Requires the Vosk model to be available (same `stt.vosk.model-path` used by VoskSttEngine)
+- Requires JavaFX runtime (added via the `org.openjfx.javafxplugin` Gradle plugin)
+
+---
+
 ## Spring Boot Actuator
 
 Production monitoring and health check endpoints.
@@ -432,6 +474,9 @@ stt.concurrency.whisper-max=2
 
 # Enable actuator for monitoring
 management.endpoints.web.exposure.include=health,metrics,prometheus
+
+# Live caption overlay
+live-caption.enabled=true
 
 # Graceful shutdown
 server.shutdown=graceful

@@ -29,6 +29,13 @@ graph TB
     subgraph AudioThread["Audio Capture Thread"]
         JavaSound[Java Sound TargetDataLine]
         RingBuffer[PcmRingBuffer]
+        PcmEvent[PcmChunkCapturedEvent]
+    end
+
+    subgraph JavaFXThread["JavaFX Application Thread"]
+        LiveWindow[LiveCaptionWindow]
+        Waveform[Canvas: Oscilloscope]
+        Captions[Label: Caption Text]
     end
 
     HotkeyThread -->|HotkeyPressed Event| EventBus
@@ -36,6 +43,8 @@ graph TB
     Controllers -->|Submit Tasks| SttExecutor
     AudioThread -->|Write PCM| RingBuffer
     MainThread -->|Read PCM| RingBuffer
+    AudioThread -->|Publish| PcmEvent
+    PcmEvent -->|Platform.runLater| JavaFXThread
 
     Thread1 -.->|Log Events| AsyncLogging
     Thread2 -.->|Log Events| AsyncLogging
@@ -45,6 +54,7 @@ graph TB
     style SttExecutor fill:#c8e6c9
     style AsyncLogging fill:#f3e5f5
     style AudioThread fill:#ffe0b2
+    style JavaFXThread fill:#c8e6c9
 ```
 
 ## Parallel STT Execution Flow
@@ -385,11 +395,14 @@ graph TB
     Level1[Level 1: CaptureStateMachine.lock]
     Level2[Level 2: AbstractSttEngine.lock]
     Level3[Level 3: WhisperSttEngine.cachedDataLock]
+    Level3b[Level 3b: VoskStreamingService.recognizerLock]
     Level4[Level 4: PcmRingBuffer methods]
 
     Level1 --> Level2
     Level2 --> Level3
+    Level2 --> Level3b
     Level3 --> Level4
+    Level3b --> Level4
 
     Note1[Always acquire in order:<br/>1 → 2 → 3 → 4]
     Note2[Never hold multiple locks<br/>from different levels]
@@ -455,6 +468,8 @@ flowchart TB
 | `CopyOnWriteArrayList` | HotkeyManager.listeners | Atomic snapshot reads |
 | `CompletableFuture` | ParallelSttService | Result visibility via ForkJoinPool |
 | `Semaphore` | ConcurrencyGuard | Memory barrier on acquire/release |
+| `Platform.runLater` | LiveCaptionManager → JavaFX | Thread-safe handoff to JavaFX Application Thread |
+| `AtomicBoolean` | LiveCaptionManager.enabled | Lock-free toggle for feature enable/disable |
 
 ## Async Logging Thread Isolation
 
@@ -487,3 +502,5 @@ flowchart LR
 5. **MDC Propagation**: Request context preserved across thread boundaries
 6. **Idempotent Initialization**: Multiple `initialize()` calls are safe (synchronized check)
 7. **Graceful Timeout**: Partial results returned if one engine completes before timeout
+8. **JavaFX Thread Safety**: All `LiveCaptionWindow` mutations go through `Platform.runLater()` — never called from Spring event threads directly
+9. **Streaming Recognizer Isolation**: `VoskStreamingService` manages its own `Model` and `Recognizer`, separate from `VoskSttEngine`

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.6'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
     id 'checkstyle'  // Clean code enforcement
 }
 
@@ -106,6 +107,11 @@ tasks.register('realBinaryTest', Test) {
 // Run both unit and integration tests with ./gradlew check
 tasks.named('check') {
     dependsOn integrationTest
+}
+
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.graphics']
 }
 
 checkstyle {

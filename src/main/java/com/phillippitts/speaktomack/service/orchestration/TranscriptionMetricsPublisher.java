@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * Centralizes transcription metrics recording for orchestration workflows.
  *
  * <p>This service encapsulates all metrics tracking logic previously scattered throughout
- * {@link DualEngineOrchestrator}, providing a clean separation of concerns between
+ * {@link HotkeyRecordingAdapter}, providing a clean separation of concerns between
  * orchestration logic and observability.
  *
  * <p><b>Responsibilities:</b>
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
  *
  * @since 1.1
  * @see TranscriptionMetrics
- * @see DualEngineOrchestrator
+ * @see HotkeyRecordingAdapter
  */
 @Component
 public final class TranscriptionMetricsPublisher {
