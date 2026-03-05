@@ -199,7 +199,7 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().toString()).contains("unexpected error");
-        assertThat(response.getBody().toString()).contains("contact support");
+        assertThat(response.getBody().toString()).contains("Request ID:");
     }
 
     @Test

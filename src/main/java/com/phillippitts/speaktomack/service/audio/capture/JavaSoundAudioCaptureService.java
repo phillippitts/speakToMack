@@ -154,6 +154,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
 
     @Override
     public void cancelSession(UUID sessionId) {
+        Thread captureThread;
         synchronized (lock) {
             ensureSession(sessionId);
             current.canceled = true;
@@ -162,6 +163,11 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             if (current.buffer != null) {
                 current.buffer.clear();
             }
+            captureThread = current.thread;
+        }
+        // Join thread outside lock to ensure audio line is released before next startSession()
+        if (captureThread != null) {
+            joinThread(captureThread, ProcessTimeouts.CAPTURE_THREAD_STOP_TIMEOUT.toMillis());
         }
     }
 
@@ -195,7 +201,7 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
                 AudioFormat.REQUIRED_SIGNED,
                 AudioFormat.REQUIRED_BIG_ENDIAN
         );
-        final int capacity = (props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000;
+        final int capacity = (int) (((long) props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000L);
         s.buffer = new PcmRingBuffer(capacity);
         s.active.set(true);
 
@@ -241,18 +247,24 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             LOG.warn("Capture failed: {}", t.toString());
             publisher.publishEvent(new CaptureErrorEvent("CAPTURE_ERROR", Instant.now()));
         } finally {
-            if (line != null) {
-                try {
-                    line.stop();
-                } catch (Exception e) {
-                    LOG.debug("Failed to stop audio line for session {}: {}", s.id, e.getMessage());
-                }
-                try {
-                    line.close();
-                } catch (Exception e) {
-                    LOG.debug("Failed to close audio line for session {}: {}", s.id, e.getMessage());
-                }
-            }
+            s.active.set(false);
+            closeAudioLine(line, s.id);
+        }
+    }
+
+    private void closeAudioLine(TargetDataLine line, UUID sessionId) {
+        if (line == null) {
+            return;
+        }
+        try {
+            line.stop();
+        } catch (Exception e) {
+            LOG.debug("Failed to stop audio line for session {}: {}", sessionId, e.getMessage());
+        }
+        try {
+            line.close();
+        } catch (Exception e) {
+            LOG.debug("Failed to close audio line for session {}: {}", sessionId, e.getMessage());
         }
     }
 

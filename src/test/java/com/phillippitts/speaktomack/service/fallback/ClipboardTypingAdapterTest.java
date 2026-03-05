@@ -42,7 +42,7 @@ class ClipboardTypingAdapterTest {
     }
 
     @Test
-    void savesAndRestoresClipboardAndNormalizesLf() {
+    void savesAndRestoresClipboardAndNormalizesLf() throws InterruptedException {
         TypingProperties props = new TypingProperties(
                 800, 0, 0, true, true,
                 TypingProperties.NewlineMode.LF, true, false, "os-default"
@@ -66,6 +66,8 @@ class ClipboardTypingAdapterTest {
         ClipboardTypingAdapter adapter2 = new ClipboardTypingAdapter(props2, facade);
         boolean ok2 = adapter2.type("abc\r\n");
         assertThat(ok2).isTrue();
+        // Clipboard restore is async (200ms delay) to allow paste to complete
+        Thread.sleep(400);
         assertThat(facade.clipboard.contents).isEqualTo("orig");
     }
 }

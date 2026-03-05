@@ -178,9 +178,21 @@ public class SystemTrayManager implements SmartLifecycle {
     public void stop() {
         running.set(false);
         if (trayIcon != null && SystemTray.isSupported()) {
-            SystemTray.getSystemTray().remove(trayIcon);
-            trayIcon = null;
-            LOG.info("System tray icon removed");
+            try {
+                // Must access tray on EDT to avoid threading violations on macOS
+                SwingUtilities.invokeAndWait(() -> {
+                    if (trayIcon != null) {
+                        SystemTray.getSystemTray().remove(trayIcon);
+                        trayIcon = null;
+                    }
+                });
+                LOG.info("System tray icon removed");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while removing tray icon");
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                LOG.warn("Error removing tray icon on EDT: {}", e.getCause().getMessage());
+            }
         }
     }
 

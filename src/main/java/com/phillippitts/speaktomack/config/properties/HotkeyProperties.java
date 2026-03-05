@@ -11,12 +11,10 @@ import java.util.List;
 
 /**
  * Typed properties for global hotkey configuration.
- *
  * Supports three trigger styles:
  * - single-key
  * - double-tap (same key pressed twice within threshold)
  * - modifier-combination (e.g., META+SHIFT+D)
- *
  * Values are validated on startup for fail-fast behavior.
  */
 @Validated

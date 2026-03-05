@@ -8,7 +8,6 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * Typed properties for microphone capture.
- *
  * Required format (enforced by service): 16 kHz, 16-bit PCM, mono, little-endian.
  */
 @Validated

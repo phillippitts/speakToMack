@@ -7,10 +7,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Thread-safe tracker for the application's high-level state.
  * Publishes {@link ApplicationStateChangedEvent} on every transition.
+ * Validates that state transitions follow the allowed state machine.
  *
  * @since 1.2
  */
@@ -18,6 +21,13 @@ import java.time.Instant;
 public class ApplicationStateTracker {
 
     private static final Logger LOG = LogManager.getLogger(ApplicationStateTracker.class);
+
+    /** Valid state transitions: from -> allowed targets. */
+    private static final Map<ApplicationState, Set<ApplicationState>> VALID_TRANSITIONS = Map.of(
+            ApplicationState.IDLE, Set.of(ApplicationState.RECORDING),
+            ApplicationState.RECORDING, Set.of(ApplicationState.IDLE, ApplicationState.TRANSCRIBING),
+            ApplicationState.TRANSCRIBING, Set.of(ApplicationState.IDLE)
+    );
 
     private final ApplicationEventPublisher publisher;
     private volatile ApplicationState state = ApplicationState.IDLE;
@@ -29,6 +39,7 @@ public class ApplicationStateTracker {
     /**
      * Transitions to a new state and publishes an event.
      * If the new state equals the current state, this is a no-op.
+     * Invalid transitions are logged as warnings but still applied to avoid deadlocks.
      *
      * @param newState the state to transition to
      */
@@ -36,6 +47,10 @@ public class ApplicationStateTracker {
         ApplicationState previous = this.state;
         if (previous == newState) {
             return;
+        }
+        Set<ApplicationState> allowed = VALID_TRANSITIONS.get(previous);
+        if (allowed != null && !allowed.contains(newState)) {
+            LOG.warn("Invalid state transition: {} → {} (allowed: {})", previous, newState, allowed);
         }
         this.state = newState;
         LOG.info("State transition: {} → {}", previous, newState);

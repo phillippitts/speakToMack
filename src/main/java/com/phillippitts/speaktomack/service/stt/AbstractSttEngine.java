@@ -145,9 +145,14 @@ public abstract class AbstractSttEngine implements SttEngine {
             if (closed) {
                 return; // Already closed
             }
-            doClose();
-            closed = true;
-            initialized = false;
+            try {
+                doClose();
+            } finally {
+                // Always mark as closed even if doClose() throws, to prevent
+                // repeated close attempts and to ensure isHealthy() returns false
+                closed = true;
+                initialized = false;
+            }
         }
     }
 

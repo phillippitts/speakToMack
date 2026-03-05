@@ -5,7 +5,6 @@ import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
-import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -133,14 +132,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
 
     /**
      * Transcribes audio using a single engine selected based on watchdog state.
-     * Implements smart reconciliation: if Vosk confidence is below threshold,
-     * automatically upgrades to dual-engine mode for better accuracy.
-     *
-     * <p><b>Upgrade and failure behavior:</b> When upgraded to reconciliation due to low
-     * Vosk confidence, this method delegates to {@link #transcribeWithReconciliation(byte[])} and
-     * returns immediately. If reconciliation then fails, an empty result is published and there
-     * is no fallback to the original single-engine (low-confidence) text. This avoids emitting
-     * potentially incorrect transcriptions.
      *
      * @param pcm PCM audio data to transcribe
      */
@@ -152,21 +143,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             engine = selectSingleEngine();
             TranscriptionResult result = engine.transcribe(pcm);
             String engineName = engine.getEngineName();
-
-            // Smart reconciliation: Check if we should upgrade to dual-engine
-            // based on Vosk confidence threshold
-            if (isReconciliationEnabled()
-                    && SttEngineNames.VOSK.equals(engineName)
-                    && result.confidence() < reconciliation.getConfidenceThreshold()) {
-
-                LOG.info("Vosk confidence {} < threshold {}, upgrading to dual-engine reconciliation",
-                         String.format("%.3f", result.confidence()),
-                         String.format("%.3f", reconciliation.getConfidenceThreshold()));
-
-                // Upgrade to dual-engine mode for this transcription
-                transcribeWithReconciliation(pcm);
-                return; // Exit early - reconciliation handles metrics & publishing
-            }
 
             // Record metrics for successful single-engine transcription
             long duration = System.nanoTime() - startTime;

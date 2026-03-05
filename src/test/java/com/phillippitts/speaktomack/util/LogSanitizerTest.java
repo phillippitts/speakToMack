@@ -71,6 +71,7 @@ class LogSanitizerTest {
     @Test
     void shouldHandleWhitespaceOnlyStrings() {
         assertThat(LogSanitizer.truncate("     ", 3)).isEqualTo("   ");
-        assertThat(LogSanitizer.truncate("\t\n\r", 2)).isEqualTo("\t\n");
+        // Control chars are now sanitized: \t→\\t, \n→\\n, \r→\\r
+        assertThat(LogSanitizer.truncate("\t\n\r", 4)).isEqualTo("\\t\\n");
     }
 }

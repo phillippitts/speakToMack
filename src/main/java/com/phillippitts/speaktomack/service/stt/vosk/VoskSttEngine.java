@@ -153,12 +153,16 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         }
         LOG.debug("VoskSttEngine.transcribe: received {} bytes of audio data", audioData.length);
 
+        boolean acquired = false;
         try {
             concurrencyGuard.acquire();
+            acquired = true;
             org.vosk.Model localModel = getModelForTranscription();
             return transcribeWithModel(localModel, audioData);
         } finally {
-            concurrencyGuard.release();
+            if (acquired) {
+                concurrencyGuard.release();
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Global exception handler for REST API boundary.
@@ -76,13 +77,14 @@ class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> handleUnexpected(Exception ex) {
-        LOG.error("Unexpected error", ex);
+        String requestId = UUID.randomUUID().toString();
+        LOG.error("Unexpected error [requestId={}]", requestId, ex);
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(new ApiError(
                 "InternalServerError",
                 "An unexpected error occurred",
-                "Please contact support with request ID",
+                "Request ID: " + requestId,
                 Instant.now()
             ));
     }

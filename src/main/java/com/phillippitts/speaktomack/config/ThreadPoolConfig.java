@@ -8,6 +8,9 @@ import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -22,6 +25,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Configuration
 @EnableAsync
 public class ThreadPoolConfig {
+
+    private static final Logger LOG = LogManager.getLogger(ThreadPoolConfig.class);
 
     private final ThreadPoolProperties threadPoolProperties;
 
@@ -107,7 +112,19 @@ public class ThreadPoolConfig {
         executor.setQueueCapacity(eventProps.getQueueCapacity());
         executor.setThreadNamePrefix(eventProps.getThreadNamePrefix());
         executor.setKeepAliveSeconds(eventProps.getKeepAliveSeconds());
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // Use DiscardOldestPolicy for event executor to prevent blocking the Spring event bus.
+        // CallerRunsPolicy would block all event delivery if the pool is saturated.
+        executor.setRejectedExecutionHandler((r, e) -> {
+            if (!e.isShutdown()) {
+                Runnable oldest = e.getQueue().poll();
+                if (oldest != null) {
+                    LOG.warn("Event executor saturated, discarding oldest queued task");
+                }
+                if (!e.isShutdown()) {
+                    e.execute(r);
+                }
+            }
+        });
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
 
@@ -141,6 +158,8 @@ public class ThreadPoolConfig {
             return () -> {
                 Map<String, String> previous = ThreadContext.getImmutableContext();
                 try {
+                    // Clear existing worker context first to prevent stale entries leaking
+                    ThreadContext.clearAll();
                     if (contextMap != null && !contextMap.isEmpty()) {
                         ThreadContext.putAll(contextMap);
                     }

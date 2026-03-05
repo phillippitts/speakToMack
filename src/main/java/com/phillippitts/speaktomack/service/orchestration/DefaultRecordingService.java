@@ -55,8 +55,20 @@ public class DefaultRecordingService implements RecordingService {
     }
 
     @Override
-    public synchronized boolean stopRecording() {
-        return stopRecordingInternal();
+    public boolean stopRecording() {
+        byte[] pcm;
+        UUID stoppedSession;
+        synchronized (this) {
+            if (activeSessionId == null) {
+                LOG.debug("No active recording session to stop");
+                return false;
+            }
+            pcm = captureOrchestrator.stopCapture(activeSessionId);
+            stoppedSession = activeSessionId;
+            activeSessionId = null;
+        }
+        // Transcribe outside the monitor to avoid blocking hotkey events
+        return doTranscribe(pcm, stoppedSession);
     }
 
     @Override
@@ -81,19 +93,31 @@ public class DefaultRecordingService implements RecordingService {
 
     @Override
     public boolean toggleRecording() {
+        byte[] pcm = null;
+        UUID stoppedSession = null;
+        boolean shouldStart = false;
+
         synchronized (this) {
             if (activeSessionId != null) {
-                // Currently recording — stop
-                return stopRecordingInternal();
+                // Currently recording — stop (extract PCM under lock)
+                pcm = captureOrchestrator.stopCapture(activeSessionId);
+                stoppedSession = activeSessionId;
+                activeSessionId = null;
+            } else {
+                shouldStart = true;
             }
         }
-        // Not recording — start
-        return startRecording();
+
+        if (shouldStart) {
+            return startRecording();
+        }
+        // Transcribe outside the monitor
+        return doTranscribe(pcm, stoppedSession);
     }
 
     /**
-     * Internal stop logic extracted so {@link #toggleRecording()} can call it
-     * while already holding the monitor (avoiding double-lock).
+     * Internal stop logic for use within toggleRecording (already holds the monitor).
+     * Extracts PCM data under the lock, then transcribes outside of it.
      */
     private boolean stopRecordingInternal() {
         // Caller must hold synchronized(this)
@@ -106,6 +130,15 @@ public class DefaultRecordingService implements RecordingService {
         UUID stoppedSession = activeSessionId;
         activeSessionId = null;
 
+        // doTranscribe does not need the monitor
+        return doTranscribe(pcm, stoppedSession);
+    }
+
+    /**
+     * Performs transcription outside the synchronized block to avoid blocking
+     * hotkey events during processing.
+     */
+    private boolean doTranscribe(byte[] pcm, UUID stoppedSession) {
         if (pcm == null) {
             LOG.warn("Failed to retrieve audio data from session {}", stoppedSession);
             stateTracker.transitionTo(ApplicationState.IDLE);

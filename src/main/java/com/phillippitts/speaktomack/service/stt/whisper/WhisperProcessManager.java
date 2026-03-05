@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Orchestrates execution of the external whisper.cpp process for transcription.
@@ -47,7 +49,8 @@ public final class WhisperProcessManager implements ProcessManager {
     private final WhisperCommandBuilder commandBuilder;
     private final ProcessLifecycleManager lifecycleManager;
 
-    private volatile ProcessLifecycleManager.ProcessExecution currentExecution;
+    private final Set<ProcessLifecycleManager.ProcessExecution> activeExecutions =
+            ConcurrentHashMap.newKeySet();
 
     /**
      * Context for creating detailed error messages.
@@ -121,7 +124,7 @@ public final class WhisperProcessManager implements ProcessManager {
                     wavPath.getParent(),
                     cfg.maxStdoutBytes(),
                     WhisperConstants.STDERR_MAX_BYTES);
-            currentExecution = exec;
+            activeExecutions.add(exec);
 
             // Wait for completion with timeout
             boolean completed = lifecycleManager.waitForCompletion(exec, cfg.timeoutSeconds());
@@ -153,8 +156,10 @@ public final class WhisperProcessManager implements ProcessManager {
             ErrorContext ctx = new ErrorContext(cfg, -1, null, startTime, e);
             throw whisperError("I/O failure: " + e.getMessage(), ctx);
         } finally {
+            if (exec != null) {
+                activeExecutions.remove(exec);
+            }
             lifecycleManager.cleanup(exec);
-            currentExecution = null;
         }
     }
 
@@ -203,10 +208,9 @@ public final class WhisperProcessManager implements ProcessManager {
      */
     @Override
     public void close() {
-        ProcessLifecycleManager.ProcessExecution exec = this.currentExecution;
-        this.currentExecution = null;
-        if (exec != null) {
+        for (ProcessLifecycleManager.ProcessExecution exec : activeExecutions) {
             lifecycleManager.cleanup(exec);
         }
+        activeExecutions.clear();
     }
 }

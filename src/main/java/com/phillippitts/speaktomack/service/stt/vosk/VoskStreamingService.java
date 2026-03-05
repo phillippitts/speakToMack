@@ -12,6 +12,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PreDestroy;
+
 /**
  * Feeds PCM chunks to a Vosk recognizer incrementally and publishes partial text events.
  *
@@ -89,6 +91,14 @@ public class VoskStreamingService {
         }
     }
 
+    @PreDestroy
+    public void shutdown() {
+        synchronized (recognizerLock) {
+            closeRecognizerLocked();
+            closeModelLocked();
+        }
+    }
+
     private void closeRecognizerLocked() {
         if (recognizer != null) {
             try {
@@ -98,6 +108,18 @@ public class VoskStreamingService {
             }
             recognizer = null;
             LOG.debug("Vosk streaming recognizer closed");
+        }
+    }
+
+    private void closeModelLocked() {
+        if (model != null) {
+            try {
+                model.close();
+            } catch (Exception e) {
+                LOG.debug("Error closing streaming Vosk model: {}", e.getMessage());
+            }
+            model = null;
+            LOG.debug("Vosk streaming model closed");
         }
     }
 

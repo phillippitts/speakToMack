@@ -44,6 +44,7 @@ final class ProcessStreamHandler {
     static final class StreamGobbler {
         private final Thread thread;
         private final StringBuilder output;
+        private volatile boolean joined = false;
 
         StreamGobbler(Thread thread, StringBuilder output) {
             this.thread = thread;
@@ -52,10 +53,15 @@ final class ProcessStreamHandler {
 
         /**
          * Returns the accumulated output from this stream.
+         * Must call {@link #join(Duration)} before calling this method to ensure
+         * the gobbler thread has finished writing to the StringBuilder.
          *
          * @return captured stream content (may be truncated if capacity limit was reached)
          */
         String getOutput() {
+            if (!joined && thread != null && thread.isAlive()) {
+                LOG.debug("getOutput() called before join() - output may be incomplete");
+            }
             return output.toString();
         }
 
@@ -66,10 +72,14 @@ final class ProcessStreamHandler {
          */
         void join(Duration timeout) {
             if (thread == null) {
+                joined = true;
                 return;
             }
             try {
                 thread.join(timeout.toMillis());
+                if (!thread.isAlive()) {
+                    joined = true;
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

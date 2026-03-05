@@ -1,5 +1,8 @@
 package com.phillippitts.speaktomack.service.audio.capture;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Arrays;
 
 /**
@@ -8,9 +11,12 @@ import java.util.Arrays;
  */
 final class PcmRingBuffer {
 
+    private static final Logger LOG = LogManager.getLogger(PcmRingBuffer.class);
+
     private final byte[] buffer;
     private int writePos = 0;
     private int size = 0;
+    private boolean dropWarned = false;
 
     PcmRingBuffer(int capacityBytes) {
         this.buffer = new byte[capacityBytes];
@@ -26,6 +32,11 @@ final class PcmRingBuffer {
         }
         // If incoming exceeds capacity, drop oldest by keeping only the last capacity bytes
         if (len >= buffer.length) {
+            if (!dropWarned) {
+                LOG.warn("Ring buffer overflow: incoming {} exceeds capacity {}, dropping oldest",
+                        len, buffer.length);
+                dropWarned = true;
+            }
             // keep tail of src
             System.arraycopy(src, off + (len - buffer.length), buffer, 0, buffer.length);
             writePos = 0; // buffer full
@@ -36,6 +47,11 @@ final class PcmRingBuffer {
         int space = buffer.length - size;
         if (len > space) {
             int toDrop = len - space;
+            if (!dropWarned) {
+                LOG.warn("Ring buffer overflow: dropping {} oldest bytes (capacity={}, size={})",
+                        toDrop, buffer.length, size);
+                dropWarned = true;
+            }
             size -= toDrop;
             // No need to adjust writePos - toByteArray() computes start position
             // from (writePos - size), so reducing size automatically drops oldest bytes
@@ -70,5 +86,6 @@ final class PcmRingBuffer {
     synchronized void clear() {
         Arrays.fill(buffer, (byte)0);
         writePos = 0; size = 0;
+        dropWarned = false;
     }
 }

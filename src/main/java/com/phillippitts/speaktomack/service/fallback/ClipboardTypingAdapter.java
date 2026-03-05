@@ -92,12 +92,20 @@ class ClipboardTypingAdapter implements TypingAdapter {
             return false;
         } finally {
             // Restore clipboard only if we saved prior content
+            // Delay restoration to allow the target app to process the paste command
             if (prior != null && props.isRestoreClipboard() && !props.isClipboardOnlyFallback()) {
-                try {
-                    cb.setContents(new StringSelection(String.valueOf(prior)), null);
-                } catch (Exception ignored) {
-                    // Ignore failures restoring clipboard
-                }
+                final Object priorContent = prior;
+                final Clipboard cbRef = cb;
+                Thread.ofVirtual().start(() -> {
+                    try {
+                        Thread.sleep(200);
+                        cbRef.setContents(new StringSelection(String.valueOf(priorContent)), null);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    } catch (Exception ignored) {
+                        // Ignore failures restoring clipboard
+                    }
+                });
             }
         }
     }

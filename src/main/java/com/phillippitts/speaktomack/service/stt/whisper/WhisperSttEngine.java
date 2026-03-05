@@ -76,10 +76,9 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private final boolean jsonMode;
     private final int silenceGapMs;
     // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
-    // SYNCHRONIZED ACCESS ONLY - use cachedDataLock to ensure atomic read/write of paired values
-    private final Object cachedDataLock = new Object();
-    private String lastRawJson;
-    private java.util.List<String> lastTokens;
+    // ThreadLocal ensures each concurrent transcription thread gets its own cached data
+    private final ThreadLocal<String> lastRawJson = new ThreadLocal<>();
+    private final ThreadLocal<java.util.List<String>> lastTokens = new ThreadLocal<>();
 
     public WhisperSttEngine(WhisperConfig cfg, ProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
@@ -139,16 +138,18 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
+        boolean acquired = false;
         try {
             concurrencyGuard.acquire();
+            acquired = true;
             ensureInitialized();
             Path wav = null;
             long startTime = System.nanoTime();
             try {
                 wav = createTempWavFile(audioData);
                 String stdout = manager.transcribe(wav, cfg);
-                LOG.debug("WhisperSttEngine: Whisper returned {} output (length={} chars): {}",
-                         jsonMode ? "JSON" : "text", stdout.length(), stdout);
+                LOG.debug("WhisperSttEngine: Whisper returned {} output (length={} chars)",
+                         jsonMode ? "JSON" : "text", stdout.length());
                 String text = extractTranscriptionText(stdout);
                 double confidence = 1.0;
 
@@ -164,7 +165,9 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 cleanupTempFile(wav);
             }
         } finally {
-            concurrencyGuard.release();
+            if (acquired) {
+                concurrencyGuard.release();
+            }
         }
     }
 
@@ -194,16 +197,12 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
             // Use pause detection if silenceGapMs > 0
             String text = WhisperJsonParser.extractTextWithPauseDetection(stdout, silenceGapMs);
-            synchronized (cachedDataLock) {
-                this.lastRawJson = stdout;
-                this.lastTokens = WhisperJsonParser.extractTokens(stdout);
-            }
+            lastRawJson.set(stdout);
+            lastTokens.set(WhisperJsonParser.extractTokens(stdout));
             return text;
         } else {
-            synchronized (cachedDataLock) {
-                this.lastRawJson = null;
-                this.lastTokens = null;
-            }
+            lastRawJson.remove();
+            lastTokens.remove();
             return stdout == null ? "" : stdout.trim();
         }
     }
@@ -240,11 +239,9 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
      * @see WhisperJsonParser
      */
     public String consumeLastRawJson() {
-        synchronized (cachedDataLock) {
-            String v = this.lastRawJson;
-            this.lastRawJson = null;
-            return v;
-        }
+        String v = lastRawJson.get();
+        lastRawJson.remove();
+        return v;
     }
 
     /**
@@ -268,11 +265,9 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
      * @see WhisperJsonParser#extractTokens(String)
      */
     public java.util.List<String> consumeLastTokens() {
-        synchronized (cachedDataLock) {
-            java.util.List<String> v = this.lastTokens;
-            this.lastTokens = null;
-            return v == null ? java.util.List.of() : v;
-        }
+        java.util.List<String> v = lastTokens.get();
+        lastTokens.remove();
+        return v == null ? java.util.List.of() : v;
     }
 
     /**

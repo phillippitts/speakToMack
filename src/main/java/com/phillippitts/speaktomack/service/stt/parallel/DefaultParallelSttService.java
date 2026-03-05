@@ -131,9 +131,11 @@ public class DefaultParallelSttService implements ParallelSttService {
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                     .get(toMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException te) {
-            LOG.warn("Parallel transcription timed out after {} ms", toMs);
-            // Cancel remaining tasks best-effort
-            futures.forEach(f -> f.cancel(true));
+            LOG.warn("Parallel transcription timed out after {} ms - tasks will continue in background", toMs);
+            // Note: CompletableFuture.cancel(true) does NOT interrupt underlying threads.
+            // The engine tasks will continue running to completion to avoid leaking resources
+            // (semaphore permits, whisper subprocesses). We simply don't wait for their results.
+            futures.forEach(f -> f.cancel(false));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         } catch (ExecutionException ee) {

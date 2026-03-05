@@ -43,6 +43,13 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
      */
     private static final int MACOS_LEFT_CMD_KEYCODE = 0x37;
 
+    private static final Set<String> MODIFIER_KEY_NAMES = Set.of(
+            "SHIFT", "LEFT_SHIFT", "RIGHT_SHIFT",
+            "CONTROL", "LEFT_CONTROL", "RIGHT_CONTROL",
+            "ALT", "LEFT_ALT", "RIGHT_ALT",
+            "META", "LEFT_META", "RIGHT_META"
+    );
+
     private volatile Consumer<NormalizedKeyEvent> listener;
     private final AtomicBoolean registered = new AtomicBoolean(false);
 
@@ -90,23 +97,35 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     // NativeKeyListener callbacks
     @Override
     public void nativeKeyPressed(NativeKeyEvent nativeEvent) {
-        checkModifierChanges(nativeEvent);
-        emit(nativeEvent, NormalizedKeyEvent.Type.PRESSED);
+        boolean modifierHandled = checkModifierChanges(nativeEvent);
+        // Skip emit for modifier keys already handled by checkModifierChanges to avoid duplicates
+        if (!modifierHandled) {
+            emit(nativeEvent, NormalizedKeyEvent.Type.PRESSED);
+        }
     }
 
     @Override
     public void nativeKeyReleased(NativeKeyEvent nativeEvent) {
-        checkModifierChanges(nativeEvent);
-        emit(nativeEvent, NormalizedKeyEvent.Type.RELEASED);
+        boolean modifierHandled = checkModifierChanges(nativeEvent);
+        if (!modifierHandled) {
+            emit(nativeEvent, NormalizedKeyEvent.Type.RELEASED);
+        }
     }
 
     @Override public void nativeKeyTyped(NativeKeyEvent nativeEvent) { /* ignore */ }
 
     /**
      * Checks for modifier state changes from key events.
+     *
+     * @return true if this key event was a modifier key and was handled by state tracking
      */
-    private void checkModifierChanges(NativeKeyEvent ne) {
-        checkAllModifierStates(ne);
+    private boolean checkModifierChanges(NativeKeyEvent ne) {
+        boolean hadChanges = checkAllModifierStates(ne);
+        // Determine if the key itself is a modifier key
+        String keyText = NativeKeyEvent.getKeyText(ne.getKeyCode());
+        String key = KeyNameMapper.normalizeKey(keyText);
+        boolean isModifierKey = MODIFIER_KEY_NAMES.contains(key);
+        return isModifierKey && hadChanges;
     }
 
     private void emit(NativeKeyEvent ne, NormalizedKeyEvent.Type type) {
@@ -157,36 +176,40 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
     /**
      * Checks all modifier key states and emits events for any changes.
-     * Extracted from duplicate code in checkModifierChanges methods.
      *
      * @param event the native input event (keyboard or mouse) containing modifier state
+     * @return true if any modifier state changes were detected and emitted
      */
-    private void checkAllModifierStates(NativeInputEvent event) {
+    private boolean checkAllModifierStates(NativeInputEvent event) {
         Consumer<NormalizedKeyEvent> listener = this.listener;
         if (listener == null) {
-            return;
+            return false;
         }
 
         int modifiers = event.getModifiers();
 
-        // Check each modifier key state
-        checkModifierState("LEFT_SHIFT", (modifiers & NativeInputEvent.SHIFT_L_MASK) != 0, event);
-        checkModifierState("RIGHT_SHIFT", (modifiers & NativeInputEvent.SHIFT_R_MASK) != 0, event);
-        checkModifierState("LEFT_CONTROL", (modifiers & NativeInputEvent.CTRL_L_MASK) != 0, event);
-        checkModifierState("RIGHT_CONTROL", (modifiers & NativeInputEvent.CTRL_R_MASK) != 0, event);
-        checkModifierState("LEFT_ALT", (modifiers & NativeInputEvent.ALT_L_MASK) != 0, event);
-        checkModifierState("RIGHT_ALT", (modifiers & NativeInputEvent.ALT_R_MASK) != 0, event);
-        checkModifierState("LEFT_META", (modifiers & NativeInputEvent.META_L_MASK) != 0, event);
-        checkModifierState("RIGHT_META", (modifiers & NativeInputEvent.META_R_MASK) != 0, event);
+        // Check each modifier key state, track if any changed
+        boolean changed = false;
+        changed |= checkModifierState("LEFT_SHIFT", (modifiers & NativeInputEvent.SHIFT_L_MASK) != 0, event);
+        changed |= checkModifierState("RIGHT_SHIFT", (modifiers & NativeInputEvent.SHIFT_R_MASK) != 0, event);
+        changed |= checkModifierState("LEFT_CONTROL", (modifiers & NativeInputEvent.CTRL_L_MASK) != 0, event);
+        changed |= checkModifierState("RIGHT_CONTROL", (modifiers & NativeInputEvent.CTRL_R_MASK) != 0, event);
+        changed |= checkModifierState("LEFT_ALT", (modifiers & NativeInputEvent.ALT_L_MASK) != 0, event);
+        changed |= checkModifierState("RIGHT_ALT", (modifiers & NativeInputEvent.ALT_R_MASK) != 0, event);
+        changed |= checkModifierState("LEFT_META", (modifiers & NativeInputEvent.META_L_MASK) != 0, event);
+        changed |= checkModifierState("RIGHT_META", (modifiers & NativeInputEvent.META_R_MASK) != 0, event);
+        return changed;
     }
 
     /**
      * Checks if a specific modifier key state has changed and emits an event if so.
+     *
+     * @return true if the state changed and an event was emitted
      */
-    private void checkModifierState(String keyName, boolean isPressed, NativeInputEvent sourceEvent) {
+    private boolean checkModifierState(String keyName, boolean isPressed, NativeInputEvent sourceEvent) {
         Consumer<NormalizedKeyEvent> listener = this.listener;
         if (listener == null) {
-            return;
+            return false;
         }
 
         Boolean previousState = modifierStates.get(keyName);
@@ -209,7 +232,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
             } catch (Exception ex) {
                 LOG.warn("Listener error for modifier {}: {}", keyName, ex.toString());
             }
+            return true;
         }
+        return false;
     }
 
     private static Set<String> extractModifiers(NativeInputEvent e) {
