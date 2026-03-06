@@ -29,14 +29,16 @@ public class VoskStreamingService {
     private static final Logger LOG = LogManager.getLogger(VoskStreamingService.class);
 
     private final VoskConfig config;
+    private final VoskModelProvider modelProvider;
     private final ApplicationEventPublisher publisher;
 
     private final Object recognizerLock = new Object();
-    private org.vosk.Model model;
     private org.vosk.Recognizer recognizer;
 
-    public VoskStreamingService(VoskConfig config, ApplicationEventPublisher publisher) {
+    public VoskStreamingService(VoskConfig config, VoskModelProvider modelProvider,
+                                ApplicationEventPublisher publisher) {
         this.config = config;
+        this.modelProvider = modelProvider;
         this.publisher = publisher;
     }
 
@@ -74,9 +76,7 @@ public class VoskStreamingService {
         synchronized (recognizerLock) {
             closeRecognizerLocked();
             try {
-                if (model == null) {
-                    model = new org.vosk.Model(config.modelPath());
-                }
+                org.vosk.Model model = modelProvider.getModel();
                 recognizer = new org.vosk.Recognizer(model, config.sampleRate());
                 LOG.info("Vosk streaming recognizer opened");
             } catch (java.io.IOException | RuntimeException e) {
@@ -95,7 +95,7 @@ public class VoskStreamingService {
     public void shutdown() {
         synchronized (recognizerLock) {
             closeRecognizerLocked();
-            closeModelLocked();
+            // Model lifecycle is managed by VoskModelProvider
         }
     }
 
@@ -108,18 +108,6 @@ public class VoskStreamingService {
             }
             recognizer = null;
             LOG.debug("Vosk streaming recognizer closed");
-        }
-    }
-
-    private void closeModelLocked() {
-        if (model != null) {
-            try {
-                model.close();
-            } catch (Exception e) {
-                LOG.debug("Error closing streaming Vosk model: {}", e.getMessage());
-            }
-            model = null;
-            LOG.debug("Vosk streaming model closed");
         }
     }
 

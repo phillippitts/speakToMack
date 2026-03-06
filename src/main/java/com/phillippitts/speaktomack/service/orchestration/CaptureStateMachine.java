@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -36,9 +37,7 @@ public final class CaptureStateMachine {
      * @throws NullPointerException if sessionId is null
      */
     public boolean startCapture(UUID sessionId) {
-        if (sessionId == null) {
-            throw new NullPointerException("sessionId cannot be null");
-        }
+        Objects.requireNonNull(sessionId, "sessionId cannot be null");
 
         lock.lock();
         try {

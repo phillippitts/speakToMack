@@ -39,6 +39,7 @@ public final class HotkeyRecordingAdapterBuilder {
     private TranscriptReconciler transcriptReconciler;
     private ReconciliationProperties reconciliationProperties;
     private TranscriptionMetricsPublisher metricsPublisher;
+    private ApplicationStateTracker stateTracker;
 
     private HotkeyRecordingAdapterBuilder() {
         // Private constructor - use builder() factory method
@@ -120,6 +121,11 @@ public final class HotkeyRecordingAdapterBuilder {
         return this;
     }
 
+    public HotkeyRecordingAdapterBuilder stateTracker(ApplicationStateTracker stateTracker) {
+        this.stateTracker = stateTracker;
+        return this;
+    }
+
     /**
      * Builds the HotkeyRecordingAdapter instance.
      *
@@ -171,12 +177,14 @@ public final class HotkeyRecordingAdapterBuilder {
                 effectiveMetricsPublisher
         );
 
-        // Create ApplicationStateTracker and DefaultRecordingService
-        ApplicationStateTracker stateTracker = new ApplicationStateTracker(publisher);
+        // Use provided ApplicationStateTracker or create a new one (for tests)
+        ApplicationStateTracker effectiveStateTracker = stateTracker != null
+                ? stateTracker
+                : new ApplicationStateTracker(publisher);
         RecordingService recordingService = new DefaultRecordingService(
                 captureOrchestrator,
                 transcriptionOrchestrator,
-                stateTracker
+                effectiveStateTracker
         );
 
         return new HotkeyRecordingAdapter(recordingService, hotkeyProperties);

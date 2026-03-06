@@ -19,6 +19,7 @@ import com.phillippitts.speaktomack.service.orchestration.TranscriptionOrchestra
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.watchdog.SttEngineWatchdog;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -49,6 +50,7 @@ public class OrchestrationConfig {
                                HotkeyProperties hotkeyProperties,
                                ApplicationEventPublisher publisher,
                                TranscriptionMetricsPublisher metricsPublisher,
+                               @Autowired(required = false)
                                ReconciliationDependencies reconciliationDeps) {
         this.captureService = captureService;
         this.voskSttEngine = voskSttEngine;

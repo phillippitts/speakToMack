@@ -39,7 +39,7 @@
     </Appenders>
 
     <Loggers>
-        <Logger name="com.phillippitts.speaktomack" level="debug" additivity="false">
+        <Logger name="com.phillippitts.speaktomack" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>

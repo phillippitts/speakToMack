@@ -50,6 +50,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     private static final int DEFAULT_ACQUIRE_TIMEOUT_MS = 1000;
 
     private final VoskConfig config;
+    private final VoskModelProvider modelProvider;
 
     // Lightweight concurrency guard (configurable); one of these is active
     private final ConcurrencyGuard concurrencyGuard;
@@ -61,14 +62,13 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     // Silence gap threshold for pause-based paragraph detection (milliseconds)
     private final int silenceGapMs;
 
-    // Native resources (created in initialize, closed in close)
+    // Fallback model for non-Spring usage (basic constructor); null when using shared provider
     // @GuardedBy("lock")
-    private org.vosk.Model model;           // JNI resource
-
-    // Recognizer is created per call for thread-safety; only the Model is held.
+    private org.vosk.Model localModel;
 
     public VoskSttEngine(VoskConfig config) {
         this.config = Objects.requireNonNull(config, "config");
+        this.modelProvider = null;
         this.concurrencyGuard = new ConcurrencyGuard(
                 new Semaphore(DEFAULT_CONCURRENCY_LIMIT),
                 DEFAULT_ACQUIRE_TIMEOUT_MS,
@@ -84,12 +84,14 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      */
     @org.springframework.beans.factory.annotation.Autowired
     public VoskSttEngine(VoskConfig config,
+            VoskModelProvider modelProvider,
             com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
             ApplicationEventPublisher publisher,
             com.phillippitts.speaktomack.config.properties.OrchestrationProperties orchestrationProperties,
             @org.springframework.beans.factory.annotation.Autowired(required = false)
             ConcurrencyScaler concurrencyScaler) {
         this.config = Objects.requireNonNull(config, "config");
+        this.modelProvider = Objects.requireNonNull(modelProvider, "modelProvider");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
         long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
 
@@ -121,12 +123,16 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
         LOG.info("Initializing Vosk engine: modelPath={}, sampleRate={}, maxAlternatives={}",
                 config.modelPath(), config.sampleRate(), config.maxAlternatives());
         try {
-            // Load model only; recognizer is created per transcription call for thread-safety
-            this.model = new org.vosk.Model(config.modelPath());
+            // Use shared model provider if available (Spring context), otherwise load directly
+            if (modelProvider != null) {
+                modelProvider.getModel(); // Ensure model is loaded
+            } else {
+                // Fallback for non-Spring usage (e.g., tests using basic constructor)
+                this.localModel = new org.vosk.Model(config.modelPath());
+            }
             closed = false; // Support reinitialization after close
             LOG.info("Vosk engine initialized");
         } catch (Throwable t) {
-            // Ensure partial resources are closed on failure
             safeCloseUnlocked();
             EngineEventPublisher.publishFailure(
                 publisher,
@@ -208,9 +214,12 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      */
     private org.vosk.Model getModelForTranscription() {
         ensureInitialized();
+        if (modelProvider != null) {
+            return modelProvider.getModel();
+        }
         lock.lock();
         try {
-            return this.model;
+            return this.localModel;
         } finally {
             lock.unlock();
         }
@@ -422,13 +431,14 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      * <p>GuardedBy: lock (caller must hold lock)
      */
     private void safeCloseUnlocked() {
-        if (model != null) {
+        // Only close the local model; shared model lifecycle is managed by VoskModelProvider
+        if (localModel != null) {
             try {
-                model.close();
+                localModel.close();
             } catch (Throwable t) {
                 LOG.warn("Error closing model", t);
             }
-            model = null;
+            localModel = null;
         }
     }
 

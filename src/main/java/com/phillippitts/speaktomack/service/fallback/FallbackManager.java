@@ -65,6 +65,10 @@ public class FallbackManager {
      */
     @EventListener
     public void onTranscription(TranscriptionCompletedEvent evt) {
+        if (evt.result().isFailure()) {
+            LOG.debug("Skipping paste for failed transcription: {}", evt.result().failureReason());
+            return;
+        }
         String text = evt.result().text();
         boolean ok = typingService.paste(text);
         if (!ok) {

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A concurrency guard with dynamically adjustable permits.
@@ -31,6 +32,7 @@ public final class DynamicConcurrencyGuard {
     private final ApplicationEventPublisher publisher;
     private final int configuredMax;
     private final AtomicInteger currentPermits;
+    private final ReentrantLock adjustLock = new ReentrantLock();
 
     public DynamicConcurrencyGuard(int initialPermits,
                                     long timeoutMs,
@@ -80,30 +82,35 @@ public final class DynamicConcurrencyGuard {
      * @param newTarget desired number of permits
      */
     public void adjustPermits(int newTarget) {
-        int target = Math.max(1, Math.min(newTarget, configuredMax));
-        int current = currentPermits.get();
-        if (target == current) {
-            return;
-        }
+        adjustLock.lock();
+        try {
+            int target = Math.max(1, Math.min(newTarget, configuredMax));
+            int current = currentPermits.get();
+            if (target == current) {
+                return;
+            }
 
-        if (target > current) {
-            int delta = target - current;
-            semaphore.release(delta);
-            currentPermits.set(target);
-            LOG.debug("{} permits increased: {} -> {}", engineName, current, target);
-        } else {
-            int delta = current - target;
-            int drained = 0;
-            for (int i = 0; i < delta; i++) {
-                if (semaphore.tryAcquire()) {
-                    drained++;
+            if (target > current) {
+                int delta = target - current;
+                semaphore.release(delta);
+                currentPermits.set(target);
+                LOG.debug("{} permits increased: {} -> {}", engineName, current, target);
+            } else {
+                int delta = current - target;
+                int drained = 0;
+                for (int i = 0; i < delta; i++) {
+                    if (semaphore.tryAcquire()) {
+                        drained++;
+                    }
+                }
+                currentPermits.addAndGet(-drained);
+                if (drained > 0) {
+                    LOG.debug("{} permits decreased: {} -> {} (drained {})",
+                            engineName, current, currentPermits.get(), drained);
                 }
             }
-            currentPermits.addAndGet(-drained);
-            if (drained > 0) {
-                LOG.debug("{} permits decreased: {} -> {} (drained {})",
-                        engineName, current, currentPermits.get(), drained);
-            }
+        } finally {
+            adjustLock.unlock();
         }
     }
 

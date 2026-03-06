@@ -3,13 +3,18 @@ package com.phillippitts.speaktomack.config.orchestration;
 import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
 import com.phillippitts.speaktomack.service.reconcile.TranscriptReconciler;
 import com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * Groups optional reconciliation dependencies for cleaner constructor injection.
  * Keeps parameter count in OrchestrationConfig at 9 instead of 11 parameters.
+ *
+ * <p>Only created when reconciliation is enabled, matching the conditional
+ * {@link TranscriptReconciler} bean it depends on.
  */
 @Component
+@ConditionalOnProperty(prefix = "stt.reconciliation", name = "enabled", havingValue = "true")
 public final class ReconciliationDependencies {
     private final ParallelSttService parallelSttService;
     private final TranscriptReconciler transcriptReconciler;
