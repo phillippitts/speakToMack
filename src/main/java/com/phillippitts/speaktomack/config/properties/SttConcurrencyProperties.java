@@ -3,6 +3,8 @@ package com.phillippitts.speaktomack.config.properties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 
 /**
@@ -41,6 +43,23 @@ public class SttConcurrencyProperties {
     @Positive(message = "Acquire timeout must be positive")
     private int acquireTimeoutMs = 1000;
 
+    /** Enable dynamic concurrency scaling based on system resources. */
+    private boolean dynamicScalingEnabled = false;
+
+    /** CPU usage above this triggers permit reduction (0.0-1.0). */
+    @Min(value = 0, message = "CPU threshold must be >= 0")
+    @Max(value = 1, message = "CPU threshold must be <= 1")
+    private double cpuThresholdHigh = 0.80;
+
+    /** Memory usage above this triggers permit reduction (0.0-1.0). */
+    @Min(value = 0, message = "Memory threshold must be >= 0")
+    @Max(value = 1, message = "Memory threshold must be <= 1")
+    private double memoryThresholdHigh = 0.85;
+
+    /** How often to re-evaluate concurrency limits (ms). */
+    @Positive(message = "Scaling interval must be positive")
+    private long scalingIntervalMs = 5000;
+
     public int getVoskMax() {
         return voskMax;
     }
@@ -63,5 +82,37 @@ public class SttConcurrencyProperties {
 
     public void setAcquireTimeoutMs(int acquireTimeoutMs) {
         this.acquireTimeoutMs = acquireTimeoutMs;
+    }
+
+    public boolean isDynamicScalingEnabled() {
+        return dynamicScalingEnabled;
+    }
+
+    public void setDynamicScalingEnabled(boolean dynamicScalingEnabled) {
+        this.dynamicScalingEnabled = dynamicScalingEnabled;
+    }
+
+    public double getCpuThresholdHigh() {
+        return cpuThresholdHigh;
+    }
+
+    public void setCpuThresholdHigh(double cpuThresholdHigh) {
+        this.cpuThresholdHigh = cpuThresholdHigh;
+    }
+
+    public double getMemoryThresholdHigh() {
+        return memoryThresholdHigh;
+    }
+
+    public void setMemoryThresholdHigh(double memoryThresholdHigh) {
+        this.memoryThresholdHigh = memoryThresholdHigh;
+    }
+
+    public long getScalingIntervalMs() {
+        return scalingIntervalMs;
+    }
+
+    public void setScalingIntervalMs(long scalingIntervalMs) {
+        this.scalingIntervalMs = scalingIntervalMs;
     }
 }

@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.stt.watchdog;
 
 import com.phillippitts.speaktomack.config.properties.SttWatchdogProperties;
+import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,6 +52,9 @@ public class SttEngineWatchdog {
     private final ConcurrentMap<String, Instant> disabledUntil = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, ReentrantLock> restartLocks = new ConcurrentHashMap<>();
 
+    // Sliding window of recent confidence scores per engine (for confidence-based blacklisting)
+    private final ConcurrentMap<String, Deque<Double>> confidenceWindow = new ConcurrentHashMap<>();
+
     public SttEngineWatchdog(List<SttEngine> engines,
                              SttWatchdogProperties props,
                              ApplicationEventPublisher publisher) {
@@ -61,6 +65,7 @@ public class SttEngineWatchdog {
             state.put(e.getEngineName(), EngineState.HEALTHY);
             restartLocks.put(e.getEngineName(), new ReentrantLock());
             restartWindow.put(e.getEngineName(), new ArrayDeque<>());
+            confidenceWindow.put(e.getEngineName(), new ArrayDeque<>());
         }
         LOG.info("Watchdog initialized for engines={}", enginesByName.keySet());
     }
@@ -84,6 +89,11 @@ public class SttEngineWatchdog {
     /** Visible for tests */
     EngineState getState(String engine) {
         return state.get(engine);
+    }
+
+    /** Visible for tests */
+    Deque<Double> getConfidenceWindow(String engine) {
+        return confidenceWindow.get(engine);
     }
 
     /**
@@ -141,14 +151,65 @@ public class SttEngineWatchdog {
             lock.unlock();
         }
         disabledUntil.remove(engine);
+        Deque<Double> cw = confidenceWindow.get(engine);
+        if (cw != null) {
+            cw.clear();
+        }
         LOG.info("Engine recovered: {}", engine);
+    }
+
+    @EventListener
+    public void onTranscriptionCompleted(TranscriptionCompletedEvent event) {
+        String engine = event.engineUsed();
+        Deque<Double> window = confidenceWindow.get(engine);
+        if (window == null) {
+            return; // Unknown engine (e.g. "reconciled")
+        }
+
+        double confidence = event.result().confidence();
+
+        synchronized (window) {
+            window.addLast(confidence);
+            while (window.size() > props.getConfidenceWindowSize()) {
+                window.removeFirst();
+            }
+
+            if (window.size() < props.getConfidenceMinSamples()) {
+                return; // Not enough samples yet
+            }
+
+            double avg = window.stream().mapToDouble(Double::doubleValue).average().orElse(1.0);
+            if (avg < props.getConfidenceBlacklistThreshold()) {
+                LOG.warn("Engine {} confidence degraded: avg={} (threshold={}, window={})",
+                        engine, String.format("%.3f", avg),
+                        props.getConfidenceBlacklistThreshold(), window.size());
+                state.put(engine, EngineState.DEGRADED);
+                publisher.publishEvent(new EngineFailureEvent(
+                        engine, Instant.now(),
+                        "low-confidence: avg=" + String.format("%.3f", avg),
+                        null, Map.of("reason", "low-confidence",
+                                     "avgConfidence", String.format("%.3f", avg))
+                ));
+            }
+        }
     }
 
     @Scheduled(fixedRateString = "#{${stt.watchdog.health-summary-interval-millis:60000}}")
     void logHealthSummary() {
-        // Lightweight: no JNI probes; just log states and counts
         StringBuilder sb = new StringBuilder("Watchdog states: ");
-        state.forEach((name, st) -> sb.append(name).append('=').append(st).append(' '));
+        state.forEach((name, st) -> {
+            sb.append(name).append('=').append(st);
+            Deque<Double> cw = confidenceWindow.get(name);
+            if (cw != null) {
+                synchronized (cw) {
+                    if (!cw.isEmpty()) {
+                        double avg = cw.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                        sb.append(String.format("(conf=%.3f/%d)", avg, cw.size()));
+                    }
+                }
+            }
+            sb.append(' ');
+        });
         LOG.info(sb.toString().trim());
     }
 

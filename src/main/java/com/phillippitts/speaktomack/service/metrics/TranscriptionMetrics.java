@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.metrics;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
@@ -91,6 +92,22 @@ public class TranscriptionMetrics {
                 .tag("selected", sanitizeEngine(selectedEngine))
                 .register(registry)
                 .increment();
+    }
+
+    /**
+     * Records the processing-time-to-audio-duration ratio for an engine.
+     *
+     * <p>A ratio of 1.0 means real-time processing; below 1.0 is faster than real-time.
+     *
+     * @param engineName name of the engine (vosk, whisper, reconciled)
+     * @param ratio processing time / audio duration
+     */
+    public void recordProcessingRatio(String engineName, double ratio) {
+        DistributionSummary.builder(METRIC_PREFIX + ".processing_ratio")
+                .description("Ratio of processing time to audio duration")
+                .tag("engine", sanitizeEngine(engineName))
+                .register(registry)
+                .record(ratio);
     }
 
     private static String sanitizeEngine(String engineName) {

@@ -6,6 +6,8 @@ import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.AudioSilenceDetector;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
+import com.phillippitts.speaktomack.service.stt.util.ConcurrencyScaler;
+import com.phillippitts.speaktomack.service.stt.util.DynamicConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,8 +51,9 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
 
     private final VoskConfig config;
 
-    // Lightweight concurrency guard (configurable)
+    // Lightweight concurrency guard (configurable); one of these is active
     private final ConcurrencyGuard concurrencyGuard;
+    private final DynamicConcurrencyGuard dynamicGuard;
 
     // Optional event publisher for watchdog events
     private ApplicationEventPublisher publisher;
@@ -72,6 +75,7 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
                 SttEngineNames.VOSK,
                 null // No publisher in basic constructor
         );
+        this.dynamicGuard = null;
         this.silenceGapMs = 0; // Disabled in basic constructor
     }
 
@@ -82,16 +86,23 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
     public VoskSttEngine(VoskConfig config,
             com.phillippitts.speaktomack.config.properties.SttConcurrencyProperties concurrencyProperties,
             ApplicationEventPublisher publisher,
-            com.phillippitts.speaktomack.config.properties.OrchestrationProperties orchestrationProperties) {
+            com.phillippitts.speaktomack.config.properties.OrchestrationProperties orchestrationProperties,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            ConcurrencyScaler concurrencyScaler) {
         this.config = Objects.requireNonNull(config, "config");
         int max = Math.max(1, concurrencyProperties.getVoskMax());
         long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
-        this.concurrencyGuard = new ConcurrencyGuard(
-                new Semaphore(max),
-                timeoutMs,
-                SttEngineNames.VOSK,
-                publisher
-        );
+
+        if (concurrencyProperties.isDynamicScalingEnabled() && concurrencyScaler != null) {
+            this.dynamicGuard = new DynamicConcurrencyGuard(max, timeoutMs, SttEngineNames.VOSK, publisher);
+            this.concurrencyGuard = null;
+            concurrencyScaler.registerGuard(SttEngineNames.VOSK, this.dynamicGuard);
+        } else {
+            this.concurrencyGuard = new ConcurrencyGuard(
+                    new Semaphore(max), timeoutMs, SttEngineNames.VOSK, publisher);
+            this.dynamicGuard = null;
+        }
+
         this.publisher = publisher;
         this.silenceGapMs = orchestrationProperties != null ?
                 orchestrationProperties.getSilenceGapMs() : 0;
@@ -155,14 +166,30 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
 
         boolean acquired = false;
         try {
-            concurrencyGuard.acquire();
+            acquireGuard();
             acquired = true;
             org.vosk.Model localModel = getModelForTranscription();
             return transcribeWithModel(localModel, audioData);
         } finally {
             if (acquired) {
-                concurrencyGuard.release();
+                releaseGuard();
             }
+        }
+    }
+
+    private void acquireGuard() {
+        if (dynamicGuard != null) {
+            dynamicGuard.acquire();
+        } else {
+            concurrencyGuard.acquire();
+        }
+    }
+
+    private void releaseGuard() {
+        if (dynamicGuard != null) {
+            dynamicGuard.release();
+        } else {
+            concurrencyGuard.release();
         }
     }
 

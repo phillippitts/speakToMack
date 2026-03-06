@@ -3,11 +3,13 @@ package com.phillippitts.speaktomack.service.orchestration;
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import com.phillippitts.speaktomack.service.audio.AudioDurationCalculator;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
@@ -104,6 +106,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @param pcm PCM audio data to transcribe
      */
     private void transcribeWithReconciliation(byte[] pcm) {
+        double audioDurationMs = AudioDurationCalculator.durationMs(pcm.length);
         long startTime = System.nanoTime();
         try {
             TranscriptionResult result = reconciliation.reconcile(pcm);
@@ -113,7 +116,12 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             long duration = System.nanoTime() - startTime;
             metricsPublisher.recordSuccess(ENGINE_RECONCILED, duration, strategy);
 
-            logTranscriptionSuccess(ENGINE_RECONCILED, startTime, result.text().length(), strategy);
+            long processingMs = TimeUtils.nanosToMillis(duration);
+            double ratio = audioDurationMs > 0 ? processingMs / audioDurationMs : 0.0;
+            metricsPublisher.recordProcessingRatio(ENGINE_RECONCILED, ratio);
+
+            logTranscriptionWithAudio(ENGINE_RECONCILED, processingMs, audioDurationMs, ratio,
+                    result.text().length(), strategy);
             publishResult(result, ENGINE_RECONCILED);
         } catch (TranscriptionException te) {
             metricsPublisher.recordFailure(ENGINE_RECONCILED, "transcription_error");
@@ -137,6 +145,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      */
     private void transcribeWithSingleEngine(byte[] pcm) {
         SttEngine engine = null;
+        double audioDurationMs = AudioDurationCalculator.durationMs(pcm.length);
         long startTime = System.nanoTime();
 
         try {
@@ -148,7 +157,12 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             long duration = System.nanoTime() - startTime;
             metricsPublisher.recordSuccess(engineName, duration, null);
 
-            logTranscriptionSuccess(engineName, startTime, result.text().length(), null);
+            long processingMs = TimeUtils.nanosToMillis(duration);
+            double ratio = audioDurationMs > 0 ? processingMs / audioDurationMs : 0.0;
+            metricsPublisher.recordProcessingRatio(engineName, ratio);
+
+            logTranscriptionWithAudio(engineName, processingMs, audioDurationMs, ratio,
+                    result.text().length(), null);
             publishResult(result, engineName);
         } catch (TranscriptionException te) {
             String engineName = engine != null ? engine.getEngineName() : "unknown";
@@ -176,19 +190,26 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     }
 
     /**
-     * Logs successful transcription with timing and metadata.
-     *
-     * @param engineName name of the engine used
-     * @param startTimeNanos start time in nanoseconds
-     * @param textLength length of transcribed text
-     * @param strategy reconciliation strategy (nullable for single-engine)
+     * Logs transcription result with audio duration and processing ratio for profiling.
      */
-    private void logTranscriptionSuccess(String engineName, long startTimeNanos, int textLength, String strategy) {
-        long durationMs = TimeUtils.elapsedMillis(startTimeNanos);
-        if (strategy != null) {
-            LOG.info("Reconciled transcription in {} ms (strategy={}, chars={})", durationMs, strategy, textLength);
-        } else {
-            LOG.info("Transcription completed by {} in {} ms (chars={})", engineName, durationMs, textLength);
+    private void logTranscriptionWithAudio(String engineName, long processingMs, double audioDurationMs,
+                                            double ratio, int textLength, String strategy) {
+        String ratioStr = String.format("%.2f", ratio);
+        String audioStr = String.format("%.0f", audioDurationMs);
+        try {
+            ThreadContext.put("audioDurationMs", String.format("%.1f", audioDurationMs));
+            ThreadContext.put("processingRatio", ratioStr);
+
+            if (strategy != null) {
+                LOG.info("Transcription completed by {} in {} ms (audio={}ms, ratio={}x, strategy={}, chars={})",
+                        engineName, processingMs, audioStr, ratioStr, strategy, textLength);
+            } else {
+                LOG.info("Transcription completed by {} in {} ms (audio={}ms, ratio={}x, chars={})",
+                        engineName, processingMs, audioStr, ratioStr, textLength);
+            }
+        } finally {
+            ThreadContext.remove("audioDurationMs");
+            ThreadContext.remove("processingRatio");
         }
     }
 

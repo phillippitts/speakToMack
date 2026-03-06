@@ -9,6 +9,8 @@ import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
+import com.phillippitts.speaktomack.service.stt.util.ConcurrencyScaler;
+import com.phillippitts.speaktomack.service.stt.util.DynamicConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.EngineEventPublisher;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
@@ -67,6 +69,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         implements com.phillippitts.speaktomack.service.stt.DetailedTranscriptionEngine {
 
     private final ConcurrencyGuard concurrencyGuard;
+    private final DynamicConcurrencyGuard dynamicGuard;
 
     private static final Logger LOG = LogManager.getLogger(WhisperSttEngine.class);
 
@@ -89,6 +92,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 SttEngineNames.WHISPER,
                 null // No publisher in basic constructor
         );
+        this.dynamicGuard = null;
         this.jsonMode = false;
         this.silenceGapMs = 0; // Disabled in basic constructor
     }
@@ -100,17 +104,24 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                              ApplicationEventPublisher publisher,
                              @org.springframework.beans.factory.annotation.Value("${stt.whisper.output:text}")
                              String outputMode,
-                             OrchestrationProperties orchestrationProperties) {
+                             OrchestrationProperties orchestrationProperties,
+                             @org.springframework.beans.factory.annotation.Autowired(required = false)
+                             ConcurrencyScaler concurrencyScaler) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
         this.manager = Objects.requireNonNull(manager, "manager");
         int max = Math.max(1, concurrencyProperties.getWhisperMax());
         long timeoutMs = Math.max(0, concurrencyProperties.getAcquireTimeoutMs());
-        this.concurrencyGuard = new ConcurrencyGuard(
-                new Semaphore(max),
-                timeoutMs,
-                SttEngineNames.WHISPER,
-                publisher
-        );
+
+        if (concurrencyProperties.isDynamicScalingEnabled() && concurrencyScaler != null) {
+            this.dynamicGuard = new DynamicConcurrencyGuard(max, timeoutMs, SttEngineNames.WHISPER, publisher);
+            this.concurrencyGuard = null;
+            concurrencyScaler.registerGuard(SttEngineNames.WHISPER, this.dynamicGuard);
+        } else {
+            this.concurrencyGuard = new ConcurrencyGuard(
+                    new Semaphore(max), timeoutMs, SttEngineNames.WHISPER, publisher);
+            this.dynamicGuard = null;
+        }
+
         this.publisher = publisher;
         this.jsonMode = "json".equalsIgnoreCase(outputMode);
         this.silenceGapMs = orchestrationProperties != null ? orchestrationProperties.getSilenceGapMs() : 0;
@@ -140,7 +151,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
         }
         boolean acquired = false;
         try {
-            concurrencyGuard.acquire();
+            acquireGuard();
             acquired = true;
             ensureInitialized();
             Path wav = null;
@@ -166,12 +177,28 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
             }
         } finally {
             if (acquired) {
-                concurrencyGuard.release();
+                releaseGuard();
             }
         }
     }
 
 
+
+    private void acquireGuard() {
+        if (dynamicGuard != null) {
+            dynamicGuard.acquire();
+        } else {
+            concurrencyGuard.acquire();
+        }
+    }
+
+    private void releaseGuard() {
+        if (dynamicGuard != null) {
+            dynamicGuard.release();
+        } else {
+            concurrencyGuard.release();
+        }
+    }
 
     /**
      * Creates a temporary WAV file from PCM audio data.

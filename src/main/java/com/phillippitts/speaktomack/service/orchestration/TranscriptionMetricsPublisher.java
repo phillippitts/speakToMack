@@ -95,6 +95,19 @@ public final class TranscriptionMetricsPublisher {
     }
 
     /**
+     * Records the processing-time-to-audio-duration ratio for profiling.
+     *
+     * @param engineName name of the engine
+     * @param ratio processing time / audio duration
+     */
+    public void recordProcessingRatio(String engineName, double ratio) {
+        if (metrics == null) {
+            return;
+        }
+        metrics.recordProcessingRatio(engineName, ratio);
+    }
+
+    /**
      * Checks if metrics tracking is enabled.
      *
      * @return true if metrics are available, false if running in test mode
