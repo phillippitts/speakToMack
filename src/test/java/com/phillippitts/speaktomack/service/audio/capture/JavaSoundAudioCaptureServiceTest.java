@@ -22,7 +22,7 @@ import static org.awaitility.Awaitility.await;
 class JavaSoundAudioCaptureServiceTest {
 
     @Test
-    void startStopReadAllProducesPcm() throws Exception {
+    void startStopReadAllProducesPcm() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
         AudioValidationProperties vprops = new AudioValidationProperties(50, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
@@ -55,7 +55,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void singleActiveSessionOnly() throws Exception {
+    void singleActiveSessionOnly() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
         AudioValidationProperties vprops = new AudioValidationProperties(50, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
@@ -83,7 +83,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void invalidAudioRejectedByValidator() throws Exception {
+    void invalidAudioRejectedByValidator() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
         AudioValidationProperties vprops = new AudioValidationProperties(10000, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
@@ -159,7 +159,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void maxDurationEnforcesHardStop() throws Exception {
+    void maxDurationEnforcesHardStop() {
         // Very short max duration (600ms)
         AudioCaptureProperties props = new AudioCaptureProperties(20, 600, null);
         AudioValidationProperties vprops = new AudioValidationProperties(100, 60000, 100 * 1024 * 1024);
@@ -190,7 +190,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void canceledSessionThrowsOnRead() throws Exception {
+    void canceledSessionThrowsOnRead() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
         AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
@@ -217,7 +217,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void readAllWhileActiveThrows() throws Exception {
+    void readAllWhileActiveThrows() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
         AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
@@ -245,7 +245,7 @@ class JavaSoundAudioCaptureServiceTest {
     }
 
     @Test
-    void shutdownTerminatesCaptureThread() throws Exception {
+    void shutdownTerminatesCaptureThread() {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
         AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);

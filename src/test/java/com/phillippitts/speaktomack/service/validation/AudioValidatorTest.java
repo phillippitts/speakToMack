@@ -12,11 +12,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AudioValidatorTest {
 
     private AudioValidator validator;
-    private AudioValidationProperties props;
 
     @BeforeEach
     void setup() {
-        props = new AudioValidationProperties(250, 300_000, 100 * 1024 * 1024);
+        AudioValidationProperties props = new AudioValidationProperties(250, 300_000, 100 * 1024 * 1024);
         validator = new AudioValidator(props);
     }
 

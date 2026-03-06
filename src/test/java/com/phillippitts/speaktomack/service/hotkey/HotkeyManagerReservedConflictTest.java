@@ -7,7 +7,6 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,19 +33,11 @@ class HotkeyManagerReservedConflictTest {
     }
 
     static class FakeHook implements GlobalKeyHook {
-        private final AtomicBoolean reg = new AtomicBoolean();
-        private volatile Consumer<NormalizedKeyEvent> listener;
         @Override
-        public void register() {
-            reg.set(true);
-        }
+        public void register() { }
         @Override
-        public void unregister() {
-            reg.set(false);
-        }
+        public void unregister() { }
         @Override
-        public void addListener(Consumer<NormalizedKeyEvent> listener) {
-            this.listener = listener;
-        }
+        public void addListener(Consumer<NormalizedKeyEvent> listener) { }
     }
 }

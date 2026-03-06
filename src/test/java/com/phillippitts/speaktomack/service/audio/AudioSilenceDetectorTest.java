@@ -67,7 +67,7 @@ class AudioSilenceDetectorTest {
         byte[] pcm = generateSilence(durationToSamples(SILENCE_GAP_MS + 100));
         List<Integer> boundaries = AudioSilenceDetector.detectSilenceBoundaries(pcm, SILENCE_GAP_MS, SAMPLE_RATE);
         assertThat(boundaries).hasSize(1);
-        assertThat(boundaries.get(0)).isEqualTo(pcm.length);
+        assertThat(boundaries.getFirst()).isEqualTo(pcm.length);
     }
 
     @Test
@@ -88,7 +88,7 @@ class AudioSilenceDetectorTest {
         List<Integer> boundaries = AudioSilenceDetector.detectSilenceBoundaries(pcm, SILENCE_GAP_MS, SAMPLE_RATE);
         assertThat(boundaries).hasSize(1);
         // Boundary should be after silence region, before loud2
-        assertThat(boundaries.get(0)).isGreaterThan(loud1.length)
+        assertThat(boundaries.getFirst()).isGreaterThan(loud1.length)
                 .isLessThanOrEqualTo(loud1.length + silence.length);
     }
 

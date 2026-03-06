@@ -11,26 +11,24 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "stt.reconciliation")
 public record ReconciliationProperties(
 
-        /** Enable reconciled path in orchestrator. */
+        // Enable reconciled path in orchestrator.
         @DefaultValue("false")
         boolean enabled,
 
-        /** Strategy to use when enabled. */
+        // Strategy to use when enabled.
         @DefaultValue("SIMPLE")
         @NotNull
         Strategy strategy,
 
-        /** Threshold for word-overlap (Jaccard) strategy (0..1). */
+        // Threshold for word-overlap (Jaccard) strategy (0..1).
         @DefaultValue("0.6")
         @Min(0)
         @Max(1)
         double overlapThreshold,
 
-        /**
-         * Confidence threshold for smart reconciliation (0..1).
-         * If Vosk confidence < this threshold, run Whisper too and reconcile.
-         * Set to 0.0 to always run dual-engine, 1.0 to never upgrade to dual-engine.
-         */
+        // Confidence threshold for smart reconciliation (0..1).
+        // If Vosk confidence < this threshold, run Whisper too and reconcile.
+        // Set to 0.0 to always run dual-engine, 1.0 to never upgrade to dual-engine.
         @DefaultValue("0.7")
         @Min(0)
         @Max(1)

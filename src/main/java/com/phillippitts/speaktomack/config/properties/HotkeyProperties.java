@@ -22,30 +22,28 @@ import java.util.List;
 @ConfigurationProperties(prefix = "hotkey")
 public record HotkeyProperties(
 
-        /** Trigger type. */
+        // Trigger type.
         @jakarta.validation.constraints.NotNull
         TriggerType type,
 
-        /** Primary key code name (e.g., RIGHT_META, F13, D). */
+        // Primary key code name (e.g., RIGHT_META, F13, D).
         @NotBlank
         String key,
 
-        /** Double-tap threshold (ms). Only used when type=double-tap. */
+        // Double-tap threshold (ms). Only used when type=double-tap.
         @DefaultValue("300")
         @Min(100)
         @Max(1000)
         int thresholdMs,
 
-        /** Optional modifiers for single-key or combination types (e.g., META, SHIFT, CONTROL, ALT). */
+        // Optional modifiers for single-key or combination types (e.g., META, SHIFT, CONTROL, ALT).
         List<String> modifiers,
 
-        /** Reserved OS shortcuts to flag as conflicts (e.g., META+TAB, META+L). */
+        // Reserved OS shortcuts to flag as conflicts (e.g., META+TAB, META+L).
         List<String> reserved,
 
-        /**
-         * Toggle mode: if true, first hotkey press starts recording, second press stops and transcribes.
-         * If false (default), uses push-to-talk: press starts recording, release stops and transcribes.
-         */
+        // Toggle mode: if true, first hotkey press starts recording, second press stops and transcribes.
+        // If false (default), uses push-to-talk: press starts recording, release stops and transcribes.
         @DefaultValue("false")
         boolean toggleMode
 ) {

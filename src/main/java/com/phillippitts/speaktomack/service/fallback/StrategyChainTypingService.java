@@ -67,7 +67,7 @@ public class StrategyChainTypingService implements TypingService {
                     // Publish non-PII fallback event for observability
                     publisher.publishEvent(new TypingFallbackEvent(a.name(), "type returned false", Instant.now()));
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 LOG.warn("Adapter {} failed: {}", a.name(), e.toString());
                 publisher.publishEvent(new TypingFallbackEvent(a.name(), e.getClass().getSimpleName(), Instant.now()));
             }

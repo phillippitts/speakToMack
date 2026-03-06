@@ -208,8 +208,11 @@ public class VoskSttEngine extends com.phillippitts.speaktomack.service.stt.Abst
      */
     private org.vosk.Model getModelForTranscription() {
         ensureInitialized();
-        synchronized (lock) {
+        lock.lock();
+        try {
             return this.model;
+        } finally {
+            lock.unlock();
         }
     }
 

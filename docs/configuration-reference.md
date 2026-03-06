@@ -596,7 +596,7 @@ stt.whisper.model-path=models/ggml-base.en.bin
 
 ## See Also
 
-- [Setup Guide](../README.md#setup-guide) - Initial setup and model installation
+- [Getting Started](../README.md#getting-started) - Initial setup and model installation
 - [Developer Guide](developer-guide.md) - Architecture and development workflow
 - [Troubleshooting](../README.md#troubleshooting) - Common issues and solutions
-- [ADRs](adr/) - Architectural decision records
+- [ADRs](adr/001-dual-engine-stt-strategy.md) - Architectural decision records

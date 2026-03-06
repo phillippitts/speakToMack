@@ -166,7 +166,7 @@ public class DefaultParallelSttService implements ParallelSttService {
             TranscriptionResult tr;
 
             if (engine instanceof DetailedTranscriptionEngine detailedEngine) {
-                // Use transcribeDetailed() to get tokens/JSON directly (no ThreadLocal)
+                // Use transcribeDetailed() to get tokens/JSON directly
                 TranscriptionOutput output = detailedEngine.transcribeDetailed(pcm);
                 tr = output.result();
                 tokens = output.tokens().isEmpty()

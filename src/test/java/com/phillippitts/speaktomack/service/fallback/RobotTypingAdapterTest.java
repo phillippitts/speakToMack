@@ -43,7 +43,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default"
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);
@@ -62,7 +62,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 10, 50, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default"
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);
@@ -85,7 +85,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 200, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default"
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);
@@ -103,7 +103,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 0, false, false,
-                TypingProperties.NewlineMode.LF, true, false, "os-default"
+                TypingProperties.NewlineMode.LF, true, false, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);
@@ -118,7 +118,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, false, "os-default"
+                TypingProperties.NewlineMode.LF, true, false, "os-default", 200
         );
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, null);
 
@@ -130,7 +130,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default"
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);
@@ -147,7 +147,7 @@ class RobotTypingAdapterTest {
         // chunkSize, interChunkDelayMs, focusDelayMs, restoreClipboard, clipboardOnlyFallback, ...
         TypingProperties props = new TypingProperties(
                 5000, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, false, "os-default"
+                TypingProperties.NewlineMode.LF, true, false, "os-default", 200
         );
         FakeRobot robot = new FakeRobot();
         RobotTypingAdapter adapter = new RobotTypingAdapter(props, robot);

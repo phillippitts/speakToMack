@@ -17,11 +17,9 @@ public record OrchestrationProperties(
         @NotNull
         PrimaryEngine primaryEngine,
 
-        /**
-         * Silence gap threshold in milliseconds. If time between transcriptions exceeds this value,
-         * a newline is prepended to the next transcription for better paragraph formatting.
-         * Set to 0 to disable automatic paragraph breaks.
-         */
+        // Silence gap threshold in milliseconds. If time between transcriptions exceeds this value,
+        // a newline is prepended to the next transcription for better paragraph formatting.
+        // Set to 0 to disable automatic paragraph breaks.
         @DefaultValue("1000")
         @Min(0)
         int silenceGapMs

@@ -13,17 +13,17 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "audio.capture")
 public record AudioCaptureProperties(
 
-        /** Size of a read chunk from the TargetDataLine in milliseconds. */
+        // Size of a read chunk from the TargetDataLine in milliseconds.
         @Min(10)
         @Max(200)
         int chunkMillis,
 
-        /** Maximum capture duration in milliseconds (hard stop). */
+        // Maximum capture duration in milliseconds (hard stop).
         @Min(100)
         @Max(600_000)
         int maxDurationMs,
 
-        /** Optional input device name hint; falls back to system default when null/blank. */
+        // Optional input device name hint; falls back to system default when null/blank.
         String deviceName
 ) {
 

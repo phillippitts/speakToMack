@@ -98,7 +98,7 @@ class ClipboardTypingAdapter implements TypingAdapter {
                 final Clipboard cbRef = cb;
                 Thread.ofVirtual().start(() -> {
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(props.getClipboardRestoreDelayMs());
                         cbRef.setContents(new StringSelection(String.valueOf(priorContent)), null);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();

@@ -27,12 +27,7 @@ class WhisperSttEngineJsonModeTest {
     }
 
     private ProcessFactory createJsonProcessFactory() {
-        return new ProcessFactory() {
-            @Override
-            public Process start(java.util.List<String> command, java.nio.file.Path workingDir) {
-                return createFakeProcess();
-            }
-        };
+        return (command, workingDir) -> createFakeProcess();
     }
 
     private Process createFakeProcess() {

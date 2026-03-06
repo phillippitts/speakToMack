@@ -17,7 +17,6 @@ class DefaultRecordingServiceTest {
     private FakeCaptureOrchestrator captureOrchestrator;
     private FakeTranscriptionOrchestrator transcriptionOrchestrator;
     private List<Object> events;
-    private ApplicationStateTracker stateTracker;
     private DefaultRecordingService service;
 
     @BeforeEach
@@ -25,7 +24,7 @@ class DefaultRecordingServiceTest {
         captureOrchestrator = new FakeCaptureOrchestrator();
         transcriptionOrchestrator = new FakeTranscriptionOrchestrator();
         events = new ArrayList<>();
-        stateTracker = new ApplicationStateTracker(events::add);
+        ApplicationStateTracker stateTracker = new ApplicationStateTracker(events::add);
         service = new DefaultRecordingService(captureOrchestrator, transcriptionOrchestrator, stateTracker);
     }
 

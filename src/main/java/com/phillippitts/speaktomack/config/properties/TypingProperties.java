@@ -9,13 +9,11 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * Typed properties controlling paste/typing fallback behavior.
- *
  * Privacy defaults: clipboard restore enabled; INFO logs never include full text.
  */
 @Validated
 @ConfigurationProperties(prefix = "typing")
 public record TypingProperties(
-
         @DefaultValue("800")
         @Min(100)
         @Max(2000)
@@ -31,30 +29,36 @@ public record TypingProperties(
         @Max(1000)
         int focusDelayMs,
 
-        /** Whether to restore prior clipboard contents after paste. */
+        // Whether to restore prior clipboard contents after paste.
         @DefaultValue("true")
         boolean restoreClipboard,
 
-        /** If true, do not send paste shortcut, only place text on clipboard. */
+        // If true, do not send paste shortcut, only place text on clipboard.
         @DefaultValue("false")
         boolean clipboardOnlyFallback,
 
-        /** Normalize newlines before paste. */
+        // Normalize newlines before paste.
         @DefaultValue("LF")
         @NotNull
         NewlineMode normalizeNewlines,
 
-        /** Trim trailing newline at end of text. */
+        // Trim trailing newline at end of text.
         @DefaultValue("true")
         boolean trimTrailingNewline,
 
-        /** Enable Robot-based typing (Tier 1). If false, skip to clipboard tier. */
+        // Enable Robot-based typing (Tier 1). If false, skip to clipboard tier.
         @DefaultValue("true")
         boolean enableRobot,
 
-        /** Optional override for paste shortcut: os-default | META+V | CONTROL+V. */
+        // Optional override for paste shortcut: os-default | META+V | CONTROL+V.
         @DefaultValue("os-default")
-        String pasteShortcut
+        String pasteShortcut,
+
+        // Delay in ms before restoring clipboard after paste (gives target app time to process).
+        @DefaultValue("200")
+        @Min(50)
+        @Max(2000)
+        int clipboardRestoreDelayMs
 ) {
 
     public enum NewlineMode { LF, CRLF, NONE }
@@ -93,5 +97,9 @@ public record TypingProperties(
 
     public String getPasteShortcut() {
         return pasteShortcut;
+    }
+
+    public int getClipboardRestoreDelayMs() {
+        return clipboardRestoreDelayMs;
     }
 }

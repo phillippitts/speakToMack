@@ -106,7 +106,7 @@ class ThreadPoolConfigTest {
             latch.countDown();
         });
 
-        latch.await(1, TimeUnit.SECONDS);
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         assertThat(threadName[0]).startsWith("stt-pool-");
     }

@@ -28,10 +28,6 @@ final class PcmRingBuffer {
         this.overflowCallback = overflowCallback;
     }
 
-    int capacity() {
-        return buffer.length;
-    }
-
     synchronized void write(byte[] src, int off, int len) {
         if (len <= 0) {
             return;

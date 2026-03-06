@@ -24,6 +24,9 @@ import static com.phillippitts.speaktomack.service.stt.whisper.WhisperTestDouble
 import static com.phillippitts.speaktomack.service.stt.whisper.WhisperTestDoubles.StubProcessFactory;
 import static com.phillippitts.speaktomack.service.stt.whisper.WhisperTestDoubles.TestProcess;
 import static org.assertj.core.api.Assertions.assertThat;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -44,6 +47,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @Tag("requiresVoskModel")
 class ParallelSttEnginesIntegrationTest {
 
+    private static final Logger LOG = LogManager.getLogger(ParallelSttEnginesIntegrationTest.class);
     private static final String VOSK_MODEL = "models/vosk-model-small-en-us-0.15";
     private static final int MEMORY_LEAK_ITERATIONS = 10;
 
@@ -129,9 +133,8 @@ class ParallelSttEnginesIntegrationTest {
             assertThat(whisper.isHealthy()).isTrue();
         }
 
-        // Log helpful metrics without asserting to avoid flakiness
-        System.out.println("Parallel Vosk+Whisper " + MEMORY_LEAK_ITERATIONS
-                + " iterations: totalMs=" + totalDurationMs
-                + ", avgMs=" + (totalDurationMs / MEMORY_LEAK_ITERATIONS));
+        LOG.info("Parallel Vosk+Whisper {} iterations: totalMs={}, avgMs={}",
+                MEMORY_LEAK_ITERATIONS, totalDurationMs,
+                totalDurationMs / MEMORY_LEAK_ITERATIONS);
     }
 }

@@ -175,7 +175,7 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                         rawJson = stdout;
                         tokens = WhisperJsonParser.extractTokens(stdout);
                     } else {
-                        text = stdout == null ? "" : stdout.trim();
+                        text = stdout.trim();
                     }
 
                     double confidence = 1.0;
@@ -246,24 +246,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
                 // Cleanup failure is non-critical
             }
         }
-    }
-
-    /**
-     * @deprecated Use {@link #transcribeDetailed(byte[])} instead.
-     */
-    @Deprecated(forRemoval = true)
-    @Override
-    public java.util.Optional<java.util.List<String>> consumeTokens() {
-        return java.util.Optional.empty();
-    }
-
-    /**
-     * @deprecated Use {@link #transcribeDetailed(byte[])} instead.
-     */
-    @Deprecated(forRemoval = true)
-    @Override
-    public java.util.Optional<String> consumeRawJson() {
-        return java.util.Optional.empty();
     }
 
     @Override

@@ -16,7 +16,7 @@ class StrategyChainTypingServiceEventsTest {
     @Test
     void publishesFallbackEventsOnAdapterFailures() {
         TypingProperties props = new TypingProperties(800, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default");
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
 

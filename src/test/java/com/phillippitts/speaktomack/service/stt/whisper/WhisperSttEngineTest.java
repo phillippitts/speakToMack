@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class WhisperSttEngineTest {
 
     @Test
-    void successReturnsTranscription() throws Exception {
+    void successReturnsTranscription() {
         // Stub process that exits immediately with known stdout
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("hello world", "", 0, 0))
@@ -43,7 +43,7 @@ class WhisperSttEngineTest {
     }
 
     @Test
-    void nonZeroExitRethrowsTranscriptionException() throws Exception {
+    void nonZeroExitRethrowsTranscriptionException() {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "error", 1, 0))
         ));
@@ -59,7 +59,7 @@ class WhisperSttEngineTest {
     }
 
     @Test
-    void timeoutRethrowsTranscriptionException() throws Exception {
+    void timeoutRethrowsTranscriptionException() {
         WhisperProcessManager mgr = new WhisperProcessManager(new StubProcessFactory(
                 new TestProcess(new ProcessBehavior("", "", 0, -1)) // never finishes
         ));

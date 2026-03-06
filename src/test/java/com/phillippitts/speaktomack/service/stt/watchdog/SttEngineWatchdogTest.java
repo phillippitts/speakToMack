@@ -148,8 +148,7 @@ class SttEngineWatchdogTest {
         SttWatchdogProperties props = new SttWatchdogProperties(
                 true, 60, 3, 1, false, 60_000L, 0.3, 10, 5);
         RecordingEngine engine = new RecordingEngine("vosk");
-        List<Object> publishedEvents = new ArrayList<>();
-        ApplicationEventPublisher publisher = publishedEvents::add;
+        ApplicationEventPublisher publisher = event -> { };
         SttEngineWatchdog watchdog = new SttEngineWatchdog(List.of(engine), props, publisher);
 
         for (int i = 0; i < 5; i++) {

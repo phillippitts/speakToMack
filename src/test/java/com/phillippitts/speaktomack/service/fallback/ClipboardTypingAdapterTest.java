@@ -45,7 +45,7 @@ class ClipboardTypingAdapterTest {
     void savesAndRestoresClipboardAndNormalizesLf() throws InterruptedException {
         TypingProperties props = new TypingProperties(
                 800, 0, 0, true, true,
-                TypingProperties.NewlineMode.LF, true, false, "os-default"
+                TypingProperties.NewlineMode.LF, true, false, "os-default", 200
         );
         FakeFacade facade = new FakeFacade();
         // Seed prior content
@@ -60,7 +60,7 @@ class ClipboardTypingAdapterTest {
         // With clipboardOnlyFallback=false, content should be restored to prior after paste
         TypingProperties props2 = new TypingProperties(
                 800, 0, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, false, "os-default"
+                TypingProperties.NewlineMode.LF, true, false, "os-default", 200
         );
         facade.clipboard.setContents(new java.awt.datatransfer.StringSelection("orig"), null);
         ClipboardTypingAdapter adapter2 = new ClipboardTypingAdapter(props2, facade);

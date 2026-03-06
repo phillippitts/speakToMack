@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 
@@ -40,6 +41,7 @@ public class SttEngineWatchdog {
     private final Map<String, SttEngine> enginesByName = new ConcurrentHashMap<>();
     private final Map<String, EngineState> state = new ConcurrentHashMap<>();
 
+    @Autowired
     public SttEngineWatchdog(List<SttEngine> engines,
                              SttWatchdogProperties props,
                              ApplicationEventPublisher publisher) {
@@ -60,7 +62,6 @@ public class SttEngineWatchdog {
 
     // Package-private for tests
     SttEngineWatchdog(List<SttEngine> engines,
-                      SttWatchdogProperties props,
                       ApplicationEventPublisher publisher,
                       RestartBudgetTracker budgetTracker,
                       ConfidenceMonitor confidenceMonitor) {

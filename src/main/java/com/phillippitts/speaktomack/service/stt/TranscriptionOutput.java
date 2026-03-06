@@ -9,7 +9,7 @@ import java.util.Objects;
  * Immutable output from a detailed transcription, wrapping the result
  * with optional word-level tokens and raw JSON output.
  *
- * <p>Replaces ThreadLocal-based consumption pattern with a direct return value.
+ * <p>Returned directly from {@code transcribeDetailed()} as a single immutable value.
  *
  * @param result  the transcription result (never null)
  * @param tokens  word-level tokens from the engine, or empty list if unavailable

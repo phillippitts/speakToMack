@@ -11,8 +11,11 @@ classDiagram
         +isHealthy() boolean
         +close()
         +getEngineName() String
-        +consumeTokens() Optional~List~String~~
-        +consumeRawJson() Optional~String~
+    }
+
+    class DetailedTranscriptionEngine {
+        <<interface>>
+        +transcribeDetailed(byte[]) TranscriptionOutput
     }
 
     class AbstractSttEngine {
@@ -50,11 +53,12 @@ classDiagram
         #doInitialize()
         #doClose()
         +getEngineName() String
-        +consumeTokens() Optional~List~String~~
-        +consumeRawJson() Optional~String~
+        +transcribeDetailed(byte[]) TranscriptionOutput
     }
 
     SttEngine <|.. AbstractSttEngine
+    SttEngine <|-- DetailedTranscriptionEngine
+    DetailedTranscriptionEngine <|.. WhisperSttEngine
     AbstractSttEngine <|-- VoskSttEngine
     AbstractSttEngine <|-- WhisperSttEngine
 

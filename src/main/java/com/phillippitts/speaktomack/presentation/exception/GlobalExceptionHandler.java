@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 
 /**
  * Global exception handler for REST API boundary.
- *
  * Converts domain exceptions to HTTP responses with appropriate status codes.
  * Logs errors for monitoring while protecting sensitive details from clients.
  */

@@ -6,6 +6,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -16,9 +17,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * customize engine-specific behavior.
  *
  * <p><b>Thread Safety:</b> This class is thread-safe. All state-modifying operations are
- * synchronized on an internal lock. Subclasses must ensure their implementations of
+ * guarded by a {@link ReentrantLock}. Subclasses must ensure their implementations of
  * {@link #doInitialize()} and {@link #doClose()} are thread-safe when called within
- * the synchronized context.
+ * the lock context.
  *
  * <p><b>Lifecycle:</b>
  * <ol>
@@ -48,9 +49,9 @@ public abstract class AbstractSttEngine implements SttEngine {
 
     /**
      * Lock for synchronizing state transitions and ensuring thread-safety.
-     * All access to {@link #initialized} and {@link #closed} must be synchronized on this lock.
+     * All access to {@link #initialized} and {@link #closed} must be guarded by this lock.
      */
-    protected final Object lock = new Object();
+    protected final ReentrantLock lock = new ReentrantLock();
 
     /**
      * Read-write lock protecting JNI resources during transcription.
@@ -61,13 +62,13 @@ public abstract class AbstractSttEngine implements SttEngine {
 
     /**
      * Tracks whether the engine has been successfully initialized.
-     * Access must be synchronized on {@link #lock}.
+     * Access must be guarded by {@link #lock}.
      */
     protected boolean initialized = false;
 
     /**
      * Tracks whether the engine has been closed and is no longer usable.
-     * Access must be synchronized on {@link #lock}.
+     * Access must be guarded by {@link #lock}.
      */
     protected boolean closed = false;
 
@@ -78,7 +79,7 @@ public abstract class AbstractSttEngine implements SttEngine {
      * Once closed, the engine cannot be reinitialized unless the subclass explicitly
      * supports reinitialization by resetting the {@code closed} flag in {@link #doInitialize()}.
      *
-     * <p><b>Thread-safe:</b> Synchronized to prevent concurrent initialization.
+     * <p><b>Thread-safe:</b> Guarded by {@link ReentrantLock} to prevent concurrent initialization.
      *
      * <p><b>Template Method:</b> Calls {@link #doInitialize()} for engine-specific logic.
      *
@@ -86,19 +87,22 @@ public abstract class AbstractSttEngine implements SttEngine {
      */
     @Override
     public final void initialize() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             if (initialized && !closed) {
                 return; // Already initialized and not closed
             }
             doInitialize();
             initialized = true;
+        } finally {
+            lock.unlock();
         }
     }
 
     /**
      * Engine-specific initialization logic.
      *
-     * <p>Called by {@link #initialize()} within a synchronized block. Subclasses should
+     * <p>Called by {@link #initialize()} within a locked context. Subclasses should
      * perform all engine-specific initialization here (e.g., loading models, validating
      * configuration, initializing native libraries).
      *
@@ -110,7 +114,7 @@ public abstract class AbstractSttEngine implements SttEngine {
      *   <li>If supporting reinitialization after close, must reset {@code closed = false}</li>
      * </ul>
      *
-     * <p><b>Thread Safety:</b> Called within synchronized context - implementations do not
+     * <p><b>Thread Safety:</b> Called within locked context - implementations do not
      * need additional synchronization for state fields.
      *
      * @throws TranscriptionException if initialization fails
@@ -123,14 +127,17 @@ public abstract class AbstractSttEngine implements SttEngine {
      * <p>Returns {@code true} if the engine has been initialized, is not closed, and is
      * ready to process transcription requests.
      *
-     * <p><b>Thread-safe:</b> Synchronized read of engine state.
+     * <p><b>Thread-safe:</b> Guarded read of engine state.
      *
      * @return true if engine is initialized and not closed, false otherwise
      */
     @Override
     public final boolean isHealthy() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             return initialized && !closed;
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -139,7 +146,7 @@ public abstract class AbstractSttEngine implements SttEngine {
      *
      * <p>This method is idempotent - multiple calls are safe and will only close resources once.
      *
-     * <p><b>Thread-safe:</b> Synchronized to prevent concurrent closure.
+     * <p><b>Thread-safe:</b> Guarded by {@link ReentrantLock} to prevent concurrent closure.
      *
      * <p><b>Template Method:</b> Calls {@link #doClose()} for engine-specific cleanup.
      *
@@ -152,7 +159,8 @@ public abstract class AbstractSttEngine implements SttEngine {
         // Acquire write lock to wait for all active transcriptions to finish
         transcriptionLock.writeLock().lock();
         try {
-            synchronized (lock) {
+            lock.lock();
+            try {
                 if (closed) {
                     return; // Already closed
                 }
@@ -164,6 +172,8 @@ public abstract class AbstractSttEngine implements SttEngine {
                     closed = true;
                     initialized = false;
                 }
+            } finally {
+                lock.unlock();
             }
         } finally {
             transcriptionLock.writeLock().unlock();
@@ -173,7 +183,7 @@ public abstract class AbstractSttEngine implements SttEngine {
     /**
      * Engine-specific cleanup logic.
      *
-     * <p>Called by {@link #close()} within a synchronized block. Subclasses should
+     * <p>Called by {@link #close()} within a locked context. Subclasses should
      * release all engine-specific resources here (e.g., close native libraries,
      * free models, terminate processes).
      *
@@ -185,7 +195,7 @@ public abstract class AbstractSttEngine implements SttEngine {
      *   <li>Should log appropriate messages for cleanup progress/completion</li>
      * </ul>
      *
-     * <p><b>Thread Safety:</b> Called within synchronized context - implementations do not
+     * <p><b>Thread Safety:</b> Called within locked context - implementations do not
      * need additional synchronization for state fields.
      */
     protected abstract void doClose();
@@ -198,7 +208,8 @@ public abstract class AbstractSttEngine implements SttEngine {
      */
     protected final void acquireTranscriptionLock() {
         transcriptionLock.readLock().lock();
-        synchronized (lock) {
+        lock.lock();
+        try {
             if (closed) {
                 transcriptionLock.readLock().unlock();
                 throw new TranscriptionException(
@@ -206,6 +217,8 @@ public abstract class AbstractSttEngine implements SttEngine {
                     getEngineName()
                 );
             }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -223,18 +236,21 @@ public abstract class AbstractSttEngine implements SttEngine {
      * <p>Utility method for subclasses to call at the start of {@link #transcribe(byte[])}
      * to ensure the engine is in a valid state.
      *
-     * <p><b>Thread-safe:</b> Synchronized read of engine state.
+     * <p><b>Thread-safe:</b> Guarded read of engine state.
      *
      * @throws TranscriptionException if engine is not initialized or is closed
      */
     protected final void ensureInitialized() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             if (!initialized || closed) {
                 throw new TranscriptionException(
                     getEngineName() + " engine not initialized or closed",
                     getEngineName()
                 );
             }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -247,16 +263,6 @@ public abstract class AbstractSttEngine implements SttEngine {
      *   <li>Preserves TranscriptionException instances without double-wrapping</li>
      *   <li>Wraps other exceptions with engine context</li>
      * </ul>
-     *
-     * <p><b>Usage Pattern:</b>
-     * <pre>{@code
-     * try {
-     *     // Transcription logic
-     *     return result;
-     * } catch (Exception e) {
-     *     throw handleTranscriptionError(e, publisher, context);
-     * }
-     * }</pre>
      *
      * @param exception the exception that occurred during transcription
      * @param publisher Spring event publisher for failure events (may be null)

@@ -12,7 +12,7 @@ class StrategyChainTypingServiceTest {
     @Test
     void fallsBackFromRobotToClipboard() {
         TypingProperties props = new TypingProperties(800, 30, 0, true, false,
-                TypingProperties.NewlineMode.LF, true, true, "os-default");
+                TypingProperties.NewlineMode.LF, true, true, "os-default", 200);
         TypingAdapter failingRobot = new TypingAdapter() {
             @Override public boolean canType() {
                 return true;

@@ -79,7 +79,7 @@ public class VoskStreamingService {
                 }
                 recognizer = new org.vosk.Recognizer(model, config.sampleRate());
                 LOG.info("Vosk streaming recognizer opened");
-            } catch (Exception e) {
+            } catch (java.io.IOException | RuntimeException e) {
                 LOG.error("Failed to open Vosk streaming recognizer", e);
             }
         }

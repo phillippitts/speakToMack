@@ -75,8 +75,8 @@ final class WhisperJsonParser {
                 }
                 return sb.toString();
             }
-        } catch (Exception ignored) {
-            // fall through to blank
+        } catch (org.json.JSONException ignored) {
+            // Malformed JSON — fall through to blank
         }
         return "";
     }
@@ -177,7 +177,7 @@ final class WhisperJsonParser {
             // Fallback to tokenizing text if no words available
             String text = extractText(json);
             return TokenizerUtil.tokenize(text);
-        } catch (Exception e) {
+        } catch (org.json.JSONException e) {
             return List.of();
         }
     }
