@@ -126,12 +126,25 @@ class DefaultRecordingServiceTest {
         assertThat(service.getState()).isEqualTo(ApplicationState.IDLE);
     }
 
+    @Test
+    void stopRecordingShouldTransitionToIdleWhenStopCaptureThrows() {
+        captureOrchestrator.shouldThrowOnStop = true;
+        service.startRecording();
+        events.clear();
+
+        boolean stopped = service.stopRecording();
+
+        assertThat(stopped).isFalse();
+        assertThat(service.getState()).isEqualTo(ApplicationState.IDLE);
+    }
+
     // --- Test fakes ---
 
     private static class FakeCaptureOrchestrator implements CaptureOrchestrator {
         byte[] audioData = new byte[3200];
         boolean capturing = false;
         boolean cancelled = false;
+        boolean shouldThrowOnStop = false;
         UUID sessionId;
 
         @Override
@@ -147,6 +160,9 @@ class DefaultRecordingServiceTest {
         @Override
         public byte[] stopCapture(UUID sid) {
             capturing = false;
+            if (shouldThrowOnStop) {
+                throw new RuntimeException("Audio line error");
+            }
             return audioData;
         }
 

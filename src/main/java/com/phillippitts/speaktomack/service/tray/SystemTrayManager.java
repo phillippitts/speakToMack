@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.tray;
 
+import com.phillippitts.speaktomack.service.audio.capture.BufferOverflowEvent;
 import com.phillippitts.speaktomack.service.orchestration.ApplicationState;
 import com.phillippitts.speaktomack.service.orchestration.RecordingService;
 import com.phillippitts.speaktomack.service.orchestration.event.ApplicationStateChangedEvent;
@@ -128,6 +129,17 @@ public class SystemTrayManager implements SmartLifecycle {
     private void onQuitClicked() {
         LOG.info("Quit requested from system tray");
         Thread.ofVirtual().start(() -> SpringApplication.exit(applicationContext, () -> 0));
+    }
+
+    @EventListener
+    public void onBufferOverflow(BufferOverflowEvent event) {
+        if (trayIcon == null) {
+            return;
+        }
+        SwingUtilities.invokeLater(() ->
+                trayIcon.displayMessage("Audio Dropped",
+                        "Recording exceeds capacity. Try shorter dictations.",
+                        TrayIcon.MessageType.WARNING));
     }
 
     @EventListener

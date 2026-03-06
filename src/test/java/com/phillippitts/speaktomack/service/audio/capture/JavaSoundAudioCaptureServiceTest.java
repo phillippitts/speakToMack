@@ -11,30 +11,31 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineListener;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 class JavaSoundAudioCaptureServiceTest {
 
     @Test
     void startStopReadAllProducesPcm() throws Exception {
-        // Arrange: small properties for fast test
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(50); // Lower min to account for CI thread scheduling
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(50, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        AtomicInteger events = new AtomicInteger();
+        AtomicInteger errors = new AtomicInteger();
+        AtomicInteger chunks = new AtomicInteger();
         ApplicationEventPublisher publisher = e -> {
             if (e instanceof CaptureErrorEvent) {
-                events.incrementAndGet();
+                errors.incrementAndGet();
+            } else if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
             }
         };
 
-        // Fake provider that returns a repeating data line
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -43,25 +44,27 @@ class JavaSoundAudioCaptureServiceTest {
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
         UUID id = svc.startSession();
-        Thread.sleep(250); // Generous sleep for CI (capture thread startup + data capture)
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 5);
         svc.stopSession(id);
         byte[] pcm = svc.readAll(id);
 
         assertThat(pcm).isNotNull();
         assertThat(pcm.length).isGreaterThan(0);
-        // PCM must be block aligned (2 bytes)
         assertThat(pcm.length % 2).isEqualTo(0);
-        assertThat(events.get()).isEqualTo(0); // no errors
+        assertThat(errors.get()).isEqualTo(0);
     }
 
     @Test
     void singleActiveSessionOnly() throws Exception {
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(50); // Lower min to account for CI thread scheduling
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(50, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -70,24 +73,26 @@ class JavaSoundAudioCaptureServiceTest {
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
         UUID id = svc.startSession();
-        Thread.sleep(150); // Give capture thread time to fully initialize (longer for CI)
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 1);
         assertThatThrownBy(svc::startSession)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already active");
-        Thread.sleep(150); // Capture enough data to pass validation (generous for CI)
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 5);
         svc.stopSession(id);
         svc.readAll(id);
     }
 
     @Test
     void invalidAudioRejectedByValidator() throws Exception {
-        // Arrange: validator with strict min duration
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(10000); // 10 seconds minimum
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(10000, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -95,12 +100,11 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: capture for only 50ms (way below 10s minimum)
+        // Capture for only a few chunks (way below 10s minimum)
         UUID id = svc.startSession();
-        Thread.sleep(50);
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 1);
         svc.stopSession(id);
 
-        // Assert: validator.validate() throws InvalidAudioException
         assertThatThrownBy(() -> svc.readAll(id))
                 .isInstanceOf(com.phillippitts.speaktomack.exception.InvalidAudioException.class)
                 .hasMessageContaining("too short");
@@ -108,11 +112,8 @@ class JavaSoundAudioCaptureServiceTest {
 
     @Test
     void permissionDeniedPublishesEvent() {
-        // Arrange: provider that throws SecurityException
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(250);
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger eventCount = new AtomicInteger();
         ApplicationEventPublisher publisher = e -> {
@@ -126,25 +127,17 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: start session (capture thread will fail with SecurityException)
         UUID id = svc.startSession();
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ignore) {
-        }
+        await().atMost(Duration.ofSeconds(2)).untilAtomic(eventCount, org.hamcrest.Matchers.greaterThan(0));
         svc.stopSession(id);
 
-        // Assert: CaptureErrorEvent with MIC_PERMISSION_DENIED published
         assertThat(eventCount.get()).isGreaterThan(0);
     }
 
     @Test
     void deviceUnavailablePublishesEvent() {
-        // Arrange: provider that throws LineUnavailableException
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(250);
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger eventCount = new AtomicInteger();
         ApplicationEventPublisher publisher = e -> {
@@ -158,27 +151,25 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act
         UUID id = svc.startSession();
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ignore) {
-        }
+        await().atMost(Duration.ofSeconds(2)).untilAtomic(eventCount, org.hamcrest.Matchers.greaterThan(0));
         svc.stopSession(id);
 
-        // Assert
         assertThat(eventCount.get()).isGreaterThan(0);
     }
 
     @Test
     void maxDurationEnforcesHardStop() throws Exception {
-        // Arrange: very short max duration (600ms)
+        // Very short max duration (600ms)
         AudioCaptureProperties props = new AudioCaptureProperties(20, 600, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(100); // Allow shorter durations for testing
-        vprops.setMaxDurationMs(60000); // Validator max higher than capture max
+        AudioValidationProperties vprops = new AudioValidationProperties(100, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -186,28 +177,29 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: start session and wait longer than max duration
         UUID id = svc.startSession();
-        Thread.sleep(1200); // Wait 1.2 seconds (longer than 600ms max)
+        // Wait for the hard stop to kick in (~600ms of capture, producing ~60 chunks at 10ms each)
+        await().atMost(Duration.ofSeconds(3)).until(() -> chunks.get() >= 50);
         svc.stopSession(id);
         byte[] pcm = svc.readAll(id);
 
-        // Assert: captured audio should be ~600ms worth of data (not 1200ms)
-        // At 16kHz, 16-bit, mono: 32,000 bytes/sec = 19,200 bytes for 600ms
-        int expectedMaxBytes = (600 * 32000) / 1000; // ~19,200 bytes
-        assertThat(pcm.length).isLessThanOrEqualTo(expectedMaxBytes + 2000); // Allow small buffer
-        assertThat(pcm.length).isGreaterThan(3000); // Should have captured something substantial
+        // At 16kHz, 16-bit, mono: 32,000 bytes/sec = ~19,200 bytes for 600ms
+        int expectedMaxBytes = (600 * 32000) / 1000;
+        assertThat(pcm.length).isLessThanOrEqualTo(expectedMaxBytes + 2000);
+        assertThat(pcm.length).isGreaterThan(3000);
     }
 
     @Test
     void canceledSessionThrowsOnRead() throws Exception {
-        // Arrange
         AudioCaptureProperties props = new AudioCaptureProperties(20, 500, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(250);
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -215,12 +207,10 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: start, cancel, attempt to read
         UUID id = svc.startSession();
-        Thread.sleep(50);
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 1);
         svc.cancelSession(id);
 
-        // Assert: readAll() throws IllegalStateException
         assertThatThrownBy(() -> svc.readAll(id))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("canceled");
@@ -228,13 +218,15 @@ class JavaSoundAudioCaptureServiceTest {
 
     @Test
     void readAllWhileActiveThrows() throws Exception {
-        // Arrange
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(250);
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -242,28 +234,27 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: start session but don't stop
         UUID id = svc.startSession();
-        Thread.sleep(100);
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 1);
 
-        // Assert: readAll() throws IllegalStateException while active
         assertThatThrownBy(() -> svc.readAll(id))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("still active");
 
-        // Cleanup: stop the session
         svc.stopSession(id);
     }
 
     @Test
     void shutdownTerminatesCaptureThread() throws Exception {
-        // Arrange
         AudioCaptureProperties props = new AudioCaptureProperties(20, 60000, null);
-        AudioValidationProperties vprops = new AudioValidationProperties();
-        vprops.setMinDurationMs(250);
-        vprops.setMaxDurationMs(60000);
+        AudioValidationProperties vprops = new AudioValidationProperties(250, 60000, 100 * 1024 * 1024);
         AudioValidator validator = new AudioValidator(vprops);
-        ApplicationEventPublisher publisher = e -> { };
+        AtomicInteger chunks = new AtomicInteger();
+        ApplicationEventPublisher publisher = e -> {
+            if (e instanceof PcmChunkCapturedEvent) {
+                chunks.incrementAndGet();
+            }
+        };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
             RepeatingTargetDataLine line = new RepeatingTargetDataLine(fmt);
             line.open(fmt);
@@ -271,27 +262,17 @@ class JavaSoundAudioCaptureServiceTest {
         };
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
-        // Act: start session and call shutdown (simulating @PreDestroy)
         svc.startSession();
-        Thread.sleep(100); // Let capture thread initialize
+        await().atMost(Duration.ofSeconds(2)).until(() -> chunks.get() >= 1);
         svc.shutdown();
 
-        // Assert: capture thread should terminate within timeout
-        // Poll briefly to verify thread terminates
-        boolean terminated = false;
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(100);
-            // Check if we can start a new session (indicating full cleanup)
-            try {
-                UUID newId = svc.startSession();
-                svc.stopSession(newId);
-                terminated = true;
-                break;
-            } catch (IllegalStateException e) {
-                // Still cleaning up, retry
-            }
-        }
-        assertThat(terminated).as("Capture thread should terminate after shutdown").isTrue();
+        // After shutdown, should be able to start a new session (full cleanup)
+        await().atMost(Duration.ofSeconds(2))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> {
+                    UUID newId = svc.startSession();
+                    svc.stopSession(newId);
+                });
     }
 
     // --- Test doubles ---

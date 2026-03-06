@@ -3,6 +3,7 @@ package com.phillippitts.speaktomack.presentation.exception;
 import com.phillippitts.speaktomack.exception.InvalidAudioException;
 import com.phillippitts.speaktomack.exception.ModelNotFoundException;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
+import jakarta.validation.ConstraintViolationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Global exception handler for REST API boundary.
@@ -68,6 +70,25 @@ class GlobalExceptionHandler {
                 ex.getClass().getSimpleName(),
                 "Transcription service temporarily unavailable",
                 "Please retry in a few seconds",
+                Instant.now()
+            ));
+    }
+
+    /**
+     * Validation error - constraint violations on configuration or request input (HTTP 400).
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex) {
+        String details = ex.getConstraintViolations().stream()
+                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
+                .collect(Collectors.joining(", "));
+        LOG.warn("Constraint violation: {}", details);
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(new ApiError(
+                "ValidationFailed",
+                "Configuration or input validation failed",
+                details,
                 Instant.now()
             ));
     }

@@ -127,7 +127,7 @@ class WhisperSttEngineTest {
         byte[] pcm = new byte[32_000];
         assertThatThrownBy(() -> engine.transcribe(pcm))
                 .isInstanceOf(TranscriptionException.class)
-                .hasMessageContaining("not initialized");
+                .hasMessageContaining("closing or closed");
     }
 
     @Test

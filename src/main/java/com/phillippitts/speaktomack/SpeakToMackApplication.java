@@ -20,7 +20,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         com.phillippitts.speaktomack.config.properties.TypingProperties.class,
         com.phillippitts.speaktomack.config.properties.ReconciliationProperties.class,
         com.phillippitts.speaktomack.config.properties.TrayProperties.class,
-        com.phillippitts.speaktomack.config.properties.LiveCaptionProperties.class
+        com.phillippitts.speaktomack.config.properties.LiveCaptionProperties.class,
+        com.phillippitts.speaktomack.config.properties.ThreadPoolProperties.class
 })
 @EnableScheduling
 public class SpeakToMackApplication {

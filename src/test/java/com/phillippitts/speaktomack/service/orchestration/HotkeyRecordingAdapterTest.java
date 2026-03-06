@@ -31,7 +31,7 @@ class HotkeyRecordingAdapterTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -67,7 +67,7 @@ class HotkeyRecordingAdapterTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, true); // vosk disabled, whisper enabled
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -99,7 +99,7 @@ class HotkeyRecordingAdapterTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, false);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -132,7 +132,7 @@ class HotkeyRecordingAdapterTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         ApplicationEventPublisher pub = e -> { };
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
@@ -163,7 +163,7 @@ class HotkeyRecordingAdapterTest {
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         CaptureStateMachine csm = new CaptureStateMachine();
@@ -384,7 +384,7 @@ class HotkeyRecordingAdapterTest {
         final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
             super(java.util.List.of(),
-                    new com.phillippitts.speaktomack.config.properties.SttWatchdogProperties(),
+                    new com.phillippitts.speaktomack.config.properties.SttWatchdogProperties(true, 60, 3, 10, false, 60_000L, 0.3, 10, 5),
                     e -> { });
             this.voskEnabled = voskEnabled;
             this.whisperEnabled = whisperEnabled;

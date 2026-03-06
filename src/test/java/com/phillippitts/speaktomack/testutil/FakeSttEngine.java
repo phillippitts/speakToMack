@@ -108,7 +108,7 @@ public class FakeSttEngine implements SttEngine {
             throw new TranscriptionException("Engine unhealthy", engineName);
         }
 
-        return new TranscriptionResult(cannedText, cannedConfidence, Instant.now(), engineName);
+        return new TranscriptionResult(cannedText, cannedConfidence, Instant.now(), engineName, null);
     }
 
     @Override

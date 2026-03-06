@@ -125,15 +125,13 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
         } catch (TranscriptionException te) {
             metricsPublisher.recordFailure(ENGINE_RECONCILED, "transcription_error");
             LOG.warn("Reconciled transcription failed: {}", te.getMessage());
-            // Publish empty result to notify downstream consumers
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
-            publishResult(emptyResult, ENGINE_RECONCILED);
+            TranscriptionResult failedResult = TranscriptionResult.failure(ENGINE_RECONCILED, te.getMessage());
+            publishResult(failedResult, ENGINE_RECONCILED);
         } catch (RuntimeException re) {
             metricsPublisher.recordFailure(ENGINE_RECONCILED, "unexpected_error");
             LOG.error("Unexpected error during reconciled transcription", re);
-            // Publish empty result to notify downstream consumers
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, ENGINE_RECONCILED);
-            publishResult(emptyResult, ENGINE_RECONCILED);
+            TranscriptionResult failedResult = TranscriptionResult.failure(ENGINE_RECONCILED, re.getMessage());
+            publishResult(failedResult, ENGINE_RECONCILED);
         }
     }
 
@@ -167,14 +165,14 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
             String engineName = engine != null ? engine.getEngineName() : "unknown";
             metricsPublisher.recordFailure(engineName, "transcription_error");
             LOG.warn("Transcription failed: {}", te.getMessage());
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, engineName);
-            publishResult(emptyResult, engineName);
+            TranscriptionResult failedResult = TranscriptionResult.failure(engineName, te.getMessage());
+            publishResult(failedResult, engineName);
         } catch (RuntimeException re) {
             String engineName = engine != null ? engine.getEngineName() : "unknown";
             metricsPublisher.recordFailure(engineName, "unexpected_error");
             LOG.error("Unexpected error during transcription", re);
-            TranscriptionResult emptyResult = TranscriptionResult.of("", 0.0, engineName);
-            publishResult(emptyResult, engineName);
+            TranscriptionResult failedResult = TranscriptionResult.failure(engineName, re.getMessage());
+            publishResult(failedResult, engineName);
         }
     }
 

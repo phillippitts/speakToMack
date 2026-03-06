@@ -16,7 +16,8 @@ class TranscriptionResultTest {
                 "hello world",
                 0.95,
                 now,
-                "vosk"
+                "vosk",
+                null
         );
 
         assertThat(result.text()).isEqualTo("hello world");
@@ -27,7 +28,7 @@ class TranscriptionResultTest {
 
     @Test
     void shouldRejectNullText() {
-        assertThatThrownBy(() -> new TranscriptionResult(null, 0.95, Instant.now(), "vosk"))
+        assertThatThrownBy(() -> new TranscriptionResult(null, 0.95, Instant.now(), "vosk", null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("text must not be null");
     }
@@ -35,41 +36,41 @@ class TranscriptionResultTest {
     @Test
     void shouldAcceptEmptyText() {
         // Empty text is valid (silence may produce empty transcription)
-        TranscriptionResult result = new TranscriptionResult("", 0.95, Instant.now(), "vosk");
+        TranscriptionResult result = new TranscriptionResult("", 0.95, Instant.now(), "vosk", null);
         assertThat(result.text()).isEmpty();
     }
 
     @Test
     void shouldAcceptWhitespaceText() {
         // Whitespace is valid (some STT engines may return spaces)
-        TranscriptionResult result = new TranscriptionResult("   ", 0.95, Instant.now(), "vosk");
+        TranscriptionResult result = new TranscriptionResult("   ", 0.95, Instant.now(), "vosk", null);
         assertThat(result.text()).isEqualTo("   ");
     }
 
     @Test
     void shouldRejectNegativeConfidence() {
-        assertThatThrownBy(() -> new TranscriptionResult("hello", -0.1, Instant.now(), "vosk"))
+        assertThatThrownBy(() -> new TranscriptionResult("hello", -0.1, Instant.now(), "vosk", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("between 0.0 and 1.0");
     }
 
     @Test
     void shouldRejectConfidenceAboveOne() {
-        assertThatThrownBy(() -> new TranscriptionResult("hello", 1.5, Instant.now(), "vosk"))
+        assertThatThrownBy(() -> new TranscriptionResult("hello", 1.5, Instant.now(), "vosk", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("between 0.0 and 1.0");
     }
 
     @Test
     void shouldRejectNullTimestamp() {
-        assertThatThrownBy(() -> new TranscriptionResult("hello", 0.95, null, "vosk"))
+        assertThatThrownBy(() -> new TranscriptionResult("hello", 0.95, null, "vosk", null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("Timestamp must not be null");
     }
 
     @Test
     void shouldRejectNullEngineName() {
-        assertThatThrownBy(() -> new TranscriptionResult("hello", 0.95, Instant.now(), null))
+        assertThatThrownBy(() -> new TranscriptionResult("hello", 0.95, Instant.now(), null, null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("Engine name must not be null");
     }
@@ -95,5 +96,30 @@ class TranscriptionResultTest {
     void shouldAcceptMaximumConfidence() {
         TranscriptionResult result = TranscriptionResult.of("hello", 1.0, "vosk");
         assertThat(result.confidence()).isEqualTo(1.0);
+    }
+
+    @Test
+    void successResultShouldNotBeFailure() {
+        TranscriptionResult result = TranscriptionResult.of("hello", 0.95, "vosk");
+        assertThat(result.isFailure()).isFalse();
+        assertThat(result.failureReason()).isNull();
+    }
+
+    @Test
+    void failureFactoryShouldCreateFailedResult() {
+        TranscriptionResult result = TranscriptionResult.failure("whisper", "Engine timed out");
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.failureReason()).isEqualTo("Engine timed out");
+        assertThat(result.text()).isEmpty();
+        assertThat(result.confidence()).isEqualTo(0.0);
+        assertThat(result.engineName()).isEqualTo("whisper");
+        assertThat(result.timestamp()).isNotNull();
+    }
+
+    @Test
+    void failureFactoryShouldRejectNullReason() {
+        assertThatThrownBy(() -> TranscriptionResult.failure("vosk", null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("failureReason must not be null");
     }
 }

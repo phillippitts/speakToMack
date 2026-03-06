@@ -1,13 +1,12 @@
 package com.phillippitts.speaktomack.presentation.controller;
 
+import com.phillippitts.speaktomack.presentation.dto.CaptureResponse;
 import com.phillippitts.speaktomack.service.orchestration.RecordingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 /**
  * REST API for programmatic control of audio capture and transcription.
@@ -25,32 +24,32 @@ public class CaptureController {
     }
 
     @PostMapping("/start")
-    public ResponseEntity<Map<String, String>> start() {
+    public ResponseEntity<CaptureResponse> start() {
         if (recordingService.startRecording()) {
-            return ResponseEntity.ok(Map.of("status", "recording"));
+            return ResponseEntity.ok(CaptureResponse.ok("recording"));
         }
         return ResponseEntity.status(409)
-                .body(Map.of("error", "already recording or unable to start"));
+                .body(CaptureResponse.error("idle", "already recording or unable to start"));
     }
 
     @PostMapping("/stop")
-    public ResponseEntity<Map<String, String>> stop() {
+    public ResponseEntity<CaptureResponse> stop() {
         if (recordingService.stopRecording()) {
-            return ResponseEntity.ok(Map.of("status", "transcribing"));
+            return ResponseEntity.ok(CaptureResponse.ok("transcribing"));
         }
         return ResponseEntity.status(409)
-                .body(Map.of("error", "not currently recording"));
+                .body(CaptureResponse.error("idle", "not currently recording"));
     }
 
     @PostMapping("/cancel")
-    public ResponseEntity<Map<String, String>> cancel() {
+    public ResponseEntity<CaptureResponse> cancel() {
         recordingService.cancelRecording();
-        return ResponseEntity.ok(Map.of("status", "cancelled"));
+        return ResponseEntity.ok(CaptureResponse.ok("cancelled"));
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, String>> status() {
-        return ResponseEntity.ok(
-                Map.of("state", recordingService.getState().name().toLowerCase()));
+    public ResponseEntity<CaptureResponse> status() {
+        String state = recordingService.getState().name().toLowerCase();
+        return ResponseEntity.ok(CaptureResponse.ok(state));
     }
 }

@@ -12,7 +12,7 @@ class HotkeyPropertiesValidationTest {
 
     @Test
     void failsOnUnknownType() {
-        HotkeyProperties p = new HotkeyProperties(null, "RIGHT_META", 300, List.of(), List.of(), null);
+        HotkeyProperties p = new HotkeyProperties(null, "RIGHT_META", 300, List.of(), List.of(), false);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -23,7 +23,7 @@ class HotkeyPropertiesValidationTest {
     void failsOnBadKey() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.SINGLE_KEY,
-                "NOT_A_KEY", 300, List.of(), List.of(), null);
+                "NOT_A_KEY", 300, List.of(), List.of(), false);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -34,7 +34,7 @@ class HotkeyPropertiesValidationTest {
     void failsOnBadModifier() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                "D", 300, List.of("WEIRD"), List.of(), null);
+                "D", 300, List.of("WEIRD"), List.of(), false);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -45,7 +45,7 @@ class HotkeyPropertiesValidationTest {
     void requiresModifierForCombination() {
         HotkeyProperties p = new HotkeyProperties(
                 com.phillippitts.speaktomack.config.hotkey.TriggerType.MODIFIER_COMBO,
-                "D", 300, List.of(), List.of(), null);
+                "D", 300, List.of(), List.of(), false);
         HotkeyConfigurationValidator v = new HotkeyConfigurationValidator(p);
         assertThatThrownBy(v::validate)
                 .isInstanceOf(IllegalArgumentException.class)

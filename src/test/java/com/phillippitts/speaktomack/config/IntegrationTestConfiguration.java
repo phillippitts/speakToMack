@@ -71,10 +71,7 @@ public class IntegrationTestConfiguration {
     @Bean
     @Primary
     public AudioValidationProperties testAudioValidationProperties() {
-        AudioValidationProperties props = new AudioValidationProperties();
-        props.setMinDurationMs(100);      // Allow very short clips for testing
-        props.setMaxDurationMs(300000);   // 5 minutes max
-        return props;
+        return new AudioValidationProperties(100, 300000, 100 * 1024 * 1024);
     }
 
     /**

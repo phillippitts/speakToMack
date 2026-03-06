@@ -44,10 +44,15 @@ public class DefaultCaptureOrchestrator implements CaptureOrchestrator {
 
     @Override
     public UUID startCapture() {
-        // Always start a new session from the capture service
+        // Pre-check to avoid unnecessarily opening audio hardware
+        if (stateMachine.isActive()) {
+            LOG.debug("Capture already active; skipping startCapture");
+            return null;
+        }
+
         UUID sessionId = captureService.startSession();
 
-        // Try to register it with the state machine
+        // Atomically register — still rejects duplicates if another thread raced us
         if (stateMachine.startCapture(sessionId)) {
             LOG.info("Capture session started (session={})", sessionId);
             return sessionId;
@@ -66,17 +71,13 @@ public class DefaultCaptureOrchestrator implements CaptureOrchestrator {
             return null;
         }
 
-        if (!sessionId.equals(stateMachine.getActiveSession())) {
-            LOG.warn("stopCapture called for session {} but active session is {}; ignoring",
-                    sessionId, stateMachine.getActiveSession());
+        // Atomically validate + clear via state machine FIRST (eliminates TOCTOU)
+        if (!stateMachine.stopCapture(sessionId)) {
+            LOG.warn("Failed to stop capture session {} - session ID mismatch or not active", sessionId);
             return null;
         }
 
         captureService.stopSession(sessionId);
-        if (!stateMachine.stopCapture(sessionId)) {
-            LOG.warn("Failed to stop capture session {} - session ID mismatch or not active", sessionId);
-        }
-
         return readCapturedAudio(sessionId);
     }
 

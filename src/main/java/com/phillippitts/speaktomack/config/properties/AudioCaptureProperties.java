@@ -2,7 +2,6 @@ package com.phillippitts.speaktomack.config.properties;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -12,27 +11,26 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "audio.capture")
-public class AudioCaptureProperties {
+public record AudioCaptureProperties(
 
-    /** Size of a read chunk from the TargetDataLine in milliseconds. */
-    @Min(10)
-    @Max(200)
-    private final int chunkMillis;
+        /** Size of a read chunk from the TargetDataLine in milliseconds. */
+        @Min(10)
+        @Max(200)
+        int chunkMillis,
 
-    /** Maximum capture duration in milliseconds (hard stop). */
-    @Min(100)
-    @Max(600_000)
-    private final int maxDurationMs;
+        /** Maximum capture duration in milliseconds (hard stop). */
+        @Min(100)
+        @Max(600_000)
+        int maxDurationMs,
 
-    /** Optional input device name hint; falls back to system default when null/blank. */
-    private final String deviceName;
+        /** Optional input device name hint; falls back to system default when null/blank. */
+        String deviceName
+) {
 
-    public AudioCaptureProperties(@NotNull Integer chunkMillis,
-                                  @NotNull Integer maxDurationMs,
-                                  String deviceName) {
-        this.chunkMillis = chunkMillis;
-        this.maxDurationMs = maxDurationMs;
-        this.deviceName = (deviceName == null || deviceName.isBlank()) ? null : deviceName;
+    public AudioCaptureProperties {
+        if (deviceName != null && deviceName.isBlank()) {
+            deviceName = null;
+        }
     }
 
     public int getChunkMillis() {

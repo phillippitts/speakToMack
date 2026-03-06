@@ -13,9 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ThreadPoolConfigTest {
 
+    private static ThreadPoolProperties defaultThreadPoolProperties() {
+        return new ThreadPoolProperties(
+                new ThreadPoolProperties.SttPoolProperties(4, 8, 50, 60, "stt-pool-"),
+                new ThreadPoolProperties.EventPoolProperties(2, 4, 10, 60, "event-pool-"));
+    }
+
     @Test
     void shouldCreateExecutorWithCorrectConfiguration() {
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = defaultThreadPoolProperties();
         ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
@@ -32,7 +38,7 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldHandleConcurrentTasks() throws InterruptedException {
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = defaultThreadPoolProperties();
         ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
@@ -61,7 +67,7 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldNotExhaustThreadsUnderLoad() throws InterruptedException {
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = defaultThreadPoolProperties();
         ThreadPoolConfig config = new ThreadPoolConfig(properties);
         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.sttExecutor();
 
@@ -88,7 +94,7 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldUseCorrectThreadNamePrefix() throws InterruptedException {
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = defaultThreadPoolProperties();
         ThreadPoolConfig config = new ThreadPoolConfig(properties);
         Executor executor = config.sttExecutor();
 
@@ -107,7 +113,7 @@ class ThreadPoolConfigTest {
 
     @Test
     void shouldShutdownGracefully() {
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = defaultThreadPoolProperties();
         ThreadPoolConfig config = new ThreadPoolConfig(properties);
         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.sttExecutor();
 

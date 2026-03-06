@@ -30,7 +30,8 @@ class CaptureControllerTest {
 
         mockMvc.perform(post("/api/capture/start"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("recording"));
+                .andExpect(jsonPath("$.status").value("recording"))
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test
@@ -39,6 +40,7 @@ class CaptureControllerTest {
 
         mockMvc.perform(post("/api/capture/start"))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value("idle"))
                 .andExpect(jsonPath("$.error").exists());
     }
 
@@ -48,7 +50,8 @@ class CaptureControllerTest {
 
         mockMvc.perform(post("/api/capture/stop"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("transcribing"));
+                .andExpect(jsonPath("$.status").value("transcribing"))
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test
@@ -57,6 +60,7 @@ class CaptureControllerTest {
 
         mockMvc.perform(post("/api/capture/stop"))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value("idle"))
                 .andExpect(jsonPath("$.error").exists());
     }
 
@@ -66,14 +70,16 @@ class CaptureControllerTest {
 
         mockMvc.perform(get("/api/capture/status"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("idle"));
+                .andExpect(jsonPath("$.status").value("idle"))
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test
     void cancelReturns200() throws Exception {
         mockMvc.perform(post("/api/capture/cancel"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("cancelled"));
+                .andExpect(jsonPath("$.status").value("cancelled"))
+                .andExpect(jsonPath("$.error").doesNotExist());
     }
 
     @Test
@@ -90,6 +96,6 @@ class CaptureControllerTest {
 
         mockMvc.perform(get("/api/capture/status"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("recording"));
+                .andExpect(jsonPath("$.status").value("recording"));
     }
 }

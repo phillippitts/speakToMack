@@ -6,6 +6,7 @@ import com.phillippitts.speaktomack.service.stt.DetailedTranscriptionEngine;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.TokenizerUtil;
+import com.phillippitts.speaktomack.service.stt.TranscriptionOutput;
 import com.phillippitts.speaktomack.util.TimeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -160,21 +161,24 @@ public class DefaultParallelSttService implements ParallelSttService {
     private EngineResult runEngine(SttEngine engine, byte[] pcm) {
         long startTime = System.nanoTime();
         try {
-            TranscriptionResult tr = engine.transcribe(pcm);
-            long elapsedMs = TimeUtils.elapsedMillis(startTime);
-            List<String> tokens = TokenizerUtil.tokenize(tr.text());
+            List<String> tokens;
             String rawJson = null;
+            TranscriptionResult tr;
 
-            // Check if engine provides detailed transcription data (tokens and JSON)
-            // Only DetailedTranscriptionEngine implementations (like Whisper in JSON mode) support this
             if (engine instanceof DetailedTranscriptionEngine detailedEngine) {
-                java.util.Optional<List<String>> engineTokens = detailedEngine.consumeTokens();
-                if (engineTokens.isPresent() && !engineTokens.get().isEmpty()) {
-                    tokens = engineTokens.get();
-                }
-                rawJson = detailedEngine.consumeRawJson().orElse(null);
+                // Use transcribeDetailed() to get tokens/JSON directly (no ThreadLocal)
+                TranscriptionOutput output = detailedEngine.transcribeDetailed(pcm);
+                tr = output.result();
+                tokens = output.tokens().isEmpty()
+                        ? TokenizerUtil.tokenize(tr.text())
+                        : output.tokens();
+                rawJson = output.rawJson();
+            } else {
+                tr = engine.transcribe(pcm);
+                tokens = TokenizerUtil.tokenize(tr.text());
             }
 
+            long elapsedMs = TimeUtils.elapsedMillis(startTime);
             return new EngineResult(tr.text(), tr.confidence(), tokens, elapsedMs, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
             LOG.warn("{} failed: {}", engine.getEngineName(), te.getMessage());

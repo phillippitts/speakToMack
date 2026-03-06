@@ -16,7 +16,7 @@ class WhisperSttEngineJsonModeTest {
         WhisperProcessManager fakeManager = new WhisperProcessManager(factory, "json");
 
         WhisperConfig cfg = new WhisperConfig();
-        SttConcurrencyProperties conc = new SttConcurrencyProperties();
+        SttConcurrencyProperties conc = new SttConcurrencyProperties(4, 2, 1000, false, 0.80, 0.85, 5000L);
         ApplicationEventPublisher publisher = e -> { };
 
         WhisperSttEngine engine = new WhisperSttEngine(cfg, conc, fakeManager, publisher, "json", null, null);

@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
+import com.phillippitts.speaktomack.exception.InvalidStateTransitionException;
 import com.phillippitts.speaktomack.service.orchestration.event.ApplicationStateChangedEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,9 +40,9 @@ public class ApplicationStateTracker {
     /**
      * Transitions to a new state and publishes an event.
      * If the new state equals the current state, this is a no-op.
-     * Invalid transitions are logged as warnings but still applied to avoid deadlocks.
      *
      * @param newState the state to transition to
+     * @throws InvalidStateTransitionException if the transition is not allowed
      */
     public synchronized void transitionTo(ApplicationState newState) {
         ApplicationState previous = this.state;
@@ -50,7 +51,7 @@ public class ApplicationStateTracker {
         }
         Set<ApplicationState> allowed = VALID_TRANSITIONS.get(previous);
         if (allowed != null && !allowed.contains(newState)) {
-            LOG.warn("Invalid state transition: {} → {} (allowed: {})", previous, newState, allowed);
+            throw new InvalidStateTransitionException(previous.name(), newState.name());
         }
         this.state = newState;
         LOG.info("State transition: {} → {}", previous, newState);

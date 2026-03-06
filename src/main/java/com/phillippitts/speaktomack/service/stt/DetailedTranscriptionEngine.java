@@ -34,47 +34,26 @@ import java.util.Optional;
 public interface DetailedTranscriptionEngine extends SttEngine {
 
     /**
-     * Consumes and returns tokenized version of the last transcription result.
+     * Transcribes audio and returns detailed output including tokens and raw JSON.
      *
-     * <p>This method provides word-level tokens parsed from the engine's structured output.
-     * Tokens are more accurate than simple space-splitting for reconciliation because they
-     * preserve multi-word phrases and handle punctuation correctly.
+     * <p>Preferred over {@link #consumeTokens()} / {@link #consumeRawJson()} as it
+     * returns all data in a single immutable value, eliminating ThreadLocal state.
      *
-     * <p><b>Side Effect:</b> Clears the cached tokens after returning them (one-time consumption).
-     * Subsequent calls will return an empty Optional until the next transcription.
-     *
-     * <p><b>Example Usage:</b>
-     * <pre>
-     * if (engine instanceof DetailedTranscriptionEngine detailedEngine) {
-     *     Optional&lt;List&lt;String&gt;&gt; tokens = detailedEngine.consumeTokens();
-     *     tokens.ifPresent(t -&gt; reconciler.setWhisperTokens(t));
-     * }
-     * </pre>
-     *
-     * @return Optional containing list of word tokens from last transcription,
-     *         or empty if no transcription has occurred yet
+     * @param audioData PCM audio data
+     * @return transcription output with result, tokens, and optional raw JSON
+     * @since 1.4
      */
+    TranscriptionOutput transcribeDetailed(byte[] audioData);
+
+    /**
+     * @deprecated Use {@link #transcribeDetailed(byte[])} instead. Will be removed in a future release.
+     */
+    @Deprecated(forRemoval = true)
     Optional<List<String>> consumeTokens();
 
     /**
-     * Consumes and returns raw JSON output from the last transcription.
-     *
-     * <p>This method provides access to the complete structured output from the engine,
-     * useful for debugging, logging, or advanced processing beyond simple text extraction.
-     *
-     * <p><b>Side Effect:</b> Clears the cached JSON after returning it (one-time consumption).
-     * Subsequent calls will return an empty Optional until the next transcription.
-     *
-     * <p><b>Example Usage:</b>
-     * <pre>
-     * if (engine instanceof DetailedTranscriptionEngine detailedEngine) {
-     *     Optional&lt;String&gt; json = detailedEngine.consumeRawJson();
-     *     json.ifPresent(j -&gt; logger.debug("Raw Whisper JSON: {}", j));
-     * }
-     * </pre>
-     *
-     * @return Optional containing raw JSON string from last transcription,
-     *         or empty if no transcription has occurred yet
+     * @deprecated Use {@link #transcribeDetailed(byte[])} instead. Will be removed in a future release.
      */
+    @Deprecated(forRemoval = true)
     Optional<String> consumeRawJson();
 }

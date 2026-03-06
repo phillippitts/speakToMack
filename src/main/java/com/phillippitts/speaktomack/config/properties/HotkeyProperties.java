@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -19,48 +20,51 @@ import java.util.List;
  */
 @Validated
 @ConfigurationProperties(prefix = "hotkey")
-public class HotkeyProperties {
+public record HotkeyProperties(
 
-    /** Trigger type. */
-    @jakarta.validation.constraints.NotNull
-    private final TriggerType type;
+        /** Trigger type. */
+        @jakarta.validation.constraints.NotNull
+        TriggerType type,
 
-    /** Primary key code name (e.g., RIGHT_META, F13, D). */
-    @NotBlank
-    private final String key;
+        /** Primary key code name (e.g., RIGHT_META, F13, D). */
+        @NotBlank
+        String key,
 
-    /** Double-tap threshold (ms). Only used when type=double-tap. */
-    @Min(100)
-    @Max(1000)
-    private final int thresholdMs;
+        /** Double-tap threshold (ms). Only used when type=double-tap. */
+        @DefaultValue("300")
+        @Min(100)
+        @Max(1000)
+        int thresholdMs,
 
-    /** Optional modifiers for single-key or combination types (e.g., META, SHIFT, CONTROL, ALT). */
-    private final List<String> modifiers;
+        /** Optional modifiers for single-key or combination types (e.g., META, SHIFT, CONTROL, ALT). */
+        List<String> modifiers,
 
-    /** Reserved OS shortcuts to flag as conflicts (e.g., META+TAB, META+L). */
-    private final List<String> reserved;
+        /** Reserved OS shortcuts to flag as conflicts (e.g., META+TAB, META+L). */
+        List<String> reserved,
 
-    /**
-     * Toggle mode: if true, first hotkey press starts recording, second press stops and transcribes.
-     * If false (default), uses push-to-talk: press starts recording, release stops and transcribes.
-     */
-    private final boolean toggleMode;
+        /**
+         * Toggle mode: if true, first hotkey press starts recording, second press stops and transcribes.
+         * If false (default), uses push-to-talk: press starts recording, release stops and transcribes.
+         */
+        @DefaultValue("false")
+        boolean toggleMode
+) {
 
-    public HotkeyProperties(TriggerType type,
-                            String key,
-                            Integer thresholdMs,
-                            List<String> modifiers,
-                            List<String> reserved,
-                            Boolean toggleMode) {
-        this.type = type;
-        this.key = key;
-        this.thresholdMs = thresholdMs == null ? 300 : thresholdMs;
-        this.modifiers = modifiers == null ? List.of() : List.copyOf(modifiers);
-        // Provide sensible defaults if not supplied
-        this.reserved = (reserved == null || reserved.isEmpty())
-                ? List.of("META+TAB", "META+L")
-                : List.copyOf(reserved);
-        this.toggleMode = toggleMode != null && toggleMode;
+    public HotkeyProperties {
+        if (modifiers == null) {
+            modifiers = List.of();
+        } else {
+            modifiers = List.copyOf(modifiers);
+        }
+        if (reserved == null || reserved.isEmpty()) {
+            reserved = List.of("META+TAB", "META+L");
+        } else {
+            reserved = List.copyOf(reserved);
+        }
+    }
+
+    public boolean isToggleMode() {
+        return toggleMode;
     }
 
     public TriggerType getType() {
@@ -81,9 +85,5 @@ public class HotkeyProperties {
 
     public List<String> getReserved() {
         return reserved;
-    }
-
-    public boolean isToggleMode() {
-        return toggleMode;
     }
 }

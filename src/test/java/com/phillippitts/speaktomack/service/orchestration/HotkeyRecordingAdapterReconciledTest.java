@@ -38,7 +38,7 @@ class HotkeyRecordingAdapterReconciledTest {
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
@@ -94,7 +94,7 @@ class HotkeyRecordingAdapterReconciledTest {
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
@@ -199,7 +199,7 @@ class HotkeyRecordingAdapterReconciledTest {
             int[] parallelCallCount, List<Object> events) {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE,
@@ -293,7 +293,7 @@ class HotkeyRecordingAdapterReconciledTest {
         final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
             super(java.util.List.of(),
-                    new com.phillippitts.speaktomack.config.properties.SttWatchdogProperties(),
+                    new com.phillippitts.speaktomack.config.properties.SttWatchdogProperties(true, 60, 3, 10, false, 60_000L, 0.3, 10, 5),
                     e -> { });
             this.voskEnabled = voskEnabled;
             this.whisperEnabled = whisperEnabled;

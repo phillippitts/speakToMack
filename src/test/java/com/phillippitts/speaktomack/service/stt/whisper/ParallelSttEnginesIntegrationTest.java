@@ -60,7 +60,9 @@ class ParallelSttEnginesIntegrationTest {
                 () -> "Vosk model not found at " + VOSK_MODEL + ". Run ./setup-models.sh first.");
 
         // Create thread pool using same configuration as Task 1.5
-        ThreadPoolProperties properties = new ThreadPoolProperties();
+        ThreadPoolProperties properties = new ThreadPoolProperties(
+                new ThreadPoolProperties.SttPoolProperties(4, 8, 50, 60, "stt-pool-"),
+                new ThreadPoolProperties.EventPoolProperties(2, 4, 10, 60, "event-pool-"));
         ThreadPoolConfig threadPoolConfig = new ThreadPoolConfig(properties);
         sttExecutor = threadPoolConfig.sttExecutor();
 

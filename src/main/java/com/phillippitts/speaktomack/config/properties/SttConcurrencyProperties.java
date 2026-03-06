@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.Max;
@@ -25,94 +26,74 @@ import jakarta.validation.constraints.Positive;
  */
 @ConfigurationProperties(prefix = "stt.concurrency")
 @Validated
-public class SttConcurrencyProperties {
+public record SttConcurrencyProperties(
 
-    /** Maximum parallel Vosk transcriptions allowed. */
-    @Positive(message = "Vosk max concurrency must be positive")
-    private int voskMax = 4;
+        /** Maximum parallel Vosk transcriptions allowed. */
+        @DefaultValue("4")
+        @Positive(message = "Vosk max concurrency must be positive")
+        int voskMax,
 
-    /** Maximum parallel Whisper transcriptions allowed. */
-    @Positive(message = "Whisper max concurrency must be positive")
-    private int whisperMax = 2;
+        /** Maximum parallel Whisper transcriptions allowed. */
+        @DefaultValue("2")
+        @Positive(message = "Whisper max concurrency must be positive")
+        int whisperMax,
 
-    /**
-     * Timeout in milliseconds to wait for semaphore acquisition before rejecting request.
-     * Default: 1000ms (1 second) provides reasonable buffering for brief spikes.
-     * Set to 0 for immediate rejection (fail-fast).
-     */
-    @Positive(message = "Acquire timeout must be positive")
-    private int acquireTimeoutMs = 1000;
+        /**
+         * Timeout in milliseconds to wait for semaphore acquisition before rejecting request.
+         * Default: 1000ms (1 second) provides reasonable buffering for brief spikes.
+         * Set to 0 for immediate rejection (fail-fast).
+         */
+        @DefaultValue("1000")
+        @Positive(message = "Acquire timeout must be positive")
+        int acquireTimeoutMs,
 
-    /** Enable dynamic concurrency scaling based on system resources. */
-    private boolean dynamicScalingEnabled = false;
+        /** Enable dynamic concurrency scaling based on system resources. */
+        @DefaultValue("false")
+        boolean dynamicScalingEnabled,
 
-    /** CPU usage above this triggers permit reduction (0.0-1.0). */
-    @Min(value = 0, message = "CPU threshold must be >= 0")
-    @Max(value = 1, message = "CPU threshold must be <= 1")
-    private double cpuThresholdHigh = 0.80;
+        /** CPU usage above this triggers permit reduction (0.0-1.0). */
+        @DefaultValue("0.80")
+        @Min(value = 0, message = "CPU threshold must be >= 0")
+        @Max(value = 1, message = "CPU threshold must be <= 1")
+        double cpuThresholdHigh,
 
-    /** Memory usage above this triggers permit reduction (0.0-1.0). */
-    @Min(value = 0, message = "Memory threshold must be >= 0")
-    @Max(value = 1, message = "Memory threshold must be <= 1")
-    private double memoryThresholdHigh = 0.85;
+        /** Memory usage above this triggers permit reduction (0.0-1.0). */
+        @DefaultValue("0.85")
+        @Min(value = 0, message = "Memory threshold must be >= 0")
+        @Max(value = 1, message = "Memory threshold must be <= 1")
+        double memoryThresholdHigh,
 
-    /** How often to re-evaluate concurrency limits (ms). */
-    @Positive(message = "Scaling interval must be positive")
-    private long scalingIntervalMs = 5000;
+        /** How often to re-evaluate concurrency limits (ms). */
+        @DefaultValue("5000")
+        @Positive(message = "Scaling interval must be positive")
+        long scalingIntervalMs
+) {
+
+    public boolean isDynamicScalingEnabled() {
+        return dynamicScalingEnabled;
+    }
 
     public int getVoskMax() {
         return voskMax;
-    }
-
-    public void setVoskMax(int voskMax) {
-        this.voskMax = voskMax;
     }
 
     public int getWhisperMax() {
         return whisperMax;
     }
 
-    public void setWhisperMax(int whisperMax) {
-        this.whisperMax = whisperMax;
-    }
-
     public int getAcquireTimeoutMs() {
         return acquireTimeoutMs;
-    }
-
-    public void setAcquireTimeoutMs(int acquireTimeoutMs) {
-        this.acquireTimeoutMs = acquireTimeoutMs;
-    }
-
-    public boolean isDynamicScalingEnabled() {
-        return dynamicScalingEnabled;
-    }
-
-    public void setDynamicScalingEnabled(boolean dynamicScalingEnabled) {
-        this.dynamicScalingEnabled = dynamicScalingEnabled;
     }
 
     public double getCpuThresholdHigh() {
         return cpuThresholdHigh;
     }
 
-    public void setCpuThresholdHigh(double cpuThresholdHigh) {
-        this.cpuThresholdHigh = cpuThresholdHigh;
-    }
-
     public double getMemoryThresholdHigh() {
         return memoryThresholdHigh;
     }
 
-    public void setMemoryThresholdHigh(double memoryThresholdHigh) {
-        this.memoryThresholdHigh = memoryThresholdHigh;
-    }
-
     public long getScalingIntervalMs() {
         return scalingIntervalMs;
-    }
-
-    public void setScalingIntervalMs(long scalingIntervalMs) {
-        this.scalingIntervalMs = scalingIntervalMs;
     }
 }

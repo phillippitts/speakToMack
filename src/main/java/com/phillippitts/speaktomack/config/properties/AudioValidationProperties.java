@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.Positive;
@@ -13,44 +14,36 @@ import jakarta.validation.constraints.Positive;
  */
 @ConfigurationProperties(prefix = "audio.validation")
 @Validated
-public class AudioValidationProperties {
+public record AudioValidationProperties(
 
-    /** Minimum duration in milliseconds for a valid clip (UX guard, not security). */
-    @Positive(message = "Minimum duration must be positive")
-    private int minDurationMs = 250;          // ~0.25s
+        /** Minimum duration in milliseconds for a valid clip (UX guard, not security). */
+        @DefaultValue("250")
+        @Positive(message = "Minimum duration must be positive")
+        int minDurationMs,
 
-    /** Maximum duration in milliseconds for a valid clip (security cap). */
-    @Positive(message = "Maximum duration must be positive")
-    private int maxDurationMs = 300_000;      // 5 minutes
+        /** Maximum duration in milliseconds for a valid clip (security cap). */
+        @DefaultValue("300000")
+        @Positive(message = "Maximum duration must be positive")
+        int maxDurationMs,
 
-    /**
-     * Maximum file size in bytes for audio payloads (security guard against memory exhaustion).
-     * Default: 100 MB (reasonable upper bound for 5 min audio with WAV overhead).
-     */
-    @Positive(message = "Maximum file size must be positive")
-    private int maxFileSizeBytes = 100 * 1024 * 1024;  // 100 MB
+        /**
+         * Maximum file size in bytes for audio payloads (security guard against memory exhaustion).
+         * Default: 100 MB (reasonable upper bound for 5 min audio with WAV overhead).
+         */
+        @DefaultValue("104857600")
+        @Positive(message = "Maximum file size must be positive")
+        int maxFileSizeBytes
+) {
 
     public int getMinDurationMs() {
         return minDurationMs;
-    }
-
-    public void setMinDurationMs(int minDurationMs) {
-        this.minDurationMs = minDurationMs;
     }
 
     public int getMaxDurationMs() {
         return maxDurationMs;
     }
 
-    public void setMaxDurationMs(int maxDurationMs) {
-        this.maxDurationMs = maxDurationMs;
-    }
-
     public int getMaxFileSizeBytes() {
         return maxFileSizeBytes;
-    }
-
-    public void setMaxFileSizeBytes(int maxFileSizeBytes) {
-        this.maxFileSizeBytes = maxFileSizeBytes;
     }
 }

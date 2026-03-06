@@ -46,8 +46,8 @@ class DefaultCaptureOrchestratorTest {
         // Assert
         assertThat(secondSession).isNull();
         assertThat(orchestrator.isCapturing()).isTrue();
-        assertThat(captureService.startSessionCallCount).isEqualTo(2); // Called but rejected by state machine
-        assertThat(captureService.cancelSessionCallCount).isEqualTo(1); // Second session cancelled
+        assertThat(captureService.startSessionCallCount).isEqualTo(1); // Pre-check prevents opening audio hardware
+        assertThat(captureService.cancelSessionCallCount).isEqualTo(0); // No session created to cancel
     }
 
     @Test

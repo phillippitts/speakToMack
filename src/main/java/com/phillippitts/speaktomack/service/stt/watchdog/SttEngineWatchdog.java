@@ -12,26 +12,18 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Event-driven watchdog that observes engine failures and performs bounded auto-restarts with cooldown.
  *
- * Detection model:
- * - Engines publish {@link EngineFailureEvent} when a transcription/initialize fails.
- * - Watchdog tracks failures per engine in a sliding time window and attempts restart within budget.
- * - On exceeding budget, engine is marked DISABLED and re-enable is allowed after cooldown.
- *
- * This keeps runtime overhead minimal (no heavy polling) and reacts only to real traffic failures.
+ * <p>Delegates restart budget tracking to {@link RestartBudgetTracker} and confidence
+ * monitoring to {@link ConfidenceMonitor}.
  */
 @Component
 @ConditionalOnProperty(prefix = "stt.watchdog", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -41,33 +33,46 @@ public class SttEngineWatchdog {
 
     public enum EngineState { HEALTHY, DEGRADED, DISABLED }
 
-    private final SttWatchdogProperties props;
     private final ApplicationEventPublisher publisher;
+    private final RestartBudgetTracker budgetTracker;
+    private final ConfidenceMonitor confidenceMonitor;
 
     private final Map<String, SttEngine> enginesByName = new ConcurrentHashMap<>();
-
-    // Sliding window of restart attempts per engine
-    private final ConcurrentMap<String, Deque<Instant>> restartWindow = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, EngineState> state = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Instant> disabledUntil = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ReentrantLock> restartLocks = new ConcurrentHashMap<>();
-
-    // Sliding window of recent confidence scores per engine (for confidence-based blacklisting)
-    private final ConcurrentMap<String, Deque<Double>> confidenceWindow = new ConcurrentHashMap<>();
+    private final Map<String, EngineState> state = new ConcurrentHashMap<>();
 
     public SttEngineWatchdog(List<SttEngine> engines,
                              SttWatchdogProperties props,
                              ApplicationEventPublisher publisher) {
-        this.props = Objects.requireNonNull(props, "props");
+        Objects.requireNonNull(props, "props");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
+        this.budgetTracker = new RestartBudgetTracker(props);
+        this.confidenceMonitor = new ConfidenceMonitor(props);
+
         for (SttEngine e : engines) {
-            enginesByName.put(e.getEngineName(), e);
-            state.put(e.getEngineName(), EngineState.HEALTHY);
-            restartLocks.put(e.getEngineName(), new ReentrantLock());
-            restartWindow.put(e.getEngineName(), new ArrayDeque<>());
-            confidenceWindow.put(e.getEngineName(), new ArrayDeque<>());
+            String name = e.getEngineName();
+            enginesByName.put(name, e);
+            state.put(name, EngineState.HEALTHY);
+            budgetTracker.register(name);
+            confidenceMonitor.register(name);
         }
         LOG.info("Watchdog initialized for engines={}", enginesByName.keySet());
+    }
+
+    // Package-private for tests
+    SttEngineWatchdog(List<SttEngine> engines,
+                      SttWatchdogProperties props,
+                      ApplicationEventPublisher publisher,
+                      RestartBudgetTracker budgetTracker,
+                      ConfidenceMonitor confidenceMonitor) {
+        this.publisher = Objects.requireNonNull(publisher, "publisher");
+        this.budgetTracker = Objects.requireNonNull(budgetTracker);
+        this.confidenceMonitor = Objects.requireNonNull(confidenceMonitor);
+
+        for (SttEngine e : engines) {
+            String name = e.getEngineName();
+            enginesByName.put(name, e);
+            state.put(name, EngineState.HEALTHY);
+        }
     }
 
     @PostConstruct
@@ -86,31 +91,25 @@ public class SttEngineWatchdog {
         }
     }
 
-    /** Visible for tests */
+    /** Visible for tests. */
     EngineState getState(String engine) {
         return state.get(engine);
     }
 
-    /** Visible for tests */
-    Deque<Double> getConfidenceWindow(String engine) {
-        return confidenceWindow.get(engine);
+    /** Visible for tests. */
+    ConfidenceMonitor getConfidenceMonitor() {
+        return confidenceMonitor;
     }
 
     /**
      * Checks if an engine is currently enabled (not disabled or in cooldown).
-     *
-     * <p>Used by orchestrators to query engine availability before routing.
-     *
-     * @param engine engine name to check
-     * @return true if engine is enabled and not in cooldown, false otherwise
      */
     public boolean isEngineEnabled(String engine) {
         EngineState s = state.get(engine);
         if (s == EngineState.DISABLED) {
             return false;
         }
-        Instant until = disabledUntil.get(engine);
-        return until == null || Instant.now().isAfter(until);
+        return !budgetTracker.isInCooldown(engine);
     }
 
     @EventListener
@@ -122,16 +121,12 @@ public class SttEngineWatchdog {
         }
 
         LOG.warn("Engine failure: engine={}, msg={} ", engine, event.message());
-        // If currently disabled and cooldown not passed, ignore
         if (!isEngineEnabled(engine)) {
-            LOG.warn("Engine {} currently disabled until {}", engine, disabledUntil.get(engine));
+            LOG.warn("Engine {} currently disabled until {}", engine, budgetTracker.getCooldownUntil(engine));
             return;
         }
 
-        // Mark degraded on first failure
         state.put(engine, EngineState.DEGRADED);
-
-        // Attempt restart under lock within budget
         attemptRestart(engine);
     }
 
@@ -142,55 +137,30 @@ public class SttEngineWatchdog {
             return;
         }
         state.put(engine, EngineState.HEALTHY);
-        // Clear restart window after successful recovery
-        ReentrantLock lock = restartLocks.get(engine);
-        lock.lock();
-        try {
-            restartWindow.get(engine).clear();
-        } finally {
-            lock.unlock();
-        }
-        disabledUntil.remove(engine);
-        Deque<Double> cw = confidenceWindow.get(engine);
-        if (cw != null) {
-            cw.clear();
-        }
+        budgetTracker.clearOnRecovery(engine);
+        confidenceMonitor.clearOnRecovery(engine);
         LOG.info("Engine recovered: {}", engine);
     }
 
     @EventListener
     public void onTranscriptionCompleted(TranscriptionCompletedEvent event) {
         String engine = event.engineUsed();
-        Deque<Double> window = confidenceWindow.get(engine);
-        if (window == null) {
-            return; // Unknown engine (e.g. "reconciled")
+        if (!confidenceMonitor.isTracked(engine)) {
+            return;
         }
 
         double confidence = event.result().confidence();
-
-        synchronized (window) {
-            window.addLast(confidence);
-            while (window.size() > props.getConfidenceWindowSize()) {
-                window.removeFirst();
-            }
-
-            if (window.size() < props.getConfidenceMinSamples()) {
-                return; // Not enough samples yet
-            }
-
-            double avg = window.stream().mapToDouble(Double::doubleValue).average().orElse(1.0);
-            if (avg < props.getConfidenceBlacklistThreshold()) {
-                LOG.warn("Engine {} confidence degraded: avg={} (threshold={}, window={})",
-                        engine, String.format("%.3f", avg),
-                        props.getConfidenceBlacklistThreshold(), window.size());
-                state.put(engine, EngineState.DEGRADED);
-                publisher.publishEvent(new EngineFailureEvent(
-                        engine, Instant.now(),
-                        "low-confidence: avg=" + String.format("%.3f", avg),
-                        null, Map.of("reason", "low-confidence",
-                                     "avgConfidence", String.format("%.3f", avg))
-                ));
-            }
+        ConfidenceMonitor.Evaluation eval = confidenceMonitor.record(engine, confidence);
+        if (eval != null && eval.degraded()) {
+            LOG.warn("Engine {} confidence degraded: avg={} (window tracked by monitor)",
+                    engine, String.format("%.3f", eval.average()));
+            state.put(engine, EngineState.DEGRADED);
+            publisher.publishEvent(new EngineFailureEvent(
+                    engine, Instant.now(),
+                    "low-confidence: avg=" + String.format("%.3f", eval.average()),
+                    null, Map.of("reason", "low-confidence",
+                                 "avgConfidence", String.format("%.3f", eval.average()))
+            ));
         }
     }
 
@@ -199,115 +169,81 @@ public class SttEngineWatchdog {
         StringBuilder sb = new StringBuilder("Watchdog states: ");
         state.forEach((name, st) -> {
             sb.append(name).append('=').append(st);
-            Deque<Double> cw = confidenceWindow.get(name);
-            if (cw != null) {
-                synchronized (cw) {
-                    if (!cw.isEmpty()) {
-                        double avg = cw.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-                        sb.append(String.format("(conf=%.3f/%d)", avg, cw.size()));
-                    }
-                }
-            }
+            sb.append(confidenceMonitor.formattedSummary(name));
             sb.append(' ');
         });
         LOG.info(sb.toString().trim());
     }
 
-    /**
-     * Attempts to restart a failed engine within budget constraints.
-     *
-     * <p>State transitions:
-     * <ul>
-     *   <li>Budget available → restart → HEALTHY (on success) or remain DEGRADED (on failure)</li>
-     *   <li>Budget exceeded → DISABLED with cooldown period</li>
-     * </ul>
-     *
-     * @param engine engine name to restart
-     */
     private void attemptRestart(String engine) {
-        withRestartLock(engine, () -> {
-            if (isDisabledByCooldown(engine)) {
-                LOG.warn("Engine {} is in cooldown until {}", engine, disabledUntil.get(engine));
-                return;
-            }
-            if (!budgetAllowsRestart(engine)) {
-                disableEngine(engine);
-                return;
-            }
-            recordRestartAttempt(engine);
-            if (tryRestart(engine)) {
-                // Don't transition to HEALTHY or clear window here - let onRecovered() handle it
-                // This ensures budget tracking remains accurate even if event delivery is async
-                publisher.publishEvent(new EngineRecoveredEvent(engine, Instant.now()));
-                LOG.info("Engine {} restarted successfully", engine);
-            } else {
-                // remain degraded; future failures will trigger further attempts until budget exceeded
-                state.put(engine, EngineState.DEGRADED);
-                LOG.warn("Engine {} restart failed; remaining in DEGRADED state", engine);
-            }
-        });
-    }
-
-    /** Guard restart with a per-engine lock to avoid concurrent restarts. */
-    private void withRestartLock(String engine, Runnable action) {
-        ReentrantLock lock = restartLocks.get(engine);
-        if (!lock.tryLock()) {
+        if (!budgetTracker.tryLockRestart(engine)) {
             LOG.debug("Restart already in progress for {}", engine);
             return;
         }
         try {
-            action.run();
+            if (budgetTracker.isInCooldown(engine)) {
+                LOG.warn("Engine {} is in cooldown until {}", engine, budgetTracker.getCooldownUntil(engine));
+                return;
+            }
+            if (!budgetTracker.allowsRestart(engine)) {
+                disableEngine(engine);
+                return;
+            }
+            budgetTracker.recordRestart(engine);
+            if (tryRestart(engine)) {
+                publisher.publishEvent(new EngineRecoveredEvent(engine, Instant.now()));
+                LOG.info("Engine {} restarted successfully", engine);
+            } else {
+                state.put(engine, EngineState.DEGRADED);
+                LOG.warn("Engine {} restart failed; remaining in DEGRADED state", engine);
+            }
         } finally {
-            lock.unlock();
+            budgetTracker.unlockRestart(engine);
         }
     }
 
-    /** Returns true when engine is currently disabled and cooldown has not elapsed. */
-    private boolean isDisabledByCooldown(String engine) {
-        Instant until = disabledUntil.get(engine);
-        return until != null && Instant.now().isBefore(until);
-    }
-
-    /** Returns true if restart budget allows another attempt (after pruning old attempts). */
-    private boolean budgetAllowsRestart(String engine) {
-        ReentrantLock lock = restartLocks.get(engine);
-        lock.lock();
-        try {
-            Deque<Instant> window = restartWindow.get(engine);
-            pruneOld(window, props.getWindowMinutes());
-            return window.size() < props.getMaxRestartsPerWindow();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /** Records a restart attempt timestamp in the sliding window. */
-    private void recordRestartAttempt(String engine) {
-        ReentrantLock lock = restartLocks.get(engine);
-        lock.lock();
-        try {
-            restartWindow.get(engine).addLast(Instant.now());
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /** Disables engine and sets cooldown timestamp. */
     private void disableEngine(String engine) {
         state.put(engine, EngineState.DISABLED);
-        Instant until = Instant.now().plus(Duration.ofMinutes(props.getCooldownMinutes()));
-        disabledUntil.put(engine, until);
-        ReentrantLock lock = restartLocks.get(engine);
-        lock.lock();
-        try {
-            LOG.error("Engine {} disabled after {} failures within {}m; cooldown until {}",
-                    engine, restartWindow.get(engine).size(), props.getWindowMinutes(), until);
-        } finally {
-            lock.unlock();
+        Instant until = budgetTracker.disable(engine);
+        LOG.error("Engine {} disabled after {} restarts within budget; cooldown until {}",
+                engine, budgetTracker.getRestartCount(engine), until);
+        checkAllEnginesDisabled();
+    }
+
+    /**
+     * Safety mode: if all engines are disabled, force-enable the engine with the highest
+     * recent average confidence to prevent the system from becoming completely unusable.
+     */
+    private void checkAllEnginesDisabled() {
+        if (enginesByName.size() < 2) {
+            return;
+        }
+        boolean allDisabled = enginesByName.keySet().stream()
+                .noneMatch(this::isEngineEnabled);
+        if (!allDisabled) {
+            return;
+        }
+
+        LOG.error("SAFETY MODE: All STT engines disabled — force-enabling best available engine");
+
+        String bestEngine = enginesByName.keySet().stream()
+                .max(Comparator.comparingDouble(confidenceMonitor::averageConfidence))
+                .orElse(null);
+
+        if (bestEngine == null) {
+            return;
+        }
+
+        double avgConf = confidenceMonitor.averageConfidence(bestEngine);
+        state.put(bestEngine, EngineState.DEGRADED);
+        budgetTracker.clearOnRecovery(bestEngine);
+        LOG.error("SAFETY MODE: Force-enabled engine {} (avg confidence: {})",
+                bestEngine, String.format("%.3f", avgConf));
+        if (tryRestart(bestEngine)) {
+            publisher.publishEvent(new EngineRecoveredEvent(bestEngine, Instant.now()));
         }
     }
 
-    /** Attempts to restart engine: close then initialize. Returns true on success. */
     private boolean tryRestart(String engine) {
         SttEngine e = enginesByName.get(engine);
         try {
@@ -322,13 +258,6 @@ public class SttEngineWatchdog {
         } catch (Exception ex) {
             LOG.error("Engine {} failed to initialize after restart: {}", engine, ex.toString());
             return false;
-        }
-    }
-
-    private void pruneOld(Deque<Instant> window, int windowMinutes) {
-        Instant cutoff = Instant.now().minus(Duration.ofMinutes(windowMinutes));
-        while (!window.isEmpty() && window.peekFirst().isBefore(cutoff)) {
-            window.removeFirst();
         }
     }
 }

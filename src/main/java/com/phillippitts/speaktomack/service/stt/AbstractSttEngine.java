@@ -6,6 +6,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Abstract base class for STT engine implementations providing common lifecycle and state management.
@@ -50,6 +51,13 @@ public abstract class AbstractSttEngine implements SttEngine {
      * All access to {@link #initialized} and {@link #closed} must be synchronized on this lock.
      */
     protected final Object lock = new Object();
+
+    /**
+     * Read-write lock protecting JNI resources during transcription.
+     * Read lock: held during transcribe() — allows concurrent transcriptions.
+     * Write lock: acquired by close() — blocks until all active transcriptions finish.
+     */
+    private final ReentrantReadWriteLock transcriptionLock = new ReentrantReadWriteLock();
 
     /**
      * Tracks whether the engine has been successfully initialized.
@@ -141,18 +149,24 @@ public abstract class AbstractSttEngine implements SttEngine {
     @Override
     @PreDestroy
     public final void close() {
-        synchronized (lock) {
-            if (closed) {
-                return; // Already closed
+        // Acquire write lock to wait for all active transcriptions to finish
+        transcriptionLock.writeLock().lock();
+        try {
+            synchronized (lock) {
+                if (closed) {
+                    return; // Already closed
+                }
+                try {
+                    doClose();
+                } finally {
+                    // Always mark as closed even if doClose() throws, to prevent
+                    // repeated close attempts and to ensure isHealthy() returns false
+                    closed = true;
+                    initialized = false;
+                }
             }
-            try {
-                doClose();
-            } finally {
-                // Always mark as closed even if doClose() throws, to prevent
-                // repeated close attempts and to ensure isHealthy() returns false
-                closed = true;
-                initialized = false;
-            }
+        } finally {
+            transcriptionLock.writeLock().unlock();
         }
     }
 
@@ -175,6 +189,33 @@ public abstract class AbstractSttEngine implements SttEngine {
      * need additional synchronization for state fields.
      */
     protected abstract void doClose();
+
+    /**
+     * Acquires the transcription read lock. Must be paired with {@link #releaseTranscriptionLock()}.
+     * Prevents close() from destroying resources while transcription is in progress.
+     *
+     * @throws TranscriptionException if engine is closing or closed
+     */
+    protected final void acquireTranscriptionLock() {
+        transcriptionLock.readLock().lock();
+        synchronized (lock) {
+            if (closed) {
+                transcriptionLock.readLock().unlock();
+                throw new TranscriptionException(
+                    getEngineName() + " engine is closing or closed",
+                    getEngineName()
+                );
+            }
+        }
+    }
+
+    /**
+     * Releases the transcription read lock. Must be called in a finally block
+     * after {@link #acquireTranscriptionLock()}.
+     */
+    protected final void releaseTranscriptionLock() {
+        transcriptionLock.readLock().unlock();
+    }
 
     /**
      * Validates that the engine is initialized and ready for transcription.

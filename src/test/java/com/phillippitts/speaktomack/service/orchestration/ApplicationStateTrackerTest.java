@@ -1,5 +1,6 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
+import com.phillippitts.speaktomack.exception.InvalidStateTransitionException;
 import com.phillippitts.speaktomack.service.orchestration.event.ApplicationStateChangedEvent;
 import org.junit.jupiter.api.Test;
 
@@ -7,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ApplicationStateTrackerTest {
 
@@ -55,5 +57,29 @@ class ApplicationStateTrackerTest {
         assertThat(events.get(0).current()).isEqualTo(ApplicationState.RECORDING);
         assertThat(events.get(1).current()).isEqualTo(ApplicationState.TRANSCRIBING);
         assertThat(events.get(2).current()).isEqualTo(ApplicationState.IDLE);
+    }
+
+    @Test
+    void rejectsInvalidTransition() {
+        ApplicationStateTracker tracker = new ApplicationStateTracker(e -> { });
+
+        // IDLE → TRANSCRIBING is not a valid transition
+        assertThatThrownBy(() -> tracker.transitionTo(ApplicationState.TRANSCRIBING))
+                .isInstanceOf(InvalidStateTransitionException.class)
+                .hasMessageContaining("IDLE")
+                .hasMessageContaining("TRANSCRIBING");
+
+        // State should remain unchanged
+        assertThat(tracker.getState()).isEqualTo(ApplicationState.IDLE);
+    }
+
+    @Test
+    void rejectsRecordingToRecordingTransition() {
+        ApplicationStateTracker tracker = new ApplicationStateTracker(e -> { });
+        tracker.transitionTo(ApplicationState.RECORDING);
+
+        // RECORDING → RECORDING is a no-op (same state), not invalid
+        tracker.transitionTo(ApplicationState.RECORDING);
+        assertThat(tracker.getState()).isEqualTo(ApplicationState.RECORDING);
     }
 }

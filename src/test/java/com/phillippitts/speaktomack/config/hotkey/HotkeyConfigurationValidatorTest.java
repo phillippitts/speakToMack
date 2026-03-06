@@ -15,7 +15,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "F13",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -47,7 +47,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("META", "SHIFT"),
                 List.of(),
                 false
@@ -63,7 +63,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("LEFT_META", "RIGHT_SHIFT"),
                 List.of(),
                 false
@@ -79,7 +79,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "A",
-                null,
+                300,
                 List.of("META", "SHIFT", "CONTROL", "ALT"),
                 List.of(),
                 false
@@ -97,7 +97,7 @@ class HotkeyConfigurationValidatorTest {
             HotkeyProperties props = new HotkeyProperties(
                     TriggerType.SINGLE_KEY,
                     key,
-                    null,
+                    300,
                     List.of(),
                     List.of(),
                     false
@@ -115,7 +115,7 @@ class HotkeyConfigurationValidatorTest {
             HotkeyProperties props = new HotkeyProperties(
                     TriggerType.SINGLE_KEY,
                     key,
-                    null,
+                    300,
                     List.of(),
                     List.of(),
                     false
@@ -133,7 +133,7 @@ class HotkeyConfigurationValidatorTest {
             HotkeyProperties props = new HotkeyProperties(
                     TriggerType.SINGLE_KEY,
                     key,
-                    null,
+                    300,
                     List.of(),
                     List.of(),
                     false
@@ -151,7 +151,7 @@ class HotkeyConfigurationValidatorTest {
             HotkeyProperties props = new HotkeyProperties(
                     TriggerType.SINGLE_KEY,
                     key,
-                    null,
+                    300,
                     List.of(),
                     List.of(),
                     false
@@ -168,7 +168,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 null,
                 "F13",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -185,7 +185,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "INVALID_KEY",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -204,7 +204,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "d",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -220,7 +220,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("META", "INVALID_MOD"),
                 List.of(),
                 false
@@ -239,7 +239,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("meta"),
                 List.of(),
                 false
@@ -255,7 +255,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -273,7 +273,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "F13",
-                null,
+                300,
                 List.of("META"),
                 List.of(),
                 false
@@ -305,7 +305,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "F13",
-                null,
+                300,
                 List.of(),
                 List.of(),
                 false
@@ -321,7 +321,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.SINGLE_KEY,
                 "F13",
-                null,
+                300,
                 List.of(),
                 List.of("META+TAB", "META+L"),
                 false
@@ -337,7 +337,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("META", "INVALID_1", "SHIFT"),
                 List.of(),
                 false
@@ -355,7 +355,7 @@ class HotkeyConfigurationValidatorTest {
         HotkeyProperties props = new HotkeyProperties(
                 TriggerType.MODIFIER_COMBO,
                 "D",
-                null,
+                300,
                 List.of("META"),
                 List.of(),
                 false

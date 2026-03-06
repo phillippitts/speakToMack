@@ -16,9 +16,7 @@ class AudioValidatorTest {
 
     @BeforeEach
     void setup() {
-        props = new AudioValidationProperties();
-        props.setMinDurationMs(250);
-        props.setMaxDurationMs(300_000);
+        props = new AudioValidationProperties(250, 300_000, 100 * 1024 * 1024);
         validator = new AudioValidator(props);
     }
 

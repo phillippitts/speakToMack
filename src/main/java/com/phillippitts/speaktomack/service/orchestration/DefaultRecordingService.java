@@ -37,6 +37,10 @@ public class DefaultRecordingService implements RecordingService {
 
     @Override
     public synchronized boolean startRecording() {
+        if (stateTracker.getState() != ApplicationState.IDLE) {
+            LOG.debug("Cannot start recording in state {}", stateTracker.getState());
+            return false;
+        }
         if (captureOrchestrator.isCapturing()) {
             LOG.debug("Already recording, ignoring start request");
             return false;
@@ -63,8 +67,15 @@ public class DefaultRecordingService implements RecordingService {
                 LOG.debug("No active recording session to stop");
                 return false;
             }
-            pcm = captureOrchestrator.stopCapture(activeSessionId);
             stoppedSession = activeSessionId;
+            try {
+                pcm = captureOrchestrator.stopCapture(stoppedSession);
+            } catch (Exception e) {
+                LOG.error("stopCapture threw for session {}", stoppedSession, e);
+                activeSessionId = null;
+                stateTracker.transitionTo(ApplicationState.IDLE);
+                return false;
+            }
             activeSessionId = null;
         }
         // Transcribe outside the monitor to avoid blocking hotkey events
@@ -100,8 +111,15 @@ public class DefaultRecordingService implements RecordingService {
         synchronized (this) {
             if (activeSessionId != null) {
                 // Currently recording — stop (extract PCM under lock)
-                pcm = captureOrchestrator.stopCapture(activeSessionId);
                 stoppedSession = activeSessionId;
+                try {
+                    pcm = captureOrchestrator.stopCapture(stoppedSession);
+                } catch (Exception e) {
+                    LOG.error("stopCapture threw during toggle for session {}", stoppedSession, e);
+                    activeSessionId = null;
+                    stateTracker.transitionTo(ApplicationState.IDLE);
+                    return false;
+                }
                 activeSessionId = null;
             } else {
                 shouldStart = true;
@@ -136,7 +154,7 @@ public class DefaultRecordingService implements RecordingService {
      * Listens for transcription completion to transition back to IDLE.
      */
     @EventListener
-    public void onTranscriptionCompleted(TranscriptionCompletedEvent event) {
+    public synchronized void onTranscriptionCompleted(TranscriptionCompletedEvent event) {
         if (stateTracker.getState() == ApplicationState.TRANSCRIBING) {
             stateTracker.transitionTo(ApplicationState.IDLE);
         }

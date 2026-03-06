@@ -14,12 +14,18 @@ final class PcmRingBuffer {
     private static final Logger LOG = LogManager.getLogger(PcmRingBuffer.class);
 
     private final byte[] buffer;
+    private final Runnable overflowCallback;
     private int writePos = 0;
     private int size = 0;
     private boolean dropWarned = false;
 
     PcmRingBuffer(int capacityBytes) {
+        this(capacityBytes, null);
+    }
+
+    PcmRingBuffer(int capacityBytes, Runnable overflowCallback) {
         this.buffer = new byte[capacityBytes];
+        this.overflowCallback = overflowCallback;
     }
 
     int capacity() {
@@ -36,6 +42,7 @@ final class PcmRingBuffer {
                 LOG.warn("Ring buffer overflow: incoming {} exceeds capacity {}, dropping oldest",
                         len, buffer.length);
                 dropWarned = true;
+                notifyOverflow();
             }
             // keep tail of src
             System.arraycopy(src, off + (len - buffer.length), buffer, 0, buffer.length);
@@ -51,6 +58,7 @@ final class PcmRingBuffer {
                 LOG.warn("Ring buffer overflow: dropping {} oldest bytes (capacity={}, size={})",
                         toDrop, buffer.length, size);
                 dropWarned = true;
+                notifyOverflow();
             }
             size -= toDrop;
             // No need to adjust writePos - toByteArray() computes start position
@@ -87,5 +95,15 @@ final class PcmRingBuffer {
         Arrays.fill(buffer, (byte)0);
         writePos = 0; size = 0;
         dropWarned = false;
+    }
+
+    private void notifyOverflow() {
+        if (overflowCallback != null) {
+            try {
+                overflowCallback.run();
+            } catch (Exception e) {
+                LOG.debug("Overflow callback failed: {}", e.getMessage());
+            }
+        }
     }
 }

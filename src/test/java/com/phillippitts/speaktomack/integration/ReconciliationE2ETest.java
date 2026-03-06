@@ -47,11 +47,8 @@ class ReconciliationE2ETest {
     /** Helper to create a real watchdog for testing */
     static SttEngineWatchdog createWatchdog(SttEngine vosk, SttEngine whisper,
                                              ApplicationEventPublisher publisher) {
-        SttWatchdogProperties props = new SttWatchdogProperties();
-        props.setEnabled(true);
-        props.setWindowMinutes(60);
-        props.setMaxRestartsPerWindow(3);
-        props.setCooldownMinutes(10);
+        SttWatchdogProperties props = new SttWatchdogProperties(
+                true, 60, 3, 10, false, 60_000L, 0.3, 10, 5);
         return new SttEngineWatchdog(List.of(vosk, whisper), props, publisher);
     }
 
@@ -76,7 +73,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -87,7 +84,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
 
         // Act: Full hotkey flow
@@ -123,7 +120,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -134,7 +131,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
 
         // Act
@@ -172,7 +169,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -183,7 +180,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
 
         // Act
@@ -221,7 +218,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -232,7 +229,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000)))
                 .build();
 
         // Act
@@ -269,7 +266,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -280,7 +277,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
 
         // Act
@@ -333,7 +330,7 @@ class ReconciliationE2ETest {
         FakeSttEngine whisper = new FakeSttEngine("whisper", "whisper text", 0.95);
 
         ReconciliationProperties recProps = new ReconciliationProperties(
-                false, ReconciliationProperties.Strategy.CONFIDENCE, 0.6); // Disabled
+                false, ReconciliationProperties.Strategy.CONFIDENCE, 0.6, 0.7); // Disabled
 
         ParallelSttService parallel = new DefaultParallelSttService(vosk, whisper,
                 new SyncExecutor(), 10000);
@@ -344,7 +341,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -355,7 +352,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
 
         // Act
@@ -388,7 +385,7 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
@@ -399,7 +396,7 @@ class ReconciliationE2ETest {
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
                 .build();
     }
 

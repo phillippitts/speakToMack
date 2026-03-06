@@ -202,7 +202,8 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
                 AudioFormat.REQUIRED_BIG_ENDIAN
         );
         final int capacity = (int) (((long) props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000L);
-        s.buffer = new PcmRingBuffer(capacity);
+        s.buffer = new PcmRingBuffer(capacity,
+                () -> publisher.publishEvent(new BufferOverflowEvent(0, capacity, Instant.now())));
         s.active.set(true);
 
         Thread t = new Thread(() -> doCapture(s, fmt, bytesPerChunk), "audio-capture");

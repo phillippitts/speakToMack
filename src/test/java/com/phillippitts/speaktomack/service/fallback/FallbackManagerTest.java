@@ -26,7 +26,7 @@ class FallbackManagerTest {
         FakeTypingService typingService = new FakeTypingService();
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result = new TranscriptionResult("hello world", 0.95, Instant.now(), "vosk");
+        TranscriptionResult result = new TranscriptionResult("hello world", 0.95, Instant.now(), "vosk", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "vosk");
 
         manager.onTranscription(event);
@@ -39,7 +39,7 @@ class FallbackManagerTest {
         FakeTypingService typingService = new FakeTypingService();
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result = new TranscriptionResult("", 0.5, Instant.now(), "whisper");
+        TranscriptionResult result = new TranscriptionResult("", 0.5, Instant.now(), "whisper", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "whisper");
 
         manager.onTranscription(event);
@@ -52,7 +52,7 @@ class FallbackManagerTest {
         FakeTypingService typingService = new FakeTypingService();
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result = new TranscriptionResult("line1\nline2\r\nline3", 0.85, Instant.now(), "vosk");
+        TranscriptionResult result = new TranscriptionResult("line1\nline2\r\nline3", 0.85, Instant.now(), "vosk", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "vosk");
 
         manager.onTranscription(event);
@@ -66,7 +66,7 @@ class FallbackManagerTest {
         FallbackManager manager = new FallbackManager(typingService);
 
         String longText = "a".repeat(5000);
-        TranscriptionResult result = new TranscriptionResult(longText, 0.9, Instant.now(), "whisper");
+        TranscriptionResult result = new TranscriptionResult(longText, 0.9, Instant.now(), "whisper", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "whisper");
 
         manager.onTranscription(event);
@@ -81,7 +81,7 @@ class FallbackManagerTest {
         typingService.returnValue = false; // Simulate all fallbacks failing
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result = new TranscriptionResult("test", 0.8, Instant.now(), "vosk");
+        TranscriptionResult result = new TranscriptionResult("test", 0.8, Instant.now(), "vosk", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "vosk");
 
         // Should not throw, just log warning
@@ -95,12 +95,12 @@ class FallbackManagerTest {
         FakeTypingService typingService = new FakeTypingService();
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result1 = new TranscriptionResult("first", 0.9, Instant.now(), "vosk");
+        TranscriptionResult result1 = new TranscriptionResult("first", 0.9, Instant.now(), "vosk", null);
         TranscriptionCompletedEvent event1 = new TranscriptionCompletedEvent(result1, Instant.now(), "vosk");
         manager.onTranscription(event1);
         assertThat(typingService.lastText).isEqualTo("first");
 
-        TranscriptionResult result2 = new TranscriptionResult("second", 0.85, Instant.now(), "whisper");
+        TranscriptionResult result2 = new TranscriptionResult("second", 0.85, Instant.now(), "whisper", null);
         TranscriptionCompletedEvent event2 = new TranscriptionCompletedEvent(result2, Instant.now(), "whisper");
         manager.onTranscription(event2);
         assertThat(typingService.lastText).isEqualTo("second");

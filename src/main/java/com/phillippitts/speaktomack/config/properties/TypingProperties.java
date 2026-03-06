@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -13,59 +14,65 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "typing")
-public class TypingProperties {
+public record TypingProperties(
+
+        @DefaultValue("800")
+        @Min(100)
+        @Max(2000)
+        int chunkSize,
+
+        @DefaultValue("30")
+        @Min(0)
+        @Max(500)
+        int interChunkDelayMs,
+
+        @DefaultValue("100")
+        @Min(0)
+        @Max(1000)
+        int focusDelayMs,
+
+        /** Whether to restore prior clipboard contents after paste. */
+        @DefaultValue("true")
+        boolean restoreClipboard,
+
+        /** If true, do not send paste shortcut, only place text on clipboard. */
+        @DefaultValue("false")
+        boolean clipboardOnlyFallback,
+
+        /** Normalize newlines before paste. */
+        @DefaultValue("LF")
+        @NotNull
+        NewlineMode normalizeNewlines,
+
+        /** Trim trailing newline at end of text. */
+        @DefaultValue("true")
+        boolean trimTrailingNewline,
+
+        /** Enable Robot-based typing (Tier 1). If false, skip to clipboard tier. */
+        @DefaultValue("true")
+        boolean enableRobot,
+
+        /** Optional override for paste shortcut: os-default | META+V | CONTROL+V. */
+        @DefaultValue("os-default")
+        String pasteShortcut
+) {
 
     public enum NewlineMode { LF, CRLF, NONE }
 
-    @Min(100)
-    @Max(2000)
-    private final int chunkSize;
+    public boolean isRestoreClipboard() {
+        return restoreClipboard;
+    }
 
-    @Min(0)
-    @Max(500)
-    private final int interChunkDelayMs;
+    public boolean isClipboardOnlyFallback() {
+        return clipboardOnlyFallback;
+    }
 
-    @Min(0)
-    @Max(1000)
-    private final int focusDelayMs;
+    public boolean isTrimTrailingNewline() {
+        return trimTrailingNewline;
+    }
 
-    /** Whether to restore prior clipboard contents after paste. */
-    private final boolean restoreClipboard;
-
-    /** If true, do not send paste shortcut, only place text on clipboard. */
-    private final boolean clipboardOnlyFallback;
-
-    /** Normalize newlines before paste. */
-    @NotNull
-    private final NewlineMode normalizeNewlines;
-
-    /** Trim trailing newline at end of text. */
-    private final boolean trimTrailingNewline;
-
-    /** Enable Robot-based typing (Tier 1). If false, skip to clipboard tier. */
-    private final boolean enableRobot;
-
-    /** Optional override for paste shortcut: os-default | META+V | CONTROL+V. */
-    private final String pasteShortcut;
-
-    public TypingProperties(Integer chunkSize,
-                            Integer interChunkDelayMs,
-                            Integer focusDelayMs,
-                            Boolean restoreClipboard,
-                            Boolean clipboardOnlyFallback,
-                            NewlineMode normalizeNewlines,
-                            Boolean trimTrailingNewline,
-                            Boolean enableRobot,
-                            String pasteShortcut) {
-        this.chunkSize = chunkSize == null ? 800 : chunkSize;
-        this.interChunkDelayMs = interChunkDelayMs == null ? 30 : interChunkDelayMs;
-        this.focusDelayMs = focusDelayMs == null ? 100 : focusDelayMs;
-        this.restoreClipboard = restoreClipboard == null || restoreClipboard;
-        this.clipboardOnlyFallback = clipboardOnlyFallback != null && clipboardOnlyFallback;
-        this.normalizeNewlines = normalizeNewlines == null ? NewlineMode.LF : normalizeNewlines;
-        this.trimTrailingNewline = trimTrailingNewline == null || trimTrailingNewline;
-        this.enableRobot = enableRobot == null || enableRobot;
-        this.pasteShortcut = (pasteShortcut == null || pasteShortcut.isBlank()) ? "os-default" : pasteShortcut;
+    public boolean isEnableRobot() {
+        return enableRobot;
     }
 
     public int getChunkSize() {
@@ -80,24 +87,8 @@ public class TypingProperties {
         return focusDelayMs;
     }
 
-    public boolean isRestoreClipboard() {
-        return restoreClipboard;
-    }
-
-    public boolean isClipboardOnlyFallback() {
-        return clipboardOnlyFallback;
-    }
-
     public NewlineMode getNormalizeNewlines() {
         return normalizeNewlines;
-    }
-
-    public boolean isTrimTrailingNewline() {
-        return trimTrailingNewline;
-    }
-
-    public boolean isEnableRobot() {
-        return enableRobot;
     }
 
     public String getPasteShortcut() {

@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * Configuration properties for the live caption overlay window.
@@ -8,26 +9,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @since 1.3
  */
 @ConfigurationProperties(prefix = "live-caption")
-public class LiveCaptionProperties {
+public record LiveCaptionProperties(
+        @DefaultValue("false")
+        boolean enabled,
 
-    private static final int DEFAULT_WIDTH = 600;
-    private static final int DEFAULT_HEIGHT = 250;
-    private static final double DEFAULT_OPACITY = 0.85;
+        @DefaultValue("600")
+        int windowWidth,
 
-    private final boolean enabled;
-    private final int windowWidth;
-    private final int windowHeight;
-    private final double windowOpacity;
+        @DefaultValue("250")
+        int windowHeight,
 
-    public LiveCaptionProperties(Boolean enabled,
-                                 Integer windowWidth,
-                                 Integer windowHeight,
-                                 Double windowOpacity) {
-        this.enabled = enabled != null && enabled;
-        this.windowWidth = windowWidth != null ? windowWidth : DEFAULT_WIDTH;
-        this.windowHeight = windowHeight != null ? windowHeight : DEFAULT_HEIGHT;
-        this.windowOpacity = windowOpacity != null ? windowOpacity : DEFAULT_OPACITY;
-    }
+        @DefaultValue("0.85")
+        double windowOpacity
+) {
 
     public boolean isEnabled() {
         return enabled;

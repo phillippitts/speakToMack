@@ -8,6 +8,7 @@ import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.WavWriter;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.service.stt.SttEngineNames;
+import com.phillippitts.speaktomack.service.stt.TranscriptionOutput;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyGuard;
 import com.phillippitts.speaktomack.service.stt.util.ConcurrencyScaler;
 import com.phillippitts.speaktomack.service.stt.util.DynamicConcurrencyGuard;
@@ -78,10 +79,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     private ApplicationEventPublisher publisher;
     private final boolean jsonMode;
     private final int silenceGapMs;
-    // Stores last JSON/stdout and parsed tokens when jsonMode is enabled; consumed by parallel service
-    // ThreadLocal ensures each concurrent transcription thread gets its own cached data
-    private final ThreadLocal<String> lastRawJson = new ThreadLocal<>();
-    private final ThreadLocal<java.util.List<String>> lastTokens = new ThreadLocal<>();
 
     public WhisperSttEngine(WhisperConfig cfg, ProcessManager manager) {
         this.cfg = Objects.requireNonNull(cfg, "cfg");
@@ -146,39 +143,62 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
 
     @Override
     public TranscriptionResult transcribe(byte[] audioData) {
+        return transcribeDetailed(audioData).result();
+    }
+
+    @Override
+    public TranscriptionOutput transcribeDetailed(byte[] audioData) {
         if (audioData == null || audioData.length == 0) {
             throw new IllegalArgumentException("audioData must not be null or empty");
         }
-        boolean acquired = false;
+        acquireTranscriptionLock();
         try {
-            acquireGuard();
-            acquired = true;
-            ensureInitialized();
-            Path wav = null;
-            long startTime = System.nanoTime();
+            boolean acquired = false;
             try {
-                wav = createTempWavFile(audioData);
-                String stdout = manager.transcribe(wav, cfg);
-                LOG.debug("WhisperSttEngine: Whisper returned {} output (length={} chars)",
-                         jsonMode ? "JSON" : "text", stdout.length());
-                String text = extractTranscriptionText(stdout);
-                double confidence = 1.0;
+                acquireGuard();
+                acquired = true;
+                ensureInitialized();
+                Path wav = null;
+                long startTime = System.nanoTime();
+                try {
+                    wav = createTempWavFile(audioData);
+                    String stdout = manager.transcribe(wav, cfg);
+                    LOG.debug("WhisperSttEngine: Whisper returned {} output (length={} chars)",
+                             jsonMode ? "JSON" : "text", stdout.length());
 
-                long elapsedMs = TimeUtils.elapsedMillis(startTime);
-                LOG.debug("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
-                return TranscriptionResult.of(text, confidence, SttEngineNames.WHISPER);
-            } catch (Exception e) {
-                Map<String, String> ctx = new HashMap<>();
-                ctx.put("binaryPath", cfg.binaryPath());
-                ctx.put("modelPath", cfg.modelPath());
-                throw handleTranscriptionError(e, publisher, ctx);
+                    String text;
+                    java.util.List<String> tokens = java.util.List.of();
+                    String rawJson = null;
+
+                    if (jsonMode) {
+                        text = WhisperJsonParser.extractTextWithPauseDetection(stdout, silenceGapMs);
+                        rawJson = stdout;
+                        tokens = WhisperJsonParser.extractTokens(stdout);
+                    } else {
+                        text = stdout == null ? "" : stdout.trim();
+                    }
+
+                    double confidence = 1.0;
+                    long elapsedMs = TimeUtils.elapsedMillis(startTime);
+                    LOG.debug("Whisper transcribed clip in {} ms (chars={})", elapsedMs, text.length());
+
+                    TranscriptionResult result = TranscriptionResult.of(text, confidence, SttEngineNames.WHISPER);
+                    return TranscriptionOutput.of(result, tokens, rawJson);
+                } catch (Exception e) {
+                    Map<String, String> ctx = new HashMap<>();
+                    ctx.put("binaryPath", cfg.binaryPath());
+                    ctx.put("modelPath", cfg.modelPath());
+                    throw handleTranscriptionError(e, publisher, ctx);
+                } finally {
+                    cleanupTempFile(wav);
+                }
             } finally {
-                cleanupTempFile(wav);
+                if (acquired) {
+                    releaseGuard();
+                }
             }
         } finally {
-            if (acquired) {
-                releaseGuard();
-            }
+            releaseTranscriptionLock();
         }
     }
 
@@ -214,27 +234,6 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     }
 
     /**
-     * Extracts transcription text from whisper.cpp output (JSON or plain text mode).
-     *
-     * @param stdout raw output from whisper.cpp process
-     * @return extracted transcription text
-     */
-    private String extractTranscriptionText(String stdout) {
-        if (jsonMode) {
-            // When JSON mode is enabled, parse text from JSON safely and cache JSON + tokens
-            // Use pause detection if silenceGapMs > 0
-            String text = WhisperJsonParser.extractTextWithPauseDetection(stdout, silenceGapMs);
-            lastRawJson.set(stdout);
-            lastTokens.set(WhisperJsonParser.extractTokens(stdout));
-            return text;
-        } else {
-            lastRawJson.remove();
-            lastTokens.remove();
-            return stdout == null ? "" : stdout.trim();
-        }
-    }
-
-    /**
      * Cleans up temporary WAV file, ignoring any errors.
      *
      * @param wav path to temporary WAV file (may be null)
@@ -250,71 +249,21 @@ public final class WhisperSttEngine extends com.phillippitts.speaktomack.service
     }
 
     /**
-     * Consumes and clears the last raw JSON output captured from whisper.cpp (JSON mode only).
-     *
-     * <p>This method is used by {@link com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService}
-     * to access the raw JSON output for advanced reconciliation strategies.
-     *
-     * <p><b>Side Effect:</b> Clears the cached JSON after returning it (one-time consumption).
-     * Subsequent calls will return {@code null} until the next transcription.
-     *
-     * <p><b>JSON Mode Only:</b> Returns {@code null} if JSON mode is disabled
-     * ({@code stt.whisper.output=text}) or if no transcription has occurred yet.
-     *
-     * @return raw JSON output from whisper.cpp, or null if unavailable
-     * @see #consumeLastTokens()
-     * @see WhisperJsonParser
+     * @deprecated Use {@link #transcribeDetailed(byte[])} instead.
      */
-    public String consumeLastRawJson() {
-        String v = lastRawJson.get();
-        lastRawJson.remove();
-        return v;
-    }
-
-    /**
-     * Consumes and clears the last parsed word tokens from whisper.cpp (JSON mode only).
-     *
-     * <p>This method is used by {@link com.phillippitts.speaktomack.service.stt.parallel.DefaultParallelSttService}
-     * to access word-level tokens for overlap-based reconciliation strategies like
-     * {@link com.phillippitts.speaktomack.service.reconcile.impl.WordOverlapReconciler}.
-     *
-     * <p>Word tokens provide more accurate overlap calculation than simple space-splitting,
-     * especially for multi-word phrases and punctuation handling.
-     *
-     * <p><b>Side Effect:</b> Clears the cached tokens after returning them (one-time consumption).
-     * Subsequent calls will return an empty list until the next transcription.
-     *
-     * <p><b>JSON Mode Only:</b> Returns an empty list if JSON mode is disabled
-     * ({@code stt.whisper.output=text}) or if no transcription has occurred yet.
-     *
-     * @return list of word tokens from last transcription, or empty list if unavailable
-     * @see #consumeLastRawJson()
-     * @see WhisperJsonParser#extractTokens(String)
-     */
-    public java.util.List<String> consumeLastTokens() {
-        java.util.List<String> v = lastTokens.get();
-        lastTokens.remove();
-        return v == null ? java.util.List.of() : v;
-    }
-
-    /**
-     * Implementation of SttEngine interface method for consuming tokens.
-     * Wraps {@link #consumeLastTokens()} to return Optional for polymorphic usage.
-     */
+    @Deprecated(forRemoval = true)
     @Override
     public java.util.Optional<java.util.List<String>> consumeTokens() {
-        java.util.List<String> tokens = consumeLastTokens();
-        return tokens.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(tokens);
+        return java.util.Optional.empty();
     }
 
     /**
-     * Implementation of SttEngine interface method for consuming raw JSON.
-     * Wraps {@link #consumeLastRawJson()} to return Optional for polymorphic usage.
+     * @deprecated Use {@link #transcribeDetailed(byte[])} instead.
      */
+    @Deprecated(forRemoval = true)
     @Override
     public java.util.Optional<String> consumeRawJson() {
-        String json = consumeLastRawJson();
-        return json == null ? java.util.Optional.empty() : java.util.Optional.of(json);
+        return java.util.Optional.empty();
     }
 
     @Override
