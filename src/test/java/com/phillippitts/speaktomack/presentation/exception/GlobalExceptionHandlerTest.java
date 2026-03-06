@@ -8,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.Instant;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GlobalExceptionHandlerTest {
@@ -54,11 +52,9 @@ class GlobalExceptionHandlerTest {
     @Test
     void verifiesModelNotFoundContainsTimestamp() {
         ModelNotFoundException ex = new ModelNotFoundException("/path/to/model");
-        Instant beforeCall = Instant.now().minusSeconds(1);
 
         ResponseEntity<?> response = handler.handleModelNotFound(ex);
 
-        Instant afterCall = Instant.now().plusSeconds(1);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().toString()).contains("timestamp");
         // Timestamp should be recent

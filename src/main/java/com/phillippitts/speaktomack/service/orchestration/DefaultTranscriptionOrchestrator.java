@@ -40,7 +40,6 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     // Engine name constants
     private static final String ENGINE_RECONCILED = "reconciled";
 
-    private final OrchestrationProperties props;
     private final ApplicationEventPublisher publisher;
 
     // Reconciliation service (encapsulates parallel, reconciler, recProps)
@@ -65,7 +64,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
                                             ReconciliationService reconciliation,
                                             EngineSelectionStrategy engineSelector,
                                             TranscriptionMetricsPublisher metricsPublisher) {
-        this.props = Objects.requireNonNull(props, "props must not be null");
+        Objects.requireNonNull(props, "props must not be null");
         this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
         this.reconciliation = Objects.requireNonNull(reconciliation, "reconciliation must not be null");
         this.engineSelector = Objects.requireNonNull(engineSelector, "engineSelector must not be null");

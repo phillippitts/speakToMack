@@ -116,25 +116,6 @@ public class DefaultRecordingService implements RecordingService {
     }
 
     /**
-     * Internal stop logic for use within toggleRecording (already holds the monitor).
-     * Extracts PCM data under the lock, then transcribes outside of it.
-     */
-    private boolean stopRecordingInternal() {
-        // Caller must hold synchronized(this)
-        if (activeSessionId == null) {
-            LOG.debug("No active recording session to stop");
-            return false;
-        }
-
-        byte[] pcm = captureOrchestrator.stopCapture(activeSessionId);
-        UUID stoppedSession = activeSessionId;
-        activeSessionId = null;
-
-        // doTranscribe does not need the monitor
-        return doTranscribe(pcm, stoppedSession);
-    }
-
-    /**
      * Performs transcription outside the synchronized block to avoid blocking
      * hotkey events during processing.
      */

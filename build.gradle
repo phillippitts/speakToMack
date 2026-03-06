@@ -21,7 +21,7 @@ repositories {
 }
 
 configurations {
-    all {
+    configureEach {
         // Exclude default Logback in favor of Log4j 2
         exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
     }

@@ -151,7 +151,7 @@ class SttEngineWatchdogTest {
         props.setConfidenceWindowSize(5);
         props.setConfidenceMinSamples(5);
         RecordingEngine engine = new RecordingEngine("vosk");
-        ApplicationEventPublisher publisher = event -> {};
+        ApplicationEventPublisher publisher = event -> { };
         SttEngineWatchdog watchdog = new SttEngineWatchdog(List.of(engine), props, publisher);
 
         // Send 8 high-confidence events, then check window is pruned to 5
@@ -197,7 +197,7 @@ class SttEngineWatchdogTest {
     void shouldIgnoreConfidenceForUnknownEngines() {
         SttWatchdogProperties props = new SttWatchdogProperties();
         RecordingEngine engine = new RecordingEngine("vosk");
-        ApplicationEventPublisher publisher = event -> {};
+        ApplicationEventPublisher publisher = event -> { };
         SttEngineWatchdog watchdog = new SttEngineWatchdog(List.of(engine), props, publisher);
 
         // "reconciled" is not a tracked engine — should be silently ignored

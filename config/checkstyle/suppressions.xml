@@ -4,13 +4,11 @@
     "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
-    <!-- Allow 10 parameters for HotkeyRecordingAdapter constructor (Spring DI) -->
+    <!-- Allow many parameters for HotkeyRecordingAdapter constructor (Spring DI) -->
     <suppress checks="ParameterNumber"
-              files="HotkeyRecordingAdapter\.java"
-              lines="164"/>
+              files="HotkeyRecordingAdapter\.java"/>
 
-    <!-- Allow 10 parameters for reconciledHotkeyRecordingAdapter bean method (Spring DI) -->
+    <!-- Allow many parameters for reconciledHotkeyRecordingAdapter bean method (Spring DI) -->
     <suppress checks="ParameterNumber"
-              files="OrchestrationConfig\.java"
-              lines="52"/>
+              files="OrchestrationConfig\.java"/>
 </suppressions>

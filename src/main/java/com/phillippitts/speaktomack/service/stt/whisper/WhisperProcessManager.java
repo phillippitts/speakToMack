@@ -173,7 +173,7 @@ public final class WhisperProcessManager implements ProcessManager {
     private TranscriptionException whisperError(String msg, ErrorContext ctx) {
         long durationMs = TimeUtils.nanosToMillis(System.nanoTime() - ctx.startNano());
         String stderrSnippet = ctx.stderr() == null ? ""
-                : snippet(ctx.stderr(), WhisperConstants.ERROR_SNIPPET_MAX_CHARS);
+                : snippet(ctx.stderr());
 
         com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder builder =
                 com.phillippitts.speaktomack.exception.TranscriptionExceptionBuilder.create(msg)
@@ -192,14 +192,13 @@ public final class WhisperProcessManager implements ProcessManager {
     }
 
     /**
-     * Returns the first maxChars characters of a string.
+     * Returns the first {@link WhisperConstants#ERROR_SNIPPET_MAX_CHARS} characters of a string.
      *
      * @param s string to truncate
-     * @param maxChars maximum characters to return
      * @return truncated string
      */
-    private static String snippet(String s, int maxChars) {
-        int len = Math.min(maxChars, s.length());
+    private static String snippet(String s) {
+        int len = Math.min(WhisperConstants.ERROR_SNIPPET_MAX_CHARS, s.length());
         return s.substring(0, len);
     }
 

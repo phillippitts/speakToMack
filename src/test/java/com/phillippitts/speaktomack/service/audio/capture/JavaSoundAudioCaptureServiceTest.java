@@ -116,11 +116,9 @@ class JavaSoundAudioCaptureServiceTest {
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger eventCount = new AtomicInteger();
         ApplicationEventPublisher publisher = e -> {
-            if (e instanceof CaptureErrorEvent) {
-                CaptureErrorEvent evt = (CaptureErrorEvent) e;
-                if ("MIC_PERMISSION_DENIED".equals(evt.reason())) {
-                    eventCount.incrementAndGet();
-                }
+            if (e instanceof CaptureErrorEvent evt
+                    && "MIC_PERMISSION_DENIED".equals(evt.reason())) {
+                eventCount.incrementAndGet();
             }
         };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
@@ -150,11 +148,9 @@ class JavaSoundAudioCaptureServiceTest {
         AudioValidator validator = new AudioValidator(vprops);
         AtomicInteger eventCount = new AtomicInteger();
         ApplicationEventPublisher publisher = e -> {
-            if (e instanceof CaptureErrorEvent) {
-                CaptureErrorEvent evt = (CaptureErrorEvent) e;
-                if ("MIC_UNAVAILABLE".equals(evt.reason())) {
-                    eventCount.incrementAndGet();
-                }
+            if (e instanceof CaptureErrorEvent evt
+                    && "MIC_UNAVAILABLE".equals(evt.reason())) {
+                eventCount.incrementAndGet();
             }
         };
         JavaSoundAudioCaptureService.DataLineProvider provider = (fmt, dev) -> {
@@ -276,7 +272,7 @@ class JavaSoundAudioCaptureServiceTest {
         JavaSoundAudioCaptureService svc = new JavaSoundAudioCaptureService(props, validator, publisher, provider);
 
         // Act: start session and call shutdown (simulating @PreDestroy)
-        UUID id = svc.startSession();
+        svc.startSession();
         Thread.sleep(100); // Let capture thread initialize
         svc.shutdown();
 

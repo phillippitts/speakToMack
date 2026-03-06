@@ -60,11 +60,11 @@ public class TypingProperties {
         this.chunkSize = chunkSize == null ? 800 : chunkSize;
         this.interChunkDelayMs = interChunkDelayMs == null ? 30 : interChunkDelayMs;
         this.focusDelayMs = focusDelayMs == null ? 100 : focusDelayMs;
-        this.restoreClipboard = restoreClipboard == null ? true : restoreClipboard;
-        this.clipboardOnlyFallback = clipboardOnlyFallback == null ? false : clipboardOnlyFallback;
+        this.restoreClipboard = restoreClipboard == null || restoreClipboard;
+        this.clipboardOnlyFallback = clipboardOnlyFallback != null && clipboardOnlyFallback;
         this.normalizeNewlines = normalizeNewlines == null ? NewlineMode.LF : normalizeNewlines;
-        this.trimTrailingNewline = trimTrailingNewline == null ? true : trimTrailingNewline;
-        this.enableRobot = enableRobot == null ? true : enableRobot;
+        this.trimTrailingNewline = trimTrailingNewline == null || trimTrailingNewline;
+        this.enableRobot = enableRobot == null || enableRobot;
         this.pasteShortcut = (pasteShortcut == null || pasteShortcut.isBlank()) ? "os-default" : pasteShortcut;
     }
 

@@ -25,7 +25,7 @@ class ApplicationStateTrackerTest {
 
         assertThat(tracker.getState()).isEqualTo(ApplicationState.RECORDING);
         assertThat(events).hasSize(1);
-        ApplicationStateChangedEvent evt = (ApplicationStateChangedEvent) events.get(0);
+        ApplicationStateChangedEvent evt = (ApplicationStateChangedEvent) events.getFirst();
         assertThat(evt.previous()).isEqualTo(ApplicationState.IDLE);
         assertThat(evt.current()).isEqualTo(ApplicationState.RECORDING);
         assertThat(evt.timestamp()).isNotNull();

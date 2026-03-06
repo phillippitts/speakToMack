@@ -22,8 +22,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.phillippitts.speaktomack.service.stt.parallel.ParallelSttService.EnginePair;
-
 /**
  * Default implementation of parallel dual-engine transcription service.
  *

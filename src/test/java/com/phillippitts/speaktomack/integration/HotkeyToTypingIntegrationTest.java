@@ -1,6 +1,5 @@
 package com.phillippitts.speaktomack.integration;
 
-import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.audio.capture.AudioCaptureService;
 import com.phillippitts.speaktomack.service.fallback.FallbackManager;
@@ -137,15 +136,10 @@ class HotkeyToTypingIntegrationTest {
         FakeAudioCaptureService captureService = new FakeAudioCaptureService();
         FakeSttEngine voskEngine = new FakeSttEngine("vosk", voskText, 0.95);
         FakeSttEngine whisperEngine = new FakeSttEngine("whisper", whisperText, 0.95);
-        OrchestrationProperties orchProps = new OrchestrationProperties(
-                OrchestrationProperties.PrimaryEngine.VOSK
-        );
-
         TestableOrchestrator orchestrator = new TestableOrchestrator(
                 captureService,
                 voskEngine,
                 whisperEngine,
-                orchProps,
                 publisher
         );
 
@@ -208,7 +202,6 @@ class HotkeyToTypingIntegrationTest {
         TestableOrchestrator(AudioCaptureService captureService,
                              SttEngine primary,
                              SttEngine secondary,
-                             OrchestrationProperties props,
                              ApplicationEventPublisher publisher) {
             this.captureService = captureService;
             this.primaryEngine = primary;

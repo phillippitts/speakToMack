@@ -54,8 +54,10 @@ public class ConcurrencyScaler {
         double cpu = monitor.getCpuLoad();
         double memory = monitor.getMemoryUsage();
 
-        double cpuPressure = Math.max(0.0, (cpu - props.getCpuThresholdHigh()) / (1.0 - props.getCpuThresholdHigh()));
-        double memPressure = Math.max(0.0, (memory - props.getMemoryThresholdHigh()) / (1.0 - props.getMemoryThresholdHigh()));
+        double cpuPressure = Math.max(0.0,
+                (cpu - props.getCpuThresholdHigh()) / (1.0 - props.getCpuThresholdHigh()));
+        double memPressure = Math.max(0.0,
+                (memory - props.getMemoryThresholdHigh()) / (1.0 - props.getMemoryThresholdHigh()));
         double pressure = Math.max(cpuPressure, memPressure);
 
         guards.forEach((name, guard) -> {
