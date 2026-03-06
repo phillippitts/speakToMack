@@ -1,0 +1,56 @@
+[Unit]
+Description=speakToMack - Privacy-first voice dictation
+Documentation=https://github.com/your-org/speakToMack
+After=network.target
+
+[Service]
+Type=simple
+User=speaktomack
+Group=speaktomack
+
+# Working directory
+WorkingDirectory=/opt/speaktomack
+
+# Environment variables (absolute paths)
+Environment="VOSK_MODEL_PATH=/opt/speaktomack/models/vosk-model-en-us-0.22"
+Environment="WHISPER_MODEL_PATH=/opt/speaktomack/models/ggml-base.en.bin"
+Environment="WHISPER_BINARY_PATH=/opt/speaktomack/bin/whisper"
+Environment="SPEAKTOMACK_LOG_PATH=/var/log/speaktomack"
+Environment="SPRING_PROFILES_ACTIVE=production"
+
+# JVM options for production
+Environment="JAVA_OPTS=-Xms512m -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/speaktomack/heap-dump.hprof"
+
+# Start command
+ExecStart=/usr/bin/java \
+  ${JAVA_OPTS} \
+  -Dlogging.config=/etc/speaktomack/log4j2-production.xml \
+  -jar /opt/speaktomack/speaktomack.jar \
+  --spring.config.additional-location=/etc/speaktomack/application-production.properties
+
+# Graceful shutdown
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/speaktomack
+
+# Resource limits
+LimitNOFILE=65536
+TasksMax=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=speaktomack
+
+[Install]
+WantedBy=multi-user.target
