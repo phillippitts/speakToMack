@@ -1,118 +1,51 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
-import com.phillippitts.speaktomack.service.metrics.TranscriptionMetrics;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 /**
  * Centralizes transcription metrics recording for orchestration workflows.
  *
- * <p>This service encapsulates all metrics tracking logic previously scattered throughout
- * {@link HotkeyRecordingAdapter}, providing a clean separation of concerns between
- * orchestration logic and observability.
- *
- * <p><b>Responsibilities:</b>
- * <ul>
- *   <li>Record transcription latency for all engine types</li>
- *   <li>Track success/failure counts per engine</li>
- *   <li>Record reconciliation strategy choices</li>
- *   <li>Handle null metrics gracefully (test mode support)</li>
- * </ul>
- *
- * <p><b>Null Safety:</b> All methods handle null {@link TranscriptionMetrics} instances
- * gracefully, allowing the orchestrator to run without metrics in test environments.
+ * <p>All methods are no-ops. The class is retained so that orchestration code
+ * can call it unconditionally without null checks.
  *
  * @since 1.1
- * @see TranscriptionMetrics
  * @see HotkeyRecordingAdapter
  */
 @Component
 public final class TranscriptionMetricsPublisher {
 
-    private static final Logger LOG = LogManager.getLogger(TranscriptionMetricsPublisher.class);
-
     /**
-     * Singleton no-op instance for test environments and builder defaults.
-     *
-     * <p>This instance is safe to use when metrics tracking is not required. It:
-     * <ul>
-     *   <li>Never throws exceptions</li>
-     *   <li>Performs no operations (all methods are no-ops)</li>
-     *   <li>Always reports as disabled via {@link #isEnabled()}</li>
-     * </ul>
-     *
-     * @since 1.1
+     * Singleton no-op instance for builder defaults and tests.
      */
-    public static final TranscriptionMetricsPublisher NOOP = new TranscriptionMetricsPublisher(null);
-
-    private final TranscriptionMetrics metrics;
+    public static final TranscriptionMetricsPublisher NOOP = new TranscriptionMetricsPublisher();
 
     /**
-     * Constructs a metrics publisher with optional metrics support.
-     *
-     * @param metrics metrics tracking service (nullable for test mode)
-     */
-    public TranscriptionMetricsPublisher(TranscriptionMetrics metrics) {
-        this.metrics = metrics;
-        if (metrics == null) {
-            LOG.debug("TranscriptionMetricsPublisher created without metrics (test mode)");
-        }
-    }
-
-    /**
-     * Records successful transcription with latency and reconciliation metadata.
-     *
-     * @param engineName name of the engine used (vosk, whisper, or reconciled)
-     * @param durationNanos transcription duration in nanoseconds
-     * @param strategy reconciliation strategy used (nullable for single-engine)
+     * Records successful transcription (no-op).
      */
     public void recordSuccess(String engineName, long durationNanos, String strategy) {
-        if (metrics == null) {
-            return;
-        }
-
-        metrics.recordLatency(engineName, durationNanos);
-        metrics.incrementSuccess(engineName);
-
-        if (strategy != null) {
-            metrics.recordReconciliation(strategy, engineName);
-        }
+        // no-op
     }
 
     /**
-     * Records transcription failure with error categorization.
-     *
-     * @param engineName name of the engine that failed
-     * @param errorCategory categorization of failure (e.g., "transcription_error", "unexpected_error")
+     * Records transcription failure (no-op).
      */
     public void recordFailure(String engineName, String errorCategory) {
-        if (metrics == null) {
-            return;
-        }
-
-        metrics.incrementFailure(engineName, errorCategory);
+        // no-op
     }
 
     /**
-     * Records the processing-time-to-audio-duration ratio for profiling.
-     *
-     * @param engineName name of the engine
-     * @param ratio processing time / audio duration
+     * Records the processing-time-to-audio-duration ratio (no-op).
      */
     public void recordProcessingRatio(String engineName, double ratio) {
-        if (metrics == null) {
-            return;
-        }
-        metrics.recordProcessingRatio(engineName, ratio);
+        // no-op
     }
 
     /**
      * Checks if metrics tracking is enabled.
      *
-     * @return true if metrics are available, false if running in test mode
+     * @return always false
      */
     public boolean isEnabled() {
-        return metrics != null;
+        return false;
     }
 }

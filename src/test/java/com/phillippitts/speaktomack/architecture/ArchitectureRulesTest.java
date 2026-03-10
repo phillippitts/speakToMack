@@ -37,28 +37,26 @@ class ArchitectureRulesTest {
     class DomainAndExceptionPurity {
 
         @Test
-        @DisplayName("Domain should not depend on service, config, or presentation")
+        @DisplayName("Domain should not depend on service or config")
         void domainShouldNotDependOnOtherLayers() {
             noClasses()
                     .that().resideInAPackage(BASE + ".domain..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage(
                             BASE + ".service..",
-                            BASE + ".config..",
-                            BASE + ".presentation..")
+                            BASE + ".config..")
                     .check(appClasses);
         }
 
         @Test
-        @DisplayName("Exception should not depend on service, config, or presentation")
+        @DisplayName("Exception should not depend on service or config")
         void exceptionShouldNotDependOnOtherLayers() {
             noClasses()
                     .that().resideInAPackage(BASE + ".exception..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage(
                             BASE + ".service..",
-                            BASE + ".config..",
-                            BASE + ".presentation..")
+                            BASE + ".config..")
                     .check(appClasses);
         }
 
@@ -78,36 +76,6 @@ class ArchitectureRulesTest {
     }
 
     @Nested
-    @DisplayName("Presentation Boundaries")
-    class PresentationBoundaries {
-
-        @Test
-        @DisplayName("Presentation should not depend on internal service packages")
-        void presentationShouldNotDependOnServiceInternals() {
-            noClasses()
-                    .that().resideInAPackage(BASE + ".presentation..")
-                    .should().dependOnClassesThat()
-                    .resideInAnyPackage(
-                            BASE + ".service.stt..",
-                            BASE + ".service.audio..",
-                            BASE + ".service.hotkey..",
-                            BASE + ".service.tray..",
-                            BASE + ".service.livecaption..",
-                            BASE + ".service.fallback..")
-                    .check(appClasses);
-        }
-
-        @Test
-        @DisplayName("Controller classes should be annotated with @RestController")
-        void controllersShouldBeRestControllers() {
-            classes()
-                    .that().resideInAPackage(BASE + ".presentation.controller..")
-                    .should().beAnnotatedWith("org.springframework.web.bind.annotation.RestController")
-                    .check(appClasses);
-        }
-    }
-
-    @Nested
     @DisplayName("STT Engine Isolation")
     class SttEngineIsolation {
 
@@ -120,7 +88,6 @@ class ArchitectureRulesTest {
                     .resideInAnyPackage(
                             BASE + ".service.hotkey..",
                             BASE + ".service.fallback..",
-                            BASE + ".presentation..",
                             BASE + ".service.tray..",
                             BASE + ".service.livecaption..")
                     .check(appClasses);
@@ -209,16 +176,6 @@ class ArchitectureRulesTest {
     class ConfigBoundaries {
 
         @Test
-        @DisplayName("Config should not depend on presentation")
-        void configShouldNotDependOnPresentation() {
-            noClasses()
-                    .that().resideInAPackage(BASE + ".config..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage(BASE + ".presentation..")
-                    .check(appClasses);
-        }
-
-        @Test
         @DisplayName("@ConfigurationProperties should reside in config package")
         void configurationPropertiesShouldResideInConfig() {
             classes()
@@ -296,16 +253,13 @@ class ArchitectureRulesTest {
     class LayeredArchitectureRules {
 
         @Test
-        @DisplayName("Layered architecture: Presentation → Service → Domain, Config ↔ Service")
+        @DisplayName("Layered architecture: Service → Domain, Config ↔ Service")
         void layeredArchitectureShouldBeRespected() {
             layeredArchitecture()
                     .consideringOnlyDependenciesInLayers()
-                    .layer("Presentation").definedBy(BASE + ".presentation..")
                     .layer("Service").definedBy(BASE + ".service..")
                     .layer("Domain").definedBy(BASE + ".domain..")
                     .layer("Config").definedBy(BASE + ".config..")
-                    .whereLayer("Presentation").mayNotBeAccessedByAnyLayer()
-                    .whereLayer("Presentation").mayOnlyAccessLayers("Service", "Domain")
                     .whereLayer("Service").mayOnlyAccessLayers("Domain", "Config")
                     .whereLayer("Domain").mayNotAccessAnyLayer()
                     .whereLayer("Config").mayOnlyAccessLayers("Service", "Domain")

@@ -3,6 +3,8 @@ package com.phillippitts.speaktomack.service.reconcile.impl;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.service.reconcile.AbstractReconciler;
 import com.phillippitts.speaktomack.service.stt.EngineResult;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.Set;
  * coverage of the shared vocabulary.
  */
 public final class WordOverlapReconciler extends AbstractReconciler {
+    private static final Logger LOG = LogManager.getLogger(WordOverlapReconciler.class);
     private final double threshold;
 
     /**
@@ -60,6 +63,11 @@ public final class WordOverlapReconciler extends AbstractReconciler {
         } else {
             pick = voskSimilarity >= whisperSimilarity ? vosk : whisper;
         }
+
+        LOG.info("[reconcile] vosk='{}' (sim={}) | whisper='{}' (sim={}) | picked={} (threshold={})",
+                vosk.text(), String.format("%.2f", voskSimilarity),
+                whisper.text(), String.format("%.2f", whisperSimilarity),
+                pick.engineName(), threshold);
 
         return toResult(pick);
     }

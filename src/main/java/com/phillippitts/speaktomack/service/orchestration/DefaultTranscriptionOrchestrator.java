@@ -4,6 +4,7 @@ import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
 import com.phillippitts.speaktomack.exception.TranscriptionException;
 import com.phillippitts.speaktomack.service.audio.AudioDurationCalculator;
+import com.phillippitts.speaktomack.service.audio.AudioSilenceDetector;
 import com.phillippitts.speaktomack.service.orchestration.event.TranscriptionCompletedEvent;
 import com.phillippitts.speaktomack.service.stt.SttEngine;
 import com.phillippitts.speaktomack.util.TimeUtils;
@@ -41,6 +42,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     private static final String ENGINE_RECONCILED = "reconciled";
 
     private final ApplicationEventPublisher publisher;
+    private final int silenceThreshold;
 
     // Reconciliation service (encapsulates parallel, reconciler, recProps)
     private final ReconciliationService reconciliation;
@@ -65,6 +67,7 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
                                             EngineSelectionStrategy engineSelector,
                                             TranscriptionMetricsPublisher metricsPublisher) {
         Objects.requireNonNull(props, "props must not be null");
+        this.silenceThreshold = props.getSilenceThreshold();
         this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
         this.reconciliation = Objects.requireNonNull(reconciliation, "reconciliation must not be null");
         this.engineSelector = Objects.requireNonNull(engineSelector, "engineSelector must not be null");
@@ -74,6 +77,16 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
     @Override
     public void transcribe(byte[] pcm) {
         Objects.requireNonNull(pcm, "pcm must not be null");
+
+        // Skip transcription if audio is effectively silent to avoid STT hallucinations
+        double maxWindowRms = AudioSilenceDetector.calculateMaxWindowRMS(pcm);
+        if (AudioSilenceDetector.isSilentMaxWindow(pcm, silenceThreshold)) {
+            double overallRms = AudioSilenceDetector.calculateOverallRMS(pcm);
+            LOG.info("Audio is silent (maxWindowRms={}, overallRms={}, threshold={}); skipping transcription",
+                    String.format("%.1f", maxWindowRms), String.format("%.1f", overallRms), silenceThreshold);
+            publishResult(TranscriptionResult.of("", 1.0, "silent"), "silent");
+            return;
+        }
 
         // If reconciliation is enabled and services are present, run both engines and reconcile
         if (isReconciliationEnabled()) {
@@ -220,6 +233,8 @@ public class DefaultTranscriptionOrchestrator implements TranscriptionOrchestrat
      * @param engineName name of the engine that produced the result
      */
     private void publishResult(TranscriptionResult result, String engineName) {
+        LOG.info("[transcript] engine={}, confidence={}, text='{}'",
+                engineName, String.format("%.2f", result.confidence()), result.text());
         publisher.publishEvent(new TranscriptionCompletedEvent(result, Instant.now(), engineName));
     }
 }

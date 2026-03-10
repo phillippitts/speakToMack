@@ -93,12 +93,16 @@ public class HotkeyManager implements SmartLifecycle {
 
     private Consumer<NormalizedKeyEvent> dispatcher() {
         return e -> {
+            LOG.debug("Hotkey dispatcher received: type={}, key='{}', modifiers={}",
+                    e.type(), e.key(), e.modifiers());
+
             boolean matched = switch (e.type()) {
                 case PRESSED -> trigger.onKeyPressed(e);
                 case RELEASED -> trigger.onKeyReleased(e);
             };
 
             if (matched) {
+                LOG.info("Hotkey MATCHED: type={}, key='{}', modifiers={}", e.type(), e.key(), e.modifiers());
                 if (e.type() == NormalizedKeyEvent.Type.PRESSED) {
                     publisher.publishEvent(new HotkeyPressedEvent(Instant.now()));
                 } else {

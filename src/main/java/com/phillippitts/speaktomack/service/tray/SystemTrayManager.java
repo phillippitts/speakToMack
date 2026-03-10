@@ -111,17 +111,23 @@ public class SystemTrayManager implements SmartLifecycle {
     }
 
     private void onStartClicked() {
+        LOG.info("Start Recording clicked from system tray menu");
         Thread.ofVirtual().start(() -> {
-            if (!recordingService.startRecording()) {
-                LOG.debug("Start recording rejected (already recording or error)");
+            if (recordingService.startRecording()) {
+                LOG.info("Recording started successfully via tray menu");
+            } else {
+                LOG.warn("Start recording rejected via tray menu (already recording or error)");
             }
         });
     }
 
     private void onStopClicked() {
+        LOG.info("Stop Recording clicked from system tray menu");
         Thread.ofVirtual().start(() -> {
-            if (!recordingService.stopRecording()) {
-                LOG.debug("Stop recording rejected (not recording)");
+            if (recordingService.stopRecording()) {
+                LOG.info("Recording stopped successfully via tray menu");
+            } else {
+                LOG.warn("Stop recording rejected via tray menu (not recording)");
             }
         });
     }

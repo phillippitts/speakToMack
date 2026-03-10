@@ -33,10 +33,23 @@ public class FakeAudioCaptureService implements AudioCaptureService {
     @Override
     public byte[] readAll(UUID id) {
         if (id.equals(sessionId) && sessionStopped) {
-            // Return fake PCM data (16-bit, 16kHz, mono, 1 second = 32000 bytes)
-            return new byte[32000];
+            return generateNonSilentPcm(32000);
         }
         throw new IllegalStateException("Session not stopped or ID mismatch");
+    }
+
+    /**
+     * Generates non-silent PCM16LE data with alternating +10000/−10000 samples.
+     * RMS ≈ 10000, well above the silence-detection threshold (200).
+     */
+    public static byte[] generateNonSilentPcm(int byteCount) {
+        byte[] pcm = new byte[byteCount];
+        for (int i = 0; i + 1 < byteCount; i += 2) {
+            short sample = (i / 2 % 2 == 0) ? (short) 10000 : (short) -10000;
+            pcm[i]     = (byte) (sample & 0xFF);
+            pcm[i + 1] = (byte) ((sample >> 8) & 0xFF);
+        }
+        return pcm;
     }
 
     @Override

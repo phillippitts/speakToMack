@@ -73,18 +73,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
 
         // Act: Full hotkey flow
@@ -120,18 +120,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
 
         // Act
@@ -169,18 +169,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
 
         // Act
@@ -218,18 +218,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.WHISPER, 1000, 200)))
                 .build();
 
         // Act
@@ -266,18 +266,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
 
         // Act
@@ -341,18 +341,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
 
         // Act
@@ -385,18 +385,18 @@ class ReconciliationE2ETest {
                 .voskEngine(vosk)
                 .whisperEngine(whisper)
                 .watchdog(createWatchdog(vosk, whisper, publisher))
-                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000))
+                .orchestrationProperties(new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200))
                 .hotkeyProperties(fakeHotkeyProps())
                 .publisher(publisher)
                 .parallelSttService(parallel)
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(recProps)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper,
                         createWatchdog(vosk, whisper, publisher),
-                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000)))
+                        new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200)))
                 .build();
     }
 

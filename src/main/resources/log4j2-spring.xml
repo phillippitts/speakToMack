@@ -44,6 +44,15 @@
             <AppenderRef ref="AsyncFile"/>
         </Logger>
 
+        <Logger name="com.phillippitts.speaktomack.service.hotkey" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AsyncFile"/>
+        </Logger>
+        <Logger name="com.phillippitts.speaktomack.service.audio.capture" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AsyncFile"/>
+        </Logger>
+
         <Logger name="com.phillippitts.speaktomack.audit" level="info" additivity="false">
             <AppenderRef ref="AuditLog"/>
         </Logger>

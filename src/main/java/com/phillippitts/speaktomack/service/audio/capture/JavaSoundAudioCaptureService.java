@@ -220,17 +220,35 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             byte[] buf = new byte[bytesPerChunk];
             final long hardStopBytes = ((long) props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000L;
             long written = 0;
+            boolean silenceWarningLogged = false;
             while (s.active.get()) {
                 int n = line.read(buf, 0, buf.length);
                 if (n <= 0) {
                     continue;
                 }
+                // Compute signal level for diagnostics
+                long sum = 0;
+                boolean allZero = true;
+                for (int i = 0; i < n; i++) {
+                    if (buf[i] != 0) {
+                        allZero = false;
+                    }
+                    sum += Math.abs(buf[i]);
+                }
+                double avgLevel = (double) sum / n;
+                if (allZero && !silenceWarningLogged) {
+                    LOG.warn("Audio capture: mic returning ALL ZEROS — macOS may be blocking "
+                            + "microphone access for this process");
+                    silenceWarningLogged = true;
+                }
+
                 s.buffer.write(buf, 0, n);
                 byte[] chunk = new byte[n];
                 System.arraycopy(buf, 0, chunk, 0, n);
                 publisher.publishEvent(new PcmChunkCapturedEvent(chunk, n, s.id));
                 written += n;
-                LOG.debug("Audio capture: read {} bytes, total written {} bytes", n, written);
+                LOG.debug("Audio capture: read {} bytes, total written {} bytes, avgLevel={}", n, written,
+                        String.format("%.1f", avgLevel));
                 if (written >= hardStopBytes) {
                     LOG.info("Max capture duration reached ({} ms)", props.getMaxDurationMs());
                     s.active.set(false);

@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
+import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
 import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
 import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.properties.ReconciliationProperties;
@@ -33,12 +34,12 @@ class HotkeyRecordingAdapterReconciledTest {
     void shouldPublishReconciledEventWhenEnabled() {
         // Arrange
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
@@ -69,7 +70,7 @@ class HotkeyRecordingAdapterReconciledTest {
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(rprops)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .build();
@@ -89,12 +90,12 @@ class HotkeyRecordingAdapterReconciledTest {
     @Test
     void shouldHandlePartialPair() {
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE, 0.6, 0.7);
@@ -126,7 +127,7 @@ class HotkeyRecordingAdapterReconciledTest {
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(rprops)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .build();
@@ -144,7 +145,7 @@ class HotkeyRecordingAdapterReconciledTest {
     void shouldTriggerSmartReconciliationWhenVoskConfidenceBelowThreshold() {
         // Arrange
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
 
         // Vosk returns low confidence (0.5 < threshold 0.6)
         SttEngine vosk = createLowConfidenceVoskEngine();
@@ -199,7 +200,7 @@ class HotkeyRecordingAdapterReconciledTest {
             int[] parallelCallCount, List<Object> events) {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props =
-                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+                new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         ReconciliationProperties rprops =
                 new ReconciliationProperties(true,
                         ReconciliationProperties.Strategy.SIMPLE,
@@ -234,7 +235,7 @@ class HotkeyRecordingAdapterReconciledTest {
                 .transcriptReconciler(reconciler)
                 .reconciliationProperties(rprops)
                 .metricsPublisher(
-                        new com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher(null))
+                        com.phillippitts.speaktomack.service.orchestration.TranscriptionMetricsPublisher.NOOP)
                 .captureStateMachine(new CaptureStateMachine())
                 .engineSelector(new EngineSelectionStrategy(vosk, whisper, wd, props))
                 .build();

@@ -45,6 +45,109 @@ public final class AudioSilenceDetector {
     private static final int DEFAULT_WINDOW_MS = 20;
 
     /**
+     * Checks if the entire PCM audio buffer is effectively silent.
+     *
+     * <p>Computes the RMS amplitude across the full buffer and compares against
+     * the default silence threshold. Use this to skip transcription of silence
+     * and avoid STT engine hallucinations (e.g., Vosk producing "the" from zeros).
+     *
+     * @param pcmData PCM16LE mono audio buffer (16-bit signed little-endian)
+     * @return {@code true} if the audio is below the silence threshold
+     */
+    public static boolean isSilent(byte[] pcmData) {
+        return isSilent(pcmData, DEFAULT_SILENCE_THRESHOLD);
+    }
+
+    /**
+     * Checks if the entire PCM audio buffer is effectively silent using a custom threshold.
+     *
+     * @param pcmData PCM16LE mono audio buffer (16-bit signed little-endian)
+     * @param silenceThreshold RMS amplitude threshold (0-32767 for 16-bit PCM)
+     * @return {@code true} if the audio is below the silence threshold
+     */
+    public static boolean isSilent(byte[] pcmData, int silenceThreshold) {
+        if (pcmData == null || pcmData.length < 2) {
+            return true;
+        }
+        double rms = calculateRMS(pcmData, 0, pcmData.length);
+        return rms < silenceThreshold;
+    }
+
+    /**
+     * Returns the overall RMS amplitude of the audio buffer for diagnostic logging.
+     *
+     * @param pcmData PCM16LE mono audio buffer
+     * @return RMS amplitude, or 0 if input is null/empty
+     */
+    public static double calculateOverallRMS(byte[] pcmData) {
+        if (pcmData == null || pcmData.length < 2) {
+            return 0;
+        }
+        return calculateRMS(pcmData, 0, pcmData.length);
+    }
+
+    /**
+     * Returns the highest RMS amplitude found in any non-overlapping 20ms window of the buffer.
+     *
+     * <p>Unlike {@link #calculateOverallRMS(byte[])}, which averages energy across the entire
+     * buffer (diluting speech energy with leading/trailing silence), this method detects
+     * speech even when it occupies a small fraction of the recording.
+     *
+     * <p>Falls back to full-buffer RMS for buffers smaller than one 20ms window.
+     *
+     * @param pcmData PCM16LE mono audio buffer
+     * @return maximum window RMS amplitude, or 0 if input is null/empty
+     */
+    public static double calculateMaxWindowRMS(byte[] pcmData) {
+        if (pcmData == null || pcmData.length < 2) {
+            return 0;
+        }
+
+        int windowBytes = (AudioFormat.REQUIRED_SAMPLE_RATE * DEFAULT_WINDOW_MS / 1000) * 2;
+
+        // Fallback for buffers smaller than one window
+        if (pcmData.length < windowBytes) {
+            return calculateRMS(pcmData, 0, pcmData.length);
+        }
+
+        double maxRms = 0;
+        int pos = 0;
+        while (pos + windowBytes <= pcmData.length) {
+            double rms = calculateRMS(pcmData, pos, windowBytes);
+            if (rms > maxRms) {
+                maxRms = rms;
+            }
+            pos += windowBytes;
+        }
+        return maxRms;
+    }
+
+    /**
+     * Checks if the audio buffer is effectively silent using max-window RMS analysis.
+     *
+     * <p>Returns {@code true} only if <em>every</em> 20ms window in the buffer has RMS below
+     * the threshold. This avoids false-positive silence detection when speech is surrounded
+     * by silence (e.g., short utterance in a long recording).
+     *
+     * @param pcmData PCM16LE mono audio buffer
+     * @param silenceThreshold RMS amplitude threshold (0-32767 for 16-bit PCM)
+     * @return {@code true} if the audio is below the silence threshold in all windows
+     */
+    public static boolean isSilentMaxWindow(byte[] pcmData, int silenceThreshold) {
+        if (pcmData == null || pcmData.length < 2) {
+            return true;
+        }
+        return calculateMaxWindowRMS(pcmData) < silenceThreshold;
+    }
+
+    /**
+     * Returns the default silence threshold for diagnostic logging.
+     */
+    public static int getDefaultSilenceThreshold() {
+        return DEFAULT_SILENCE_THRESHOLD;
+    }
+
+    /**
      * Detects silence regions in PCM audio and returns their byte positions.
      *
      * <p>Analyzes the audio buffer using RMS amplitude in sliding windows to identify

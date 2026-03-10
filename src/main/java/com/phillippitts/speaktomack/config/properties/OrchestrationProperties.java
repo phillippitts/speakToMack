@@ -22,7 +22,14 @@ public record OrchestrationProperties(
         // Set to 0 to disable automatic paragraph breaks.
         @DefaultValue("1000")
         @Min(0)
-        int silenceGapMs
+        int silenceGapMs,
+
+        // RMS amplitude threshold for silence detection (0-32767 for 16-bit PCM).
+        // Audio with max 20ms window RMS below this value is considered silent and skipped.
+        // Lower = more sensitive (captures quieter speech). Default: 200.
+        @DefaultValue("200")
+        @Min(0)
+        int silenceThreshold
 ) {
 
     public enum PrimaryEngine { VOSK, WHISPER }
@@ -33,5 +40,9 @@ public record OrchestrationProperties(
 
     public int getSilenceGapMs() {
         return silenceGapMs;
+    }
+
+    public int getSilenceThreshold() {
+        return silenceThreshold;
     }
 }

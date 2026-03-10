@@ -1,6 +1,7 @@
 package com.phillippitts.speaktomack.service.orchestration;
 
 import com.phillippitts.speaktomack.config.properties.HotkeyProperties;
+import com.phillippitts.speaktomack.testutil.FakeAudioCaptureService;
 import com.phillippitts.speaktomack.config.hotkey.TriggerType;
 import com.phillippitts.speaktomack.config.properties.OrchestrationProperties;
 import com.phillippitts.speaktomack.domain.TranscriptionResult;
@@ -27,11 +28,11 @@ class HotkeyRecordingAdapterTest {
     void usesPrimaryWhenHealthy() {
         // Arrange
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200]; // 100ms of PCM
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200); // 100ms of PCM
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -63,11 +64,11 @@ class HotkeyRecordingAdapterTest {
     @Test
     void fallsBackWhenPrimaryDisabled() {
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, true); // vosk disabled, whisper enabled
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -95,11 +96,11 @@ class HotkeyRecordingAdapterTest {
     @Test
     void publishesEmptyResultWhenBothDisabled() {
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(false, false);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
@@ -128,11 +129,11 @@ class HotkeyRecordingAdapterTest {
     @Test
     void handlesCaptureError() {
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         ApplicationEventPublisher pub = e -> { };
         HotkeyRecordingAdapter adapter = HotkeyRecordingAdapterBuilder.builder()
                 .captureService(cap)
@@ -159,11 +160,11 @@ class HotkeyRecordingAdapterTest {
     void shouldHandleRapidTogglePresses() {
         // Test that rapid hotkey presses don't create race conditions
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
-        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000);
+        OrchestrationProperties props = new OrchestrationProperties(OrchestrationProperties.PrimaryEngine.VOSK, 1000, 200);
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
         CaptureStateMachine csm = new CaptureStateMachine();
@@ -206,13 +207,14 @@ class HotkeyRecordingAdapterTest {
     void shouldPrependParagraphBreakAfterSilenceGap() throws InterruptedException {
         // Arrange
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = new StubEngine("vosk");
         SttEngine whisper = new StubEngine("whisper");
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(
                 OrchestrationProperties.PrimaryEngine.VOSK,
-                100 // 100ms silence gap threshold
+                100, // 100ms silence gap threshold
+                200
         );
         List<Object> events = new ArrayList<>();
         ApplicationEventPublisher pub = events::add;
@@ -258,7 +260,7 @@ class HotkeyRecordingAdapterTest {
     void shouldNotAddDoubleNewlineWhenTextAlreadyStartsWithNewline() throws InterruptedException {
         // Arrange
         FakeCapture cap = new FakeCapture();
-        cap.pcm = new byte[3200];
+        cap.pcm = FakeAudioCaptureService.generateNonSilentPcm(3200);
         SttEngine vosk = createVoskEngineWithNewlinePrefix();
         List<Object> events = new ArrayList<>();
 
@@ -312,7 +314,8 @@ class HotkeyRecordingAdapterTest {
         FakeWatchdog wd = new FakeWatchdog(true, true);
         OrchestrationProperties props = new OrchestrationProperties(
                 OrchestrationProperties.PrimaryEngine.VOSK,
-                100
+                100,
+                200
         );
         ApplicationEventPublisher pub = events::add;
 

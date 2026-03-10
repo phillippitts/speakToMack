@@ -179,6 +179,9 @@ public class DefaultParallelSttService implements ParallelSttService {
             }
 
             long elapsedMs = TimeUtils.elapsedMillis(startTime);
+            LOG.info("[engine-result] engine={}, confidence={}, chars={}, text='{}'",
+                    engine.getEngineName(), String.format("%.2f", tr.confidence()),
+                    tr.text().length(), tr.text());
             return new EngineResult(tr.text(), tr.confidence(), tokens, elapsedMs, engine.getEngineName(), rawJson);
         } catch (TranscriptionException te) {
             LOG.warn("{} failed: {}", engine.getEngineName(), te.getMessage());

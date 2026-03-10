@@ -97,6 +97,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     // NativeKeyListener callbacks
     @Override
     public void nativeKeyPressed(NativeKeyEvent nativeEvent) {
+        LOG.debug("nativeKeyPressed: keyCode={}, keyText='{}', modifiers=0x{}, rawCode={}",
+                nativeEvent.getKeyCode(), NativeKeyEvent.getKeyText(nativeEvent.getKeyCode()),
+                Integer.toHexString(nativeEvent.getModifiers()), nativeEvent.getRawCode());
         boolean modifierHandled = checkModifierChanges(nativeEvent);
         // Skip emit for modifier keys already handled by checkModifierChanges to avoid duplicates
         if (!modifierHandled) {
@@ -106,6 +109,9 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
 
     @Override
     public void nativeKeyReleased(NativeKeyEvent nativeEvent) {
+        LOG.debug("nativeKeyReleased: keyCode={}, keyText='{}', modifiers=0x{}, rawCode={}",
+                nativeEvent.getKeyCode(), NativeKeyEvent.getKeyText(nativeEvent.getKeyCode()),
+                Integer.toHexString(nativeEvent.getModifiers()), nativeEvent.getRawCode());
         boolean modifierHandled = checkModifierChanges(nativeEvent);
         if (!modifierHandled) {
             emit(nativeEvent, NormalizedKeyEvent.Type.RELEASED);
@@ -131,6 +137,7 @@ public class JNativeHookGlobalKeyHook implements GlobalKeyHook, NativeKeyListene
     private void emit(NativeKeyEvent ne, NormalizedKeyEvent.Type type) {
         Consumer<NormalizedKeyEvent> listener = this.listener;
         if (listener == null) {
+            LOG.debug("emit: no listener registered, dropping event");
             return;
         }
         String keyText = NativeKeyEvent.getKeyText(ne.getKeyCode());

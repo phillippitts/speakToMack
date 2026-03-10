@@ -132,6 +132,112 @@ class AudioSilenceDetectorTest {
         assertThat(withLow).isEmpty();
     }
 
+    // --- Max-window RMS: Guard clauses ---
+
+    @Test
+    void maxWindowRms_shouldReturnZeroForNull() {
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(null)).isEqualTo(0);
+    }
+
+    @Test
+    void maxWindowRms_shouldReturnZeroForEmpty() {
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(new byte[0])).isEqualTo(0);
+    }
+
+    @Test
+    void maxWindowRms_shouldReturnZeroForSingleByte() {
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(new byte[1])).isEqualTo(0);
+    }
+
+    @Test
+    void isSilentMaxWindow_shouldReturnTrueForNull() {
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(null, 200)).isTrue();
+    }
+
+    @Test
+    void isSilentMaxWindow_shouldReturnTrueForEmpty() {
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(new byte[0], 200)).isTrue();
+    }
+
+    @Test
+    void isSilentMaxWindow_shouldReturnTrueForSingleByte() {
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(new byte[1], 200)).isTrue();
+    }
+
+    // --- Max-window RMS: Core detection ---
+
+    @Test
+    void maxWindowRms_shouldBeZeroForPureSilence() {
+        byte[] pcm = generateSilence(durationToSamples(500));
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(pcm)).isEqualTo(0);
+    }
+
+    @Test
+    void maxWindowRms_shouldBeHighForPureLoudAudio() {
+        byte[] pcm = generateLoud(durationToSamples(500));
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(pcm)).isGreaterThan(9000);
+    }
+
+    @Test
+    void maxWindowRms_shouldDetectSpeechSurroundedBySilence() {
+        // Core regression test: 800ms silence + 200ms moderate speech + 800ms silence
+        // Moderate speech (amplitude ~500) has per-window RMS ~500, well above threshold 200.
+        // But overall-buffer RMS is diluted by surrounding silence to ~167, below threshold 200.
+        // isSilentMaxWindow should return false (speech detected)
+        // isSilent (overall) would return true (speech diluted by silence)
+        byte[] silence1 = generateSilence(durationToSamples(800));
+        byte[] speech = generateModerate(durationToSamples(200));
+        byte[] silence2 = generateSilence(durationToSamples(800));
+        byte[] pcm = concat(silence1, speech, silence2);
+
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 200)).isFalse();
+        // Overall RMS is diluted — verify the old method would miss it
+        assertThat(AudioSilenceDetector.isSilent(pcm, 200)).isTrue();
+    }
+
+    @Test
+    void maxWindowRms_shouldDetectSpeechInLongRecordingWithDilution() {
+        // 2s silence + 0.5s moderate speech + 2s silence
+        // Max-window detects speech, overall RMS does not
+        byte[] silence1 = generateSilence(durationToSamples(2000));
+        byte[] speech = generateModerate(durationToSamples(500));
+        byte[] silence2 = generateSilence(durationToSamples(2000));
+        byte[] pcm = concat(silence1, speech, silence2);
+
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 200)).isFalse();
+        assertThat(AudioSilenceDetector.calculateMaxWindowRMS(pcm)).isGreaterThan(200);
+        // Overall RMS is heavily diluted
+        assertThat(AudioSilenceDetector.calculateOverallRMS(pcm)).isLessThan(200);
+    }
+
+    @Test
+    void isSilentMaxWindow_shouldRespectCustomThreshold() {
+        // Moderate audio (RMS ~500): not silent at threshold 200, silent at threshold 800
+        byte[] pcm = generateModerate(durationToSamples(500));
+
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 200)).isFalse();
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 800)).isTrue();
+    }
+
+    @Test
+    void maxWindowRms_shouldHandleBufferSmallerThanOneWindow() {
+        // Buffer smaller than 20ms (320 samples = 640 bytes) → graceful fallback to full-buffer RMS
+        int samplesFor10ms = durationToSamples(10); // 160 samples = 320 bytes
+        byte[] pcm = generateLoud(samplesFor10ms);
+
+        // Should not throw and should return a reasonable value
+        double maxRms = AudioSilenceDetector.calculateMaxWindowRMS(pcm);
+        assertThat(maxRms).isGreaterThan(0);
+        // Fallback should equal overall RMS
+        assertThat(maxRms).isEqualTo(AudioSilenceDetector.calculateOverallRMS(pcm));
+    }
+
+    @Test
+    void isSilentMaxWindow_shouldReturnTrueForPureSilence() {
+        byte[] pcm = generateSilence(durationToSamples(1000));
+        assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 200)).isTrue();
+    }
+
     // --- Helpers ---
 
     /** Converts duration in ms to number of 16-bit samples at SAMPLE_RATE. */
