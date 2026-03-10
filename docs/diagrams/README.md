@@ -1,6 +1,6 @@
 # Architecture Diagrams Index
 
-This directory contains comprehensive visual documentation for the speakToMack project, organized by audience.
+This directory contains comprehensive visual documentation for the blckvox project, organized by audience.
 
 ## For Developers
 

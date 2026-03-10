@@ -22,7 +22,7 @@ Use **Log4j 2** instead of Logback.
 - Separate appenders: Console, AsyncFile, AuditLog (synchronous)
 
 ```xml
-<Logger name="com.phillippitts.speaktomack.audit" level="info" additivity="false">
+<Logger name="com.phillippitts.blckvox.audit" level="info" additivity="false">
     <AppenderRef ref="AuditLog"/>  <!-- NEVER async -->
 </Logger>
 ```

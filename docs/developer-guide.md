@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide helps contributors understand the architecture, patterns, testing strategy, and contribution flow for speakToMack.
+This guide helps contributors understand the architecture, patterns, testing strategy, and contribution flow for blckvox.
 
 ## Architecture Overview
 - 2‑tier layering: Presentation → Service (no reverse deps; Data layer planned for Phase 6)

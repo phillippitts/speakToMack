@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide is for operators deploying speakToMack in production environments.
+This guide is for operators deploying blckvox in production environments.
 
 ## Table of Contents
 1. [Pre-Deployment Checklist](#pre-deployment-checklist)
@@ -45,10 +45,10 @@ Before deploying to production, verify:
 Set these environment variables before starting the application:
 
 ```bash
-export VOSK_MODEL_PATH=/opt/speaktomack/models/vosk-model-en-us-0.22
-export WHISPER_MODEL_PATH=/opt/speaktomack/models/ggml-base.en.bin
-export WHISPER_BINARY_PATH=/opt/speaktomack/bin/whisper
-export SPEAKTOMACK_LOG_PATH=/var/log/speaktomack
+export VOSK_MODEL_PATH=/opt/blckvox/models/vosk-model-en-us-0.22
+export WHISPER_MODEL_PATH=/opt/blckvox/models/ggml-base.en.bin
+export WHISPER_BINARY_PATH=/opt/blckvox/bin/whisper
+export BLCKVOX_LOG_PATH=/var/log/blckvox
 export SPRING_PROFILES_ACTIVE=production
 ```
 
@@ -58,21 +58,21 @@ Update `application.properties` to read from env vars:
 stt.vosk.model-path=${VOSK_MODEL_PATH:models/vosk-model-en-us-0.22}
 stt.whisper.model-path=${WHISPER_MODEL_PATH:models/ggml-base.en.bin}
 stt.whisper.binary-path=${WHISPER_BINARY_PATH:tools/whisper.cpp/main}
-logging.file.path=${SPEAKTOMACK_LOG_PATH:/var/log/speaktomack}
+logging.file.path=${BLCKVOX_LOG_PATH:/var/log/blckvox}
 ```
 
 #### Option 2: External Properties File
 
-Create `/etc/speaktomack/application-production.properties`:
+Create `/etc/blckvox/application-production.properties`:
 
 ```properties
 # Model paths (absolute)
-stt.vosk.model-path=/opt/speaktomack/models/vosk-model-en-us-0.22
-stt.whisper.model-path=/opt/speaktomack/models/ggml-base.en.bin
-stt.whisper.binary-path=/opt/speaktomack/bin/whisper
+stt.vosk.model-path=/opt/blckvox/models/vosk-model-en-us-0.22
+stt.whisper.model-path=/opt/blckvox/models/ggml-base.en.bin
+stt.whisper.binary-path=/opt/blckvox/bin/whisper
 
 # Logging (production location)
-logging.file.path=/var/log/speaktomack
+logging.file.path=/var/log/blckvox
 
 # Server configuration
 server.port=8080
@@ -97,9 +97,9 @@ stt.watchdog.cooldown-minutes=10
 
 Launch with:
 ```bash
-java -jar speakToMack.jar \
+java -jar blckvox.jar \
   -Dspring.profiles.active=production \
-  --spring.config.additional-location=/etc/speaktomack/application-production.properties
+  --spring.config.additional-location=/etc/blckvox/application-production.properties
 ```
 
 ### Production Profile Settings
@@ -123,13 +123,13 @@ management.endpoint.health.show-details=never
 
 **Critical Issue**: Default `log4j2-spring.xml` uses **DEBUG level** which will flood production logs.
 
-**Fix Required**: Create `log4j2-production.xml` in `/etc/speaktomack/`:
+**Fix Required**: Create `log4j2-production.xml` in `/etc/blckvox/`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN" monitorInterval="30">
     <Properties>
-        <Property name="APP_NAME">speakToMack</Property>
+        <Property name="APP_NAME">blckvox</Property>
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{requestId}] %-5level %logger{36} - %msg%n
         </Property>
@@ -141,8 +141,8 @@ management.endpoint.health.show-details=never
         </Console>
 
         <RollingFile name="RollingFile"
-                     fileName="/var/log/speaktomack/speakToMack.log"
-                     filePattern="/var/log/speaktomack/speakToMack-%d{yyyy-MM-dd}-%i.log.gz">
+                     fileName="/var/log/blckvox/blckvox.log"
+                     filePattern="/var/log/blckvox/blckvox-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
@@ -158,7 +158,7 @@ management.endpoint.health.show-details=never
 
     <Loggers>
         <!-- PRODUCTION: Use INFO level (not DEBUG) -->
-        <Logger name="com.phillippitts.speaktomack" level="info" additivity="false">
+        <Logger name="com.phillippitts.blckvox" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
@@ -176,8 +176,8 @@ management.endpoint.health.show-details=never
 
 Launch with:
 ```bash
-java -jar speakToMack.jar \
-  -Dlogging.config=/etc/speaktomack/log4j2-production.xml \
+java -jar blckvox.jar \
+  -Dlogging.config=/etc/blckvox/log4j2-production.xml \
   -Dspring.profiles.active=production
 ```
 
@@ -187,111 +187,111 @@ java -jar speakToMack.jar \
 
 ### Option 1: systemd Service (Linux)
 
-**File**: `/etc/systemd/system/speaktomack.service`
+**File**: `/etc/systemd/system/blckvox.service`
 
-See [deployment/systemd/speaktomack.service](deployment/systemd/speaktomack.service) for complete configuration.
+See [deployment/systemd/blckvox.service](deployment/systemd/blckvox.service) for complete configuration.
 
 Quick setup:
 ```bash
 # Create deployment directory
-sudo mkdir -p /opt/speaktomack/{models,bin,logs}
+sudo mkdir -p /opt/blckvox/{models,bin,logs}
 
 # Copy JAR
-sudo cp build/libs/speakToMack-0.0.1-SNAPSHOT.jar /opt/speaktomack/speaktomack.jar
+sudo cp build/libs/blckvox-0.0.1-SNAPSHOT.jar /opt/blckvox/blckvox.jar
 
 # Copy models
-sudo cp -r models/* /opt/speaktomack/models/
+sudo cp -r models/* /opt/blckvox/models/
 
 # Copy Whisper binary
-sudo cp tools/whisper.cpp/main /opt/speaktomack/bin/whisper
-sudo chmod +x /opt/speaktomack/bin/whisper
+sudo cp tools/whisper.cpp/main /opt/blckvox/bin/whisper
+sudo chmod +x /opt/blckvox/bin/whisper
 
-# Create speaktomack user
-sudo useradd -r -s /bin/false speaktomack
+# Create blckvox user
+sudo useradd -r -s /bin/false blckvox
 
 # Set permissions
-sudo chown -R speaktomack:speaktomack /opt/speaktomack
-sudo mkdir -p /var/log/speaktomack
-sudo chown speaktomack:speaktomack /var/log/speaktomack
+sudo chown -R blckvox:blckvox /opt/blckvox
+sudo mkdir -p /var/log/blckvox
+sudo chown blckvox:blckvox /var/log/blckvox
 
 # Copy service file
-sudo cp deployment/systemd/speaktomack.service /etc/systemd/system/
+sudo cp deployment/systemd/blckvox.service /etc/systemd/system/
 
 # Reload systemd
 sudo systemctl daemon-reload
 
 # Enable and start
-sudo systemctl enable speaktomack
-sudo systemctl start speaktomack
+sudo systemctl enable blckvox
+sudo systemctl start blckvox
 
 # Check status
-sudo systemctl status speaktomack
+sudo systemctl status blckvox
 ```
 
 **Service management**:
 ```bash
 # Start
-sudo systemctl start speaktomack
+sudo systemctl start blckvox
 
 # Stop
-sudo systemctl stop speaktomack
+sudo systemctl stop blckvox
 
 # Restart
-sudo systemctl restart speaktomack
+sudo systemctl restart blckvox
 
 # View logs
-sudo journalctl -u speaktomack -f
+sudo journalctl -u blckvox -f
 
 # View last 100 lines
-sudo journalctl -u speaktomack -n 100
+sudo journalctl -u blckvox -n 100
 ```
 
 ### Option 2: macOS LaunchDaemon (System-Wide)
 
-**File**: `/Library/LaunchDaemons/com.phillippitts.speaktomack.plist`
+**File**: `/Library/LaunchDaemons/com.phillippitts.blckvox.plist`
 
-See [deployment/macos/com.phillippitts.speaktomack.plist](deployment/macos/com.phillippitts.speaktomack.plist) for complete configuration.
+See [deployment/macos/com.phillippitts.blckvox.plist](deployment/macos/com.phillippitts.blckvox.plist) for complete configuration.
 
 Quick setup:
 ```bash
 # Create deployment directory
-sudo mkdir -p /opt/speaktomack/{models,bin,logs}
+sudo mkdir -p /opt/blckvox/{models,bin,logs}
 
 # Copy files (same as Linux)
-sudo cp build/libs/speakToMack-0.0.1-SNAPSHOT.jar /opt/speaktomack/speaktomack.jar
-sudo cp -r models/* /opt/speaktomack/models/
-sudo cp tools/whisper.cpp/main /opt/speaktomack/bin/whisper
-sudo chmod +x /opt/speaktomack/bin/whisper
+sudo cp build/libs/blckvox-0.0.1-SNAPSHOT.jar /opt/blckvox/blckvox.jar
+sudo cp -r models/* /opt/blckvox/models/
+sudo cp tools/whisper.cpp/main /opt/blckvox/bin/whisper
+sudo chmod +x /opt/blckvox/bin/whisper
 
 # Clear quarantine
-sudo xattr -dr com.apple.quarantine /opt/speaktomack/bin/whisper
+sudo xattr -dr com.apple.quarantine /opt/blckvox/bin/whisper
 
 # Copy LaunchDaemon
-sudo cp deployment/macos/com.phillippitts.speaktomack.plist /Library/LaunchDaemons/
+sudo cp deployment/macos/com.phillippitts.blckvox.plist /Library/LaunchDaemons/
 
 # Load service
-sudo launchctl load /Library/LaunchDaemons/com.phillippitts.speaktomack.plist
+sudo launchctl load /Library/LaunchDaemons/com.phillippitts.blckvox.plist
 
 # Check if running
-ps aux | grep speaktomack
+ps aux | grep blckvox
 ```
 
 **Service management**:
 ```bash
 # Start
-sudo launchctl start com.phillippitts.speaktomack
+sudo launchctl start com.phillippitts.blckvox
 
 # Stop
-sudo launchctl stop com.phillippitts.speaktomack
+sudo launchctl stop com.phillippitts.blckvox
 
 # Unload (disable)
-sudo launchctl unload /Library/LaunchDaemons/com.phillippitts.speaktomack.plist
+sudo launchctl unload /Library/LaunchDaemons/com.phillippitts.blckvox.plist
 
 # Reload (enable)
-sudo launchctl load /Library/LaunchDaemons/com.phillippitts.speaktomack.plist
+sudo launchctl load /Library/LaunchDaemons/com.phillippitts.blckvox.plist
 
 # View logs
-tail -f /var/log/speaktomack/speakToMack.log
+tail -f /var/log/blckvox/blckvox.log
 ```
 
 ### Option 3: Docker Container (Future)
@@ -323,9 +323,9 @@ Recommendation: Use native systemd/LaunchDaemon for now.
       "status": "UP",
       "details": {
         "status": "All models and binaries accessible",
-        "voskModel": "accessible at /opt/speaktomack/models/vosk-model-en-us-0.22",
-        "whisperModel": "accessible at /opt/speaktomack/models/ggml-base.en.bin",
-        "whisperBinary": "accessible and executable at /opt/speaktomack/bin/whisper"
+        "voskModel": "accessible at /opt/blckvox/models/vosk-model-en-us-0.22",
+        "whisperModel": "accessible at /opt/blckvox/models/ggml-base.en.bin",
+        "whisperBinary": "accessible and executable at /opt/blckvox/bin/whisper"
       }
     },
     "sttEngines": {
@@ -365,19 +365,19 @@ Recommendation: Use native systemd/LaunchDaemon for now.
 
 ```
 # Transcription latency (milliseconds)
-speaktomack_transcription_latency_seconds{engine="vosk",quantile="0.95"}
-speaktomack_transcription_latency_seconds{engine="whisper",quantile="0.95"}
+blckvox_transcription_latency_seconds{engine="vosk",quantile="0.95"}
+blckvox_transcription_latency_seconds{engine="whisper",quantile="0.95"}
 
 # Success rate
-speaktomack_transcription_success_total{engine="vosk"}
-speaktomack_transcription_success_total{engine="whisper"}
+blckvox_transcription_success_total{engine="vosk"}
+blckvox_transcription_success_total{engine="whisper"}
 
 # Failure rate
-speaktomack_transcription_failure_total{engine="vosk",reason="timeout"}
-speaktomack_transcription_failure_total{engine="whisper",reason="transcription_error"}
+blckvox_transcription_failure_total{engine="vosk",reason="timeout"}
+blckvox_transcription_failure_total{engine="whisper",reason="transcription_error"}
 
 # Reconciliation
-speaktomack_transcription_reconciliation_total{strategy="SIMPLE",selected="vosk"}
+blckvox_transcription_reconciliation_total{strategy="SIMPLE",selected="vosk"}
 
 # System metrics
 process_cpu_usage
@@ -390,7 +390,7 @@ Add to `prometheus.yml`:
 
 ```yaml
 scrape_configs:
-  - job_name: 'speaktomack'
+  - job_name: 'blckvox'
     static_configs:
       - targets: ['localhost:8080']
     metrics_path: '/actuator/prometheus'
@@ -401,24 +401,24 @@ scrape_configs:
 
 ```yaml
 groups:
-  - name: speaktomack
+  - name: blckvox
     rules:
       # Alert if both engines down
-      - alert: SpeakToMackDown
-        expr: up{job="speaktomack"} == 0
+      - alert: BlckvoxDown
+        expr: up{job="blckvox"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "speakToMack is down"
+          summary: "blckvox is down"
 
       # Alert if failure rate > 10%
       - alert: HighTranscriptionFailureRate
         expr: |
           (
-            rate(speaktomack_transcription_failure_total[5m])
+            rate(blckvox_transcription_failure_total[5m])
             /
-            rate(speaktomack_transcription_success_total[5m] + speaktomack_transcription_failure_total[5m])
+            rate(blckvox_transcription_success_total[5m] + blckvox_transcription_failure_total[5m])
           ) > 0.1
         for: 5m
         labels:
@@ -429,7 +429,7 @@ groups:
       # Alert if p95 latency > 3 seconds
       - alert: HighTranscriptionLatency
         expr: |
-          speaktomack_transcription_latency_seconds{quantile="0.95"} > 3
+          blckvox_transcription_latency_seconds{quantile="0.95"} > 3
         for: 5m
         labels:
           severity: warning
@@ -439,7 +439,7 @@ groups:
       # Alert if watchdog cooldown triggered
       - alert: EngineInCooldown
         expr: |
-          increase(speaktomack_transcription_failure_total{reason="watchdog_cooldown"}[10m]) > 0
+          increase(blckvox_transcription_failure_total{reason="watchdog_cooldown"}[10m]) > 0
         labels:
           severity: warning
         annotations:
@@ -456,10 +456,10 @@ Default locations based on deployment method:
 
 | Deployment Method | Log Location |
 |-------------------|--------------|
-| systemd | `/var/log/speaktomack/speakToMack.log` |
-| macOS LaunchDaemon | `/var/log/speaktomack/speakToMack.log` |
+| systemd | `/var/log/blckvox/blckvox.log` |
+| macOS LaunchDaemon | `/var/log/blckvox/blckvox.log` |
 | Docker | stdout (captured by Docker) |
-| Manual | `./logs/speakToMack.log` (relative to working directory) |
+| Manual | `./logs/blckvox.log` (relative to working directory) |
 
 ### Log Rotation
 
@@ -470,20 +470,20 @@ Default locations based on deployment method:
 
 **System log rotation** (Linux):
 
-Create `/etc/logrotate.d/speaktomack`:
+Create `/etc/logrotate.d/blckvox`:
 
 ```
-/var/log/speaktomack/*.log {
+/var/log/blckvox/*.log {
     daily
     rotate 30
     compress
     delaycompress
     missingok
     notifempty
-    create 0644 speaktomack speaktomack
+    create 0644 blckvox blckvox
     sharedscripts
     postrotate
-        systemctl reload speaktomack > /dev/null 2>&1 || true
+        systemctl reload blckvox > /dev/null 2>&1 || true
     endscript
 }
 ```
@@ -506,19 +506,19 @@ Production logging (`INFO` level) includes:
 
 ```bash
 # Tail live logs
-sudo tail -f /var/log/speaktomack/speakToMack.log
+sudo tail -f /var/log/blckvox/blckvox.log
 
 # Search for errors
-sudo grep ERROR /var/log/speaktomack/speakToMack.log
+sudo grep ERROR /var/log/blckvox/blckvox.log
 
 # Search for watchdog events
-sudo grep "watchdog" /var/log/speaktomack/speakToMack.log
+sudo grep "watchdog" /var/log/blckvox/blckvox.log
 
 # Search for specific engine failures
-sudo grep "engine=whisper" /var/log/speaktomack/speakToMack.log | grep FAIL
+sudo grep "engine=whisper" /var/log/blckvox/blckvox.log | grep FAIL
 
 # View systemd journal (if using systemd)
-sudo journalctl -u speaktomack -f --since "1 hour ago"
+sudo journalctl -u blckvox -f --since "1 hour ago"
 ```
 
 ---
@@ -530,25 +530,25 @@ sudo journalctl -u speaktomack -f --since "1 hour ago"
 1. **Run as dedicated user** (not root):
 ```bash
 # Linux
-sudo useradd -r -s /bin/false speaktomack
+sudo useradd -r -s /bin/false blckvox
 
-# macOS (service runs as _speaktomack)
-sudo dscl . -create /Users/_speaktomack
-sudo dscl . -create /Users/_speaktomack UserShell /usr/bin/false
+# macOS (service runs as _blckvox)
+sudo dscl . -create /Users/_blckvox
+sudo dscl . -create /Users/_blckvox UserShell /usr/bin/false
 ```
 
 2. **Restrict file permissions**:
 ```bash
 # Application files (read-only for service user)
-sudo chown -R root:speaktomack /opt/speaktomack
-sudo chmod -R 750 /opt/speaktomack
+sudo chown -R root:blckvox /opt/blckvox
+sudo chmod -R 750 /opt/blckvox
 
 # JAR should not be writable
-sudo chmod 640 /opt/speaktomack/speaktomack.jar
+sudo chmod 640 /opt/blckvox/blckvox.jar
 
 # Logs directory (writable by service)
-sudo chown speaktomack:speaktomack /var/log/speaktomack
-sudo chmod 750 /var/log/speaktomack
+sudo chown blckvox:blckvox /var/log/blckvox
+sudo chmod 750 /var/log/blckvox
 ```
 
 ### Network Security
@@ -588,13 +588,13 @@ block in proto tcp to any port 8080
 **Recommended JVM flags** for production:
 
 ```bash
-java -jar speakToMack.jar \
+java -jar blckvox.jar \
   -Xms512m \                          # Initial heap
   -Xmx2g \                            # Max heap (adjust based on load)
   -XX:+UseG1GC \                      # G1 garbage collector (good for responsiveness)
   -XX:MaxGCPauseMillis=200 \          # Target GC pause time
   -XX:+HeapDumpOnOutOfMemoryError \   # Debug OOM errors
-  -XX:HeapDumpPath=/var/log/speaktomack/heap-dump.hprof \
+  -XX:HeapDumpPath=/var/log/blckvox/heap-dump.hprof \
   -Dspring.profiles.active=production
 ```
 
@@ -634,50 +634,50 @@ Trade-off: Lower accuracy (no Whisper cross-validation).
 ### What to Back Up
 
 **Critical files**:
-- JAR: `/opt/speaktomack/speaktomack.jar`
-- Models: `/opt/speaktomack/models/*` (~2 GB)
-- Configuration: `/etc/speaktomack/application-production.properties`
-- Whisper binary: `/opt/speaktomack/bin/whisper`
+- JAR: `/opt/blckvox/blckvox.jar`
+- Models: `/opt/blckvox/models/*` (~2 GB)
+- Configuration: `/etc/blckvox/application-production.properties`
+- Whisper binary: `/opt/blckvox/bin/whisper`
 
 **Not critical** (can be regenerated):
-- Logs: `/var/log/speaktomack/`
+- Logs: `/var/log/blckvox/`
 - Build artifacts: `build/`
 
 ### Backup Script Example
 
 ```bash
 #!/bin/bash
-# /usr/local/bin/backup-speaktomack.sh
+# /usr/local/bin/backup-blckvox.sh
 
-BACKUP_DIR=/backup/speaktomack/$(date +%Y%m%d)
+BACKUP_DIR=/backup/blckvox/$(date +%Y%m%d)
 mkdir -p $BACKUP_DIR
 
 # Backup application
-tar -czf $BACKUP_DIR/app.tar.gz /opt/speaktomack
+tar -czf $BACKUP_DIR/app.tar.gz /opt/blckvox
 
 # Backup config
-cp /etc/speaktomack/application-production.properties $BACKUP_DIR/
+cp /etc/blckvox/application-production.properties $BACKUP_DIR/
 
 # Keep last 7 days
-find /backup/speaktomack -type d -mtime +7 -exec rm -rf {} +
+find /backup/blckvox -type d -mtime +7 -exec rm -rf {} +
 ```
 
 ### Recovery Procedure
 
 ```bash
 # 1. Stop service
-sudo systemctl stop speaktomack
+sudo systemctl stop blckvox
 
 # 2. Restore files
-sudo tar -xzf /backup/speaktomack/20251020/app.tar.gz -C /
-sudo cp /backup/speaktomack/20251020/application-production.properties /etc/speaktomack/
+sudo tar -xzf /backup/blckvox/20251020/app.tar.gz -C /
+sudo cp /backup/blckvox/20251020/application-production.properties /etc/blckvox/
 
 # 3. Verify permissions
-sudo chown -R speaktomack:speaktomack /opt/speaktomack
-sudo chmod +x /opt/speaktomack/bin/whisper
+sudo chown -R blckvox:blckvox /opt/blckvox
+sudo chmod +x /opt/blckvox/bin/whisper
 
 # 4. Start service
-sudo systemctl start speaktomack
+sudo systemctl start blckvox
 
 # 5. Verify health
 curl http://localhost:8080/actuator/health
@@ -693,21 +693,21 @@ curl http://localhost:8080/actuator/health
 
 ```bash
 # Check systemd status
-sudo systemctl status speaktomack
+sudo systemctl status blckvox
 
 # View full logs
-sudo journalctl -u speaktomack -n 100 --no-pager
+sudo journalctl -u blckvox -n 100 --no-pager
 
 # Common issues:
 # 1. Models not found - check paths
-ls -lh /opt/speaktomack/models/
+ls -lh /opt/blckvox/models/
 
 # 2. Whisper binary not executable
-ls -lh /opt/speaktomack/bin/whisper
-sudo chmod +x /opt/speaktomack/bin/whisper
+ls -lh /opt/blckvox/bin/whisper
+sudo chmod +x /opt/blckvox/bin/whisper
 
 # 3. Permission denied
-sudo chown -R speaktomack:speaktomack /opt/speaktomack
+sudo chown -R blckvox:blckvox /opt/blckvox
 ```
 
 ### High Failure Rate
@@ -717,7 +717,7 @@ sudo chown -R speaktomack:speaktomack /opt/speaktomack
 curl http://localhost:8080/actuator/prometheus | grep failure
 
 # Check logs for patterns
-sudo grep FAIL /var/log/speaktomack/speakToMack.log | tail -20
+sudo grep FAIL /var/log/blckvox/blckvox.log | tail -20
 
 # Common causes:
 # - Timeout too low: increase stt.parallel.timeout-ms
@@ -732,7 +732,7 @@ sudo grep FAIL /var/log/speaktomack/speakToMack.log | tail -20
 curl http://localhost:8080/actuator/metrics/jvm.memory.used | jq
 
 # Analyze heap dump (if OOM occurred)
-jhat /var/log/speaktomack/heap-dump.hprof
+jhat /var/log/blckvox/heap-dump.hprof
 
 # Fix: Increase heap
 # Edit service file, add: -Xmx4g
@@ -762,48 +762,48 @@ Rebuild JAR and redeploy.
 
 ```bash
 # 1. Back up current version
-sudo /usr/local/bin/backup-speaktomack.sh
+sudo /usr/local/bin/backup-blckvox.sh
 
 # 2. Test new version in staging
 # (deploy to test system first)
 
 # 3. Stop production service
-sudo systemctl stop speaktomack
+sudo systemctl stop blckvox
 
 # 4. Replace JAR
-sudo cp speakToMack-NEW.jar /opt/speaktomack/speaktomack.jar
+sudo cp blckvox-NEW.jar /opt/blckvox/blckvox.jar
 
 # 5. Update models if needed
-sudo cp -r models/* /opt/speaktomack/models/
+sudo cp -r models/* /opt/blckvox/models/
 
 # 6. Update Whisper binary if needed
-sudo cp tools/whisper.cpp/main /opt/speaktomack/bin/whisper
-sudo chmod +x /opt/speaktomack/bin/whisper
+sudo cp tools/whisper.cpp/main /opt/blckvox/bin/whisper
+sudo chmod +x /opt/blckvox/bin/whisper
 
 # 7. Check configuration compatibility
 # (review CHANGELOG for breaking changes)
 
 # 8. Start service
-sudo systemctl start speaktomack
+sudo systemctl start blckvox
 
 # 9. Verify health
 curl http://localhost:8080/actuator/health
 
 # 10. Monitor for issues
-sudo journalctl -u speaktomack -f
+sudo journalctl -u blckvox -f
 ```
 
 ### Rollback Procedure
 
 ```bash
 # 1. Stop service
-sudo systemctl stop speaktomack
+sudo systemctl stop blckvox
 
 # 2. Restore from backup
-sudo tar -xzf /backup/speaktomack/YYYYMMDD/app.tar.gz -C /
+sudo tar -xzf /backup/blckvox/YYYYMMDD/app.tar.gz -C /
 
 # 3. Start service
-sudo systemctl start speaktomack
+sudo systemctl start blckvox
 
 # 4. Verify
 curl http://localhost:8080/actuator/health
@@ -854,4 +854,4 @@ Before going live:
 - **Operator Guide**: [docs/operator-guide.md](docs/operator-guide.md)
 - **Runbooks**: [docs/runbooks/](docs/runbooks/)
 - **Architecture**: [docs/diagrams/architecture-overview.md](docs/diagrams/architecture-overview.md)
-- **Issue Tracker**: [GitHub Issues](https://github.com/your-org/speakToMack/issues)
+- **Issue Tracker**: [GitHub Issues](https://github.com/your-org/blckvox/issues)

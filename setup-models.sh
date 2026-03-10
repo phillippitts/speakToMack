@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# speakToMack model setup script
+# blckvox model setup script
 # - Downloads Vosk English model 0.22 (~1.8 GB) - higher accuracy than small model
 # - Downloads Whisper ggml base.en model (~150 MB)
 #

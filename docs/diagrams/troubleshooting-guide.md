@@ -353,7 +353,7 @@ tools/whisper.cpp/main -m models/ggml-base.en.bin -f test-audio.wav
 lsof -i :8080
 
 # Monitor app logs in real-time
-tail -f logs/speakToMack.log | grep -E "(ERROR|WARN|Vosk|Whisper|Hotkey)"
+tail -f logs/blckvox.log | grep -E "(ERROR|WARN|Vosk|Whisper|Hotkey)"
 
 # Check system microphone
 system_profiler SPAudioDataType | grep -A 10 "Input"
@@ -364,8 +364,8 @@ system_profiler SPAudioDataType | grep -A 10 "Input"
 Add to `application.properties`:
 
 ```properties
-logging.level.com.phillippitts.speaktomack=DEBUG
-logging.level.com.phillippitts.speaktomack.service.hotkey=TRACE
+logging.level.com.phillippitts.blckvox=DEBUG
+logging.level.com.phillippitts.blckvox.service.hotkey=TRACE
 ```
 
 ## When to Seek Help
@@ -381,7 +381,7 @@ flowchart LR
 
     MoreTrouble --> Check
 
-    Logs --> GitHub[Post GitHub issue:<br/>github.com/.../speakToMack/issues]
+    Logs --> GitHub[Post GitHub issue:<br/>github.com/.../blckvox/issues]
     Logs --> Include[Include:<br/>- OS version<br/>- App version<br/>- Error logs<br/>- Steps to reproduce]
 
     style Done fill:#c8e6c9

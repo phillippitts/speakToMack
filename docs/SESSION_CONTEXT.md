@@ -278,9 +278,9 @@ dependencies {
 ```yaml
 spring:
   application:
-    name: speakToMack
+    name: blckvox
   datasource:
-    url: jdbc:postgresql://localhost:5432/speaktomack
+    url: jdbc:postgresql://localhost:5432/blckvox
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
@@ -314,7 +314,7 @@ hotkey:
 
 logging:
   level:
-    com.phillippitts.speaktomack: DEBUG
+    com.phillippitts.blckvox: DEBUG
     org.springframework: INFO
 
 privacy:

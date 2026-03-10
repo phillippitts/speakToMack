@@ -1,6 +1,6 @@
 # Frequently Asked Questions (FAQ)
 
-Common questions and answers about speakToMack.
+Common questions and answers about blckvox.
 
 ## Table of Contents
 
@@ -18,9 +18,9 @@ Common questions and answers about speakToMack.
 
 ## General
 
-### What is speakToMack?
+### What is blckvox?
 
-speakToMack is an offline voice dictation application for macOS that converts speech to text using push-to-talk hotkeys. Unlike cloud-based solutions, all processing happens locally on your machine, ensuring complete privacy.
+blckvox is an offline voice dictation application for macOS that converts speech to text using push-to-talk hotkeys. Unlike cloud-based solutions, all processing happens locally on your machine, ensuring complete privacy.
 
 ### How does it work?
 
@@ -31,7 +31,7 @@ speakToMack is an offline voice dictation application for macOS that converts sp
 
 ### What makes it different from macOS built-in dictation?
 
-| Feature | speakToMack | macOS Dictation |
+| Feature | blckvox | macOS Dictation |
 |---------|-------------|-----------------|
 | **Privacy** | 100% offline | Sends audio to Apple servers |
 | **Speed** | ~1-2 seconds | 3-5 seconds (network latency) |
@@ -41,7 +41,7 @@ speakToMack is an offline voice dictation application for macOS that converts sp
 
 ### Is it free?
 
-Yes, speakToMack is completely free and open source under the MIT license.
+Yes, blckvox is completely free and open source under the MIT license.
 
 ### What platforms are supported?
 
@@ -51,13 +51,13 @@ Currently macOS only (requires macOS 13+). Linux and Windows support may be adde
 
 ## Setup and Installation
 
-### How do I install speakToMack?
+### How do I install blckvox?
 
 See the [Setup Guide](../README.md#setup-guide) for step-by-step instructions. Quick summary:
 
 ```bash
-git clone https://github.com/phillippitts/speakToMack.git
-cd speakToMack
+git clone https://github.com/phillippitts/blckvox.git
+cd blckvox
 ./setup-models.sh
 ./gradlew bootRun
 ```
@@ -89,7 +89,7 @@ cd speakToMack
 - **First build:** 2-5 minutes (Gradle dependency download)
 - **Subsequent starts:** <30 seconds
 
-### Can I use speakToMack without macOS Accessibility permission?
+### Can I use blckvox without macOS Accessibility permission?
 
 Yes, but with limitations. Without Accessibility permission:
 - Text is copied to clipboard (you must manually paste with ⌘+V)
@@ -107,7 +107,7 @@ See [Accessibility Permission](#how-do-i-grant-accessibility-permission) for gra
 
 ## Models and Engines
 
-### Which STT engines does speakToMack support?
+### Which STT engines does blckvox support?
 
 Two offline engines:
 1. **Vosk** (JNI-based, fast, moderate accuracy)
@@ -171,7 +171,7 @@ See [Vosk Models](https://alphacephei.com/vosk/models) and [Whisper Models](http
 
 ### Where are models stored?
 
-By default: `speakToMack/models/`
+By default: `blckvox/models/`
 
 You can change this via `application.properties`:
 ```properties
@@ -274,9 +274,9 @@ In the **currently focused application** where your cursor is active when you re
 1. System Preferences → Security & Privacy → Privacy → Accessibility
 2. Add your terminal app (Terminal.app or iTerm2) or the Java executable
 3. Check the box to enable
-4. Restart speakToMack
+4. Restart blckvox
 
-**Alternative:** Use clipboard-only mode (see [Can I use speakToMack without Accessibility permission?](#can-i-use-speaktomack-without-macos-accessibility-permission))
+**Alternative:** Use clipboard-only mode (see [Can I use blckvox without Accessibility permission?](#can-i-use-blckvox-without-macos-accessibility-permission))
 
 ### Can I copy to clipboard instead of typing?
 
@@ -308,7 +308,7 @@ typing.paste-shortcut=CTRL+V
 
 ### Why does pasting fail for long transcriptions?
 
-Some apps have clipboard size limits. speakToMack splits large texts into chunks:
+Some apps have clipboard size limits. blckvox splits large texts into chunks:
 ```properties
 typing.chunk-size=800          # Characters per chunk
 typing.inter-chunk-delay-ms=30 # Delay between chunks
@@ -507,17 +507,17 @@ HotkeyException: Native hook registration failed
    - **If running from terminal:** Add Terminal.app or iTerm2
    - **If running as packaged app:** Add the .app bundle
 5. Check the box next to the added app
-6. Restart speakToMack
+6. Restart blckvox
 
 ### How do I grant Microphone permission?
 
 Same steps as Accessibility, but select **Privacy** → **Microphone** instead.
 
-### Does speakToMack work on Apple Silicon (M1/M2/M3)?
+### Does blckvox work on Apple Silicon (M1/M2/M3)?
 
 Yes, fully supported via Rosetta 2. Native ARM64 binaries are used when available (Vosk, Whisper.cpp).
 
-### Can I use speakToMack in Parallels/VMware?
+### Can I use blckvox in Parallels/VMware?
 
 Not recommended. Virtual machines have unreliable global hotkey capture and audio input.
 
@@ -620,21 +620,21 @@ Example metrics:
 - `stt_engine_failures_total` - Engine failure count
 - `jvm_memory_used_bytes` - Memory usage
 
-### Can I run speakToMack as a background service?
+### Can I run blckvox as a background service?
 
 Yes, use macOS Launch Agents:
 
-1. Create `~/Library/LaunchAgents/com.phillippitts.speaktomack.plist`:
+1. Create `~/Library/LaunchAgents/com.phillippitts.blckvox.plist`:
    ```xml
    <?xml version="1.0" encoding="UTF-8"?>
    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
    <plist version="1.0">
    <dict>
        <key>Label</key>
-       <string>com.phillippitts.speaktomack</string>
+       <string>com.phillippitts.blckvox</string>
        <key>ProgramArguments</key>
        <array>
-           <string>/path/to/speakToMack/gradlew</string>
+           <string>/path/to/blckvox/gradlew</string>
            <string>bootRun</string>
        </array>
        <key>RunAtLoad</key>
@@ -647,7 +647,7 @@ Yes, use macOS Launch Agents:
 
 2. Load the agent:
    ```bash
-   launchctl load ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+   launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
    ```
 
 ---
@@ -656,21 +656,21 @@ Yes, use macOS Launch Agents:
 
 **Check the logs:**
 ```bash
-tail -f logs/speakToMack.log
+tail -f logs/blckvox.log
 ```
 
 **Increase log verbosity:**
 ```properties
-logging.level.com.phillippitts.speaktomack=DEBUG
+logging.level.com.phillippitts.blckvox=DEBUG
 ```
 
 **File a bug report:**
-- GitHub Issues: https://github.com/phillippitts/speakToMack/issues
+- GitHub Issues: https://github.com/phillippitts/blckvox/issues
 - Include: OS version, Java version, error logs, `application.properties`
 
 **Community support:**
-- Discussions: https://github.com/phillippitts/speakToMack/discussions
-- Discord: https://discord.gg/speaktomack (coming soon)
+- Discussions: https://github.com/phillippitts/blckvox/discussions
+- Discord: https://discord.gg/blckvox (coming soon)
 
 ---
 

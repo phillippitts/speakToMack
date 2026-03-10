@@ -1,6 +1,6 @@
 # Reconciliation Guide
 
-This guide explains how speakToMack combines results from Vosk and Whisper into a single transcription using configurable strategies.
+This guide explains how blckvox combines results from Vosk and Whisper into a single transcription using configurable strategies.
 
 ## Overview
 When reconciliation is enabled, the system intelligently decides whether to run both engines based on the confidence of the primary (Vosk) result. The reconciler then selects the final text using one of several strategies. Metrics record the chosen strategy and selected engine.

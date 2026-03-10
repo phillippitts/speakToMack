@@ -1,0 +1,56 @@
+[Unit]
+Description=blckvox - Privacy-first voice dictation
+Documentation=https://github.com/your-org/blckvox
+After=network.target
+
+[Service]
+Type=simple
+User=blckvox
+Group=blckvox
+
+# Working directory
+WorkingDirectory=/opt/blckvox
+
+# Environment variables (absolute paths)
+Environment="VOSK_MODEL_PATH=/opt/blckvox/models/vosk-model-en-us-0.22"
+Environment="WHISPER_MODEL_PATH=/opt/blckvox/models/ggml-base.en.bin"
+Environment="WHISPER_BINARY_PATH=/opt/blckvox/bin/whisper"
+Environment="BLCKVOX_LOG_PATH=/var/log/blckvox"
+Environment="SPRING_PROFILES_ACTIVE=production"
+
+# JVM options for production
+Environment="JAVA_OPTS=-Xms512m -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/blckvox/heap-dump.hprof"
+
+# Start command
+ExecStart=/usr/bin/java \
+  ${JAVA_OPTS} \
+  -Dlogging.config=/etc/blckvox/log4j2-production.xml \
+  -jar /opt/blckvox/blckvox.jar \
+  --spring.config.additional-location=/etc/blckvox/application-production.properties
+
+# Graceful shutdown
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/blckvox
+
+# Resource limits
+LimitNOFILE=65536
+TasksMax=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blckvox
+
+[Install]
+WantedBy=multi-user.target

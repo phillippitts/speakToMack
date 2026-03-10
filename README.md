@@ -1,10 +1,10 @@
-# speakToMack
+# blckvox
 
 Privacy-first voice dictation for macOS using dual-engine speech-to-text (Vosk + Whisper).
 
 ## What Is This?
 
-speakToMack lets you dictate text into any macOS application using a configurable hotkey. Unlike cloud-based solutions (Dragon, Google), all transcription happens **locally on your Mac** - your voice data never leaves your device.
+blckvox lets you dictate text into any macOS application using a configurable hotkey. Unlike cloud-based solutions (Dragon, Google), all transcription happens **locally on your Mac** - your voice data never leaves your device.
 
 ## Status: 🚧 In Development
 
@@ -90,7 +90,7 @@ Planned (later phases):
 - **RPO** - Recovery Point Objective: Maximum acceptable data loss (e.g., 1 hour)
 - **MTTR** - Mean Time to Recovery: Average time to restore service after failure
 
-### speakToMack Domain Terms
+### blckvox Domain Terms
 - **Reconciliation** - Process of selecting final text when Vosk and Whisper disagree
 - **Fallback Manager** - System that gracefully degrades when Accessibility permission denied
 - **Audio Buffer** - Thread-safe storage for captured microphone audio
@@ -141,8 +141,8 @@ WRITE_APP_PROPS=true ./build-whisper.sh
 
 **Expected output after step 2:**
 ```
-✅ whisper.cpp binary built: /Users/.../speakToMack/tools/whisper.cpp/main
-✅ Updated: stt.whisper.binary-path=/Users/.../speakToMack/tools/whisper.cpp/main
+✅ whisper.cpp binary built: /Users/.../blckvox/tools/whisper.cpp/main
+✅ Updated: stt.whisper.binary-path=/Users/.../blckvox/tools/whisper.cpp/main
 ```
 
 ---
@@ -391,7 +391,7 @@ stt.vosk.sample-rate=16000
 stt.vosk.max-alternatives=1
 
 # Whisper (binary path set by ./build-whisper.sh with WRITE_APP_PROPS=true)
-stt.whisper.binary-path=/Users/.../speakToMack/tools/whisper.cpp/main
+stt.whisper.binary-path=/Users/.../blckvox/tools/whisper.cpp/main
 stt.whisper.model-path=models/ggml-base.en.bin
 stt.whisper.timeout-seconds=10
 stt.whisper.language=en
@@ -426,7 +426,7 @@ Properties are bound to typed records for compile-time safety:
 - `AudioValidationProperties` → `audio.validation.*`
 - `LiveCaptionProperties` → `live-caption.*`
 
-See: `src/main/java/com/phillippitts/speaktomack/config/`
+See: `src/main/java/com/phillippitts/blckvox/config/`
 
 ---
 
@@ -531,9 +531,9 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 ### Run Tests
 
 Where are the tests?
-- src/test/java/com/phillippitts/speaktomack/SpeakToMackApplicationTests.java (Spring context load test)
-- src/test/java/com/phillippitts/speaktomack/TestSpeakToMackApplication.java (test bootstrap example)
-- src/test/java/com/phillippitts/speaktomack/TestcontainersConfiguration.java (test-only configuration)
+- src/test/java/com/phillippitts/blckvox/BlckvoxApplicationTests.java (Spring context load test)
+- src/test/java/com/phillippitts/blckvox/TestBlckvoxApplication.java (test bootstrap example)
+- src/test/java/com/phillippitts/blckvox/TestcontainersConfiguration.java (test-only configuration)
 
 How to run:
 ```bash
@@ -541,13 +541,13 @@ How to run:
 ./gradlew test
 
 # Single class (simple name)
-./gradlew test --tests SpeakToMackApplicationTests
+./gradlew test --tests BlckvoxApplicationTests
 
 # Single class (fully-qualified)
-./gradlew test --tests com.phillippitts.speaktomack.SpeakToMackApplicationTests
+./gradlew test --tests com.phillippitts.blckvox.BlckvoxApplicationTests
 
 # Single test method
-./gradlew test --tests com.phillippitts.speaktomack.SpeakToMackApplicationTests.contextLoads
+./gradlew test --tests com.phillippitts.blckvox.BlckvoxApplicationTests.contextLoads
 ```
 
 Notes:
@@ -557,7 +557,7 @@ Notes:
 ### Project Structure
 
 ```
-src/main/java/com/phillippitts/speaktomack/
+src/main/java/com/phillippitts/blckvox/
 ├── presentation/       # Controllers, DTOs, exception handlers
 ├── service/           # Business logic, STT engines, orchestration, audio capture
 │   ├── audio/         # Audio capture, PCM events

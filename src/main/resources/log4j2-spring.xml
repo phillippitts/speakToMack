@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN" monitorInterval="30">
     <Properties>
-        <Property name="APP_NAME">speakToMack</Property>
+        <Property name="APP_NAME">blckvox</Property>
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{requestId}] [%X{userId}] %-5level %logger{36} - %msg%n
         </Property>
@@ -13,8 +13,8 @@
         </Console>
 
         <RollingFile name="RollingFile"
-                     fileName="logs/speakToMack.log"
-                     filePattern="logs/speakToMack-%d{yyyy-MM-dd}-%i.log.gz">
+                     fileName="logs/blckvox.log"
+                     filePattern="logs/blckvox-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
@@ -39,21 +39,21 @@
     </Appenders>
 
     <Loggers>
-        <Logger name="com.phillippitts.speaktomack" level="info" additivity="false">
+        <Logger name="com.phillippitts.blckvox" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
 
-        <Logger name="com.phillippitts.speaktomack.service.hotkey" level="info" additivity="false">
+        <Logger name="com.phillippitts.blckvox.service.hotkey" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
-        <Logger name="com.phillippitts.speaktomack.service.audio.capture" level="info" additivity="false">
+        <Logger name="com.phillippitts.blckvox.service.audio.capture" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
 
-        <Logger name="com.phillippitts.speaktomack.audit" level="info" additivity="false">
+        <Logger name="com.phillippitts.blckvox.audit" level="info" additivity="false">
             <AppenderRef ref="AuditLog"/>
         </Logger>
 

@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Complete reference for all configuration properties in speakToMack.
+Complete reference for all configuration properties in blckvox.
 
 > **Location:** All properties are configured in `src/main/resources/application.properties`
 

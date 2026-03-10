@@ -1,4 +1,4 @@
-# speakToMack Data Flow Diagram
+# blckvox Data Flow Diagram
 
 ## Complete Transcription Pipeline
 

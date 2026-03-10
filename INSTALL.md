@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide helps end users install and run speakToMack without needing Java development tools.
+This guide helps end users install and run blckvox without needing Java development tools.
 
 ## ⚠️ Important: Permission Requirements
 
@@ -58,18 +58,18 @@ java -version
 3. Download the `.pkg` installer
 4. Run the installer
 
-### Step 2: Download speakToMack
+### Step 2: Download blckvox
 
 **Option A: Download from GitHub Releases (when available)**
-1. Go to [Releases](https://github.com/your-org/speakToMack/releases)
-2. Download `speakToMack-X.X.X.jar`
-3. Save to a permanent location (e.g., `~/Applications/speakToMack/`)
+1. Go to [Releases](https://github.com/your-org/blckvox/releases)
+2. Download `blckvox-X.X.X.jar`
+3. Save to a permanent location (e.g., `~/Applications/blckvox/`)
 
 **Option B: Build from source**
 ```bash
 # Clone repository
-git clone https://github.com/your-org/speakToMack.git
-cd speakToMack
+git clone https://github.com/your-org/blckvox.git
+cd blckvox
 
 # Download models
 chmod +x ./setup-models.sh
@@ -82,12 +82,12 @@ WRITE_APP_PROPS=true ./build-whisper.sh
 # Build JAR
 ./gradlew clean build
 
-# The JAR will be at: build/libs/speakToMack-0.0.1-SNAPSHOT.jar
+# The JAR will be at: build/libs/blckvox-0.0.1-SNAPSHOT.jar
 # Copy to permanent location:
-mkdir -p ~/Applications/speakToMack
-cp build/libs/speakToMack-0.0.1-SNAPSHOT.jar ~/Applications/speakToMack/speakToMack.jar
-cp -r models ~/Applications/speakToMack/
-cp -r tools ~/Applications/speakToMack/
+mkdir -p ~/Applications/blckvox
+cp build/libs/blckvox-0.0.1-SNAPSHOT.jar ~/Applications/blckvox/blckvox.jar
+cp -r models ~/Applications/blckvox/
+cp -r tools ~/Applications/blckvox/
 ```
 
 ### Step 3: Download Models
@@ -95,10 +95,10 @@ cp -r tools ~/Applications/speakToMack/
 If you downloaded a pre-built JAR, you need to download the STT models separately:
 
 ```bash
-cd ~/Applications/speakToMack
+cd ~/Applications/blckvox
 
 # Download setup script
-curl -O https://raw.githubusercontent.com/your-org/speakToMack/main/setup-models.sh
+curl -O https://raw.githubusercontent.com/your-org/blckvox/main/setup-models.sh
 chmod +x setup-models.sh
 
 # Run it
@@ -112,10 +112,10 @@ This downloads:
 ### Step 4: Download Whisper Binary
 
 ```bash
-cd ~/Applications/speakToMack
+cd ~/Applications/blckvox
 
 # Download build script
-curl -O https://raw.githubusercontent.com/your-org/speakToMack/main/build-whisper.sh
+curl -O https://raw.githubusercontent.com/your-org/blckvox/main/build-whisper.sh
 chmod +x build-whisper.sh
 
 # Build whisper.cpp
@@ -127,15 +127,15 @@ chmod +x build-whisper.sh
 Create `application-local.properties` in the same directory as the JAR:
 
 ```bash
-cd ~/Applications/speakToMack
+cd ~/Applications/blckvox
 cat > application-local.properties << 'EOF'
 # Model paths (absolute paths for production)
-stt.vosk.model-path=/Users/YOUR_USERNAME/Applications/speakToMack/models/vosk-model-en-us-0.22
-stt.whisper.model-path=/Users/YOUR_USERNAME/Applications/speakToMack/models/ggml-base.en.bin
-stt.whisper.binary-path=/Users/YOUR_USERNAME/Applications/speakToMack/tools/whisper.cpp/main
+stt.vosk.model-path=/Users/YOUR_USERNAME/Applications/blckvox/models/vosk-model-en-us-0.22
+stt.whisper.model-path=/Users/YOUR_USERNAME/Applications/blckvox/models/ggml-base.en.bin
+stt.whisper.binary-path=/Users/YOUR_USERNAME/Applications/blckvox/tools/whisper.cpp/main
 
 # Log location
-logging.file.path=/Users/YOUR_USERNAME/Applications/speakToMack/logs
+logging.file.path=/Users/YOUR_USERNAME/Applications/blckvox/logs
 EOF
 
 # Replace YOUR_USERNAME with your actual username
@@ -167,13 +167,13 @@ sed -i '' "s/YOUR_USERNAME/$(whoami)/g" application-local.properties
 ### Step 7: Run the Application
 
 ```bash
-cd ~/Applications/speakToMack
-java -jar speakToMack.jar --spring.config.additional-location=./application-local.properties
+cd ~/Applications/blckvox
+java -jar blckvox.jar --spring.config.additional-location=./application-local.properties
 ```
 
 You should see log output indicating the app started successfully:
 ```
-INFO  c.p.s.SpeakToMackApplication - Started SpeakToMackApplication in 3.3 seconds
+INFO  c.p.s.BlckvoxApplication - Started BlckvoxApplication in 3.3 seconds
 INFO  c.p.s.h.HotkeyManager - HotkeyManager started with trigger=...
 ```
 
@@ -199,25 +199,25 @@ For permanent installation that starts automatically when you log in.
 2. Create a LaunchAgent plist:
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cat > ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist << EOF
+cat > ~/Library/LaunchAgents/com.phillippitts.blckvox.plist << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.phillippitts.speaktomack</string>
+    <string>com.phillippitts.blckvox</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/java</string>
         <string>-Dspring.profiles.active=production</string>
         <string>-jar</string>
-        <string>/Users/$(whoami)/Applications/speakToMack/speakToMack.jar</string>
-        <string>--spring.config.additional-location=/Users/$(whoami)/Applications/speakToMack/application-local.properties</string>
+        <string>/Users/$(whoami)/Applications/blckvox/blckvox.jar</string>
+        <string>--spring.config.additional-location=/Users/$(whoami)/Applications/blckvox/application-local.properties</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/$(whoami)/Applications/speakToMack</string>
+    <string>/Users/$(whoami)/Applications/blckvox</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -226,10 +226,10 @@ cat > ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist << EOF
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/$(whoami)/Applications/speakToMack/logs/stdout.log</string>
+    <string>/Users/$(whoami)/Applications/blckvox/logs/stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/$(whoami)/Applications/speakToMack/logs/stderr.log</string>
+    <string>/Users/$(whoami)/Applications/blckvox/logs/stderr.log</string>
 </dict>
 </plist>
 EOF
@@ -237,13 +237,13 @@ EOF
 
 3. Load the service:
 ```bash
-launchctl load ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
 ```
 
 4. Verify it's running:
 ```bash
 # Check process is running
-ps aux | grep speakToMack
+ps aux | grep blckvox
 
 # Check health endpoint
 curl http://localhost:8080/actuator/health
@@ -252,14 +252,14 @@ curl http://localhost:8080/actuator/health
 5. Service management:
 ```bash
 # Stop service
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
 
 # Restart service
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
-launchctl load ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
 
 # View logs
-tail -f ~/Applications/speakToMack/logs/speakToMack.log
+tail -f ~/Applications/blckvox/logs/blckvox.log
 ```
 
 ---
@@ -363,7 +363,7 @@ source ~/.zshrc
 **Solution**:
 1. Check logs for permission errors:
    ```bash
-   tail -50 ~/Applications/speakToMack/logs/speakToMack.log | grep -i "hotkey\|permission"
+   tail -50 ~/Applications/blckvox/logs/blckvox.log | grep -i "hotkey\|permission"
    ```
 2. If you see "Global key hook permission denied":
    - System Settings → Privacy & Security → Accessibility
@@ -385,10 +385,10 @@ curl http://localhost:8080/actuator/health
 # Verify "java" is enabled
 
 # 3. Check logs for errors
-tail -50 ~/Applications/speakToMack/logs/speakToMack.log
+tail -50 ~/Applications/blckvox/logs/blckvox.log
 
 # 4. Test with verbose logging
-java -jar speakToMack.jar --logging.level.com.phillippitts.speaktomack=DEBUG
+java -jar blckvox.jar --logging.level.com.phillippitts.blckvox=DEBUG
 ```
 
 **Common causes**:
@@ -403,14 +403,14 @@ java -jar speakToMack.jar --logging.level.com.phillippitts.speaktomack=DEBUG
 **Solution**:
 ```bash
 # Verify models exist
-ls -lh ~/Applications/speakToMack/models/
+ls -lh ~/Applications/blckvox/models/
 
 # Expected output:
 # drwxr-xr-x vosk-model-en-us-0.22/
 # -rw-r--r-- ggml-base.en.bin (~147 MB)
 
 # If missing, download again:
-cd ~/Applications/speakToMack
+cd ~/Applications/blckvox
 ./setup-models.sh
 
 # Check paths in application-local.properties match actual locations
@@ -424,10 +424,10 @@ cat application-local.properties
 **Solution**:
 ```bash
 # Check if binary exists
-ls -lh ~/Applications/speakToMack/tools/whisper.cpp/main
+ls -lh ~/Applications/blckvox/tools/whisper.cpp/main
 
 # If missing, rebuild:
-cd ~/Applications/speakToMack
+cd ~/Applications/blckvox
 ./build-whisper.sh
 
 # Make sure it's executable
@@ -472,11 +472,11 @@ echo "stt.orchestration.primary-engine=vosk" >> application-local.properties
 ### Remove Application
 ```bash
 # Stop service if running
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
 
 # Remove files
-rm -rf ~/Applications/speakToMack
-rm ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
+rm -rf ~/Applications/blckvox
+rm ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
 ```
 
 ### Revoke Permissions
@@ -492,7 +492,7 @@ rm ~/Library/LaunchAgents/com.phillippitts.speaktomack.plist
 - **User Guide**: [docs/user-guide.md](docs/user-guide.md)
 - **FAQ**: [docs/FAQ.md](docs/FAQ.md)
 - **Runbooks**: [docs/runbooks/](docs/runbooks/)
-- **Issues**: Report bugs at [GitHub Issues](https://github.com/your-org/speakToMack/issues)
+- **Issues**: Report bugs at [GitHub Issues](https://github.com/your-org/blckvox/issues)
 
 ---
 

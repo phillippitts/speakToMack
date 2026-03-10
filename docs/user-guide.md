@@ -1,6 +1,6 @@
 # User Guide
 
-This guide helps you install, run, and use speakToMack for local voice dictation on macOS.
+This guide helps you install, run, and use blckvox for local voice dictation on macOS.
 
 ## Prerequisites
 - macOS 13+ (Ventura or later)

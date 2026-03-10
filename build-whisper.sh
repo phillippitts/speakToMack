@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build script for whisper.cpp binary used by speakToMack
+# Build script for whisper.cpp binary used by blckvox
 # Assumes models were already downloaded by ./setup-models.sh and checksums recorded.
 # - Verifies Whisper model exists in ./models
 # - Clones ggerganov/whisper.cpp
@@ -21,7 +21,7 @@ set -euo pipefail
 #
 # Usage:
 #   ./build-whisper.sh
-#   INSTALL_DIR=$HOME/.cache/speaktomack GIT_REF=v1.6.2 ./build-whisper.sh
+#   INSTALL_DIR=$HOME/.cache/blckvox GIT_REF=v1.6.2 ./build-whisper.sh
 #   WRITE_APP_PROPS=true ./build-whisper.sh
 
 bold() { printf "\033[1m%s\033[0m\n" "$1"; }

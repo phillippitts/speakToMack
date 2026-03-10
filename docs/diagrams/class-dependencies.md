@@ -268,11 +268,11 @@ classDiagram
 
 ```mermaid
 graph TB
-    subgraph presentation["com.phillippitts.speaktomack.presentation"]
+    subgraph presentation["com.phillippitts.blckvox.presentation"]
         Controller[Controllers<br/>DTOs<br/>ExceptionHandlers]
     end
 
-    subgraph service["com.phillippitts.speaktomack.service"]
+    subgraph service["com.phillippitts.blckvox.service"]
         Orch[orchestration]
         STT[stt + stt.parallel]
         Audio[audio.capture]
@@ -284,19 +284,19 @@ graph TB
         Tray[tray]
     end
 
-    subgraph domain["com.phillippitts.speaktomack.domain"]
+    subgraph domain["com.phillippitts.blckvox.domain"]
         Entities[TranscriptionResult<br/>AudioFormat]
     end
 
-    subgraph config["com.phillippitts.speaktomack.config"]
+    subgraph config["com.phillippitts.blckvox.config"]
         Props[Properties<br/>Beans]
     end
 
-    subgraph exception["com.phillippitts.speaktomack.exception"]
+    subgraph exception["com.phillippitts.blckvox.exception"]
         Exceptions[TranscriptionException<br/>InvalidAudioException]
     end
 
-    subgraph util["com.phillippitts.speaktomack.util"]
+    subgraph util["com.phillippitts.blckvox.util"]
         Utils[TimeUtils<br/>ProcessTimeouts]
     end
 

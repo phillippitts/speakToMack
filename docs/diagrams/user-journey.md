@@ -173,7 +173,7 @@ graph LR
 sequenceDiagram
     actor User
     participant Email as Email App
-    participant STM as speakToMack
+    participant STM as blckvox
 
     User->>Email: Click compose
     User->>Email: Click in subject line
@@ -196,7 +196,7 @@ sequenceDiagram
 sequenceDiagram
     actor Dev as Developer
     participant IDE
-    participant STM as speakToMack
+    participant STM as blckvox
 
     Dev->>IDE: Open function
     Dev->>IDE: Position cursor in comment block
@@ -219,7 +219,7 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant Notes as Notes App
-    participant STM as speakToMack
+    participant STM as blckvox
 
     loop Every few minutes
         User->>Notes: New bullet point
@@ -251,7 +251,7 @@ flowchart TB
     AccPrompt --> Manual[Manual Setup Required:<br/>System Settings → Privacy & Security]
 
     Manual --> AccSettings[Navigate to<br/>Accessibility section]
-    AccSettings --> AddApp[Add speakToMack.jar<br/>or terminal app]
+    AccSettings --> AddApp[Add blckvox.jar<br/>or terminal app]
     AddApp --> AccGranted[✅ Accessibility Enabled]
 
     AccGranted --> FullFunc[✅ Full Functionality<br/>Text pasting works]
@@ -274,7 +274,7 @@ sequenceDiagram
     actor User
     participant Tray as System Tray
     participant LCW as Live Caption Window
-    participant STM as speakToMack
+    participant STM as blckvox
 
     User->>Tray: Check "Live Caption"
     Note over User,LCW: Live Caption enabled
@@ -387,7 +387,7 @@ graph LR
 
 ```mermaid
 mindmap
-    root((speakToMack<br/>User Personas))
+    root((blckvox<br/>User Personas))
         Writers
             Long-form content
             Email composition

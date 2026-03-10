@@ -1,6 +1,6 @@
 # Runbook: Engine Failures
 
-This runbook helps diagnose and resolve Vosk/Whisper failures in speakToMack.
+This runbook helps diagnose and resolve Vosk/Whisper failures in blckvox.
 
 ## Symptoms
 - Repeated `TranscriptionException` from an engine (timeout, non‑zero exit, I/O error)

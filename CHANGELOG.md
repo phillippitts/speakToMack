@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file. The format 
 - Expected resource savings: ~70-80% reduction in CPU and memory usage compared to always-dual-engine mode
 - No accuracy loss: High-confidence Vosk results pass through, low-confidence results get Whisper verification
 
-[v0.5.2]: https://github.com/your-org/speakToMack/releases/tag/v0.5.2
+[v0.5.2]: https://github.com/your-org/blckvox/releases/tag/v0.5.2
 
 ## [v0.5.1] - 2025-10-21
 ### Changed
@@ -35,7 +35,7 @@ For existing installations:
 2. Update `application.properties`: `stt.vosk.model-path=models/vosk-model-en-us-0.22`
 3. Restart application
 
-[v0.5.1]: https://github.com/your-org/speakToMack/releases/tag/v0.5.1
+[v0.5.1]: https://github.com/your-org/blckvox/releases/tag/v0.5.1
 
 ## [v0.5.0] - 2025-10-20
 ### Added
@@ -57,4 +57,4 @@ For existing installations:
 - Default behavior remains single‑engine routing (watchdog‑aware). Enable reconciliation explicitly to use dual‑engine path.
 - Logs and metrics avoid PII by design: INFO logs include only durations/character counts; DEBUG may include truncated previews.
 
-[v0.5.0]: https://github.com/your-org/speakToMack/releases/tag/v0.5.0
+[v0.5.0]: https://github.com/your-org/blckvox/releases/tag/v0.5.0

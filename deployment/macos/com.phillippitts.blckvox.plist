@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service identification -->
+    <key>Label</key>
+    <string>com.phillippitts.blckvox</string>
+
+    <!-- Program and arguments -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/java</string>
+        <!-- JVM options -->
+        <string>-Xms512m</string>
+        <string>-Xmx2g</string>
+        <string>-XX:+UseG1GC</string>
+        <string>-XX:MaxGCPauseMillis=200</string>
+        <string>-XX:+HeapDumpOnOutOfMemoryError</string>
+        <string>-XX:HeapDumpPath=/var/log/blckvox/heap-dump.hprof</string>
+        <!-- Spring profile -->
+        <string>-Dspring.profiles.active=production</string>
+        <!-- Logging configuration -->
+        <string>-Dlogging.config=/etc/blckvox/log4j2-production.xml</string>
+        <!-- JAR execution -->
+        <string>-jar</string>
+        <string>/opt/blckvox/blckvox.jar</string>
+        <!-- Additional configuration -->
+        <string>--spring.config.additional-location=/etc/blckvox/application-production.properties</string>
+    </array>
+
+    <!-- Environment variables (absolute paths) -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VOSK_MODEL_PATH</key>
+        <string>/opt/blckvox/models/vosk-model-en-us-0.22</string>
+        <key>WHISPER_MODEL_PATH</key>
+        <string>/opt/blckvox/models/ggml-base.en.bin</string>
+        <key>WHISPER_BINARY_PATH</key>
+        <string>/opt/blckvox/bin/whisper</string>
+        <key>BLCKVOX_LOG_PATH</key>
+        <string>/var/log/blckvox</string>
+    </dict>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/opt/blckvox</string>
+
+    <!-- Run at system start -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep service alive (restart on crash) -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/var/log/blckvox/stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/blckvox/stderr.log</string>
+
+    <!-- Process control -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- Resource limits -->
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+
+    <!-- Security: don't run as root -->
+    <key>UserName</key>
+    <string>_blckvox</string>
+    <key>GroupName</key>
+    <string>_blckvox</string>
+
+    <!-- Nice level (0 = normal priority) -->
+    <key>Nice</key>
+    <integer>0</integer>
+</dict>
+</plist>

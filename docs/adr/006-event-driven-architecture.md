@@ -15,7 +15,7 @@ Desktop application (hotkey-triggered) with:
 Follow **2-tier event-driven architecture**:
 
 ```
-src/main/java/com/phillippitts/speaktomack/
+src/main/java/com/phillippitts/blckvox/
 ├── service/           # Tier 1: Business logic (event publishers & listeners)
 │   ├── hotkey/        # HotkeyTrigger → publishes HotkeyPressedEvent
 │   ├── orchestration/ # DualEngineOrchestrator → publishes TranscriptionCompletedEvent

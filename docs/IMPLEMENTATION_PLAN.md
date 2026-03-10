@@ -1,4 +1,4 @@
-# speakToMack Implementation Plan
+# blckvox Implementation Plan
 
 **Status:** Phases 0–4 complete; Phase 5 (Documentation) in progress; Phase 6 planned
 **Timeline:** 6.5 days (~51.5 hours)

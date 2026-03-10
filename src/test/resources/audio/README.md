@@ -146,7 +146,7 @@ ffplay -f s16le -ar 16000 -ac 1 silence-1s.pcm
 Test files are loaded using the `TestResourceLoader` utility:
 
 ```java
-import com.phillippitts.speaktomack.TestResourceLoader;
+import com.phillippitts.blckvox.TestResourceLoader;
 
 byte[] pcm = TestResourceLoader.loadPcm("/audio/silence-1s.pcm");
 ```

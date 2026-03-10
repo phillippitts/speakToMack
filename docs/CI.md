@@ -131,7 +131,7 @@ It's from the global hotkey library shutting down during test cleanup. If tests 
 ## Artifacts
 
 ### Build Artifacts (Ubuntu only)
-- **File**: `build-artifacts/speakToMack-0.0.1-SNAPSHOT.jar`
+- **File**: `build-artifacts/blckvox-0.0.1-SNAPSHOT.jar`
 - **Size**: ~55 MB
 - **Retention**: 30 days
 - **How to download**: Actions tab → Workflow run → Artifacts section

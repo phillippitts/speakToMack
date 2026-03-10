@@ -1,4 +1,4 @@
-# speakToMack Architecture Overview
+# blckvox Architecture Overview
 
 ## High-Level Component Diagram
 
@@ -55,7 +55,7 @@ graph LR
 
 ```mermaid
 graph TD
-    subgraph Patterns["Design Patterns in speakToMack"]
+    subgraph Patterns["Design Patterns in blckvox"]
         Strategy[Strategy Pattern<br/>TranscriptReconciler<br/>3 implementations]
         Factory[Factory Pattern<br/>HotkeyTriggerFactory<br/>SttEngineFactory]
         Adapter[Adapter Pattern<br/>VoskSttEngine wraps JNI<br/>WhisperSttEngine wraps binary]

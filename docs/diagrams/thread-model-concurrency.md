@@ -483,7 +483,7 @@ flowchart LR
     Ring2 -->|Batched| Async2[AsyncAppender<br/>Thread 2]
     Ring3 -->|Batched| Async1
 
-    Async1 -->|Write| File[speakToMack.log]
+    Async1 -->|Write| File[blckvox.log]
     Async2 -->|Write| Console[stdout]
 
     style Ring1 fill:#f3e5f5

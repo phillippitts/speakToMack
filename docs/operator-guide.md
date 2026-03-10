@@ -1,6 +1,6 @@
 # Operator Guide
 
-This guide documents configuration, metrics, logs, and production profile guidance for speakToMack.
+This guide documents configuration, metrics, logs, and production profile guidance for blckvox.
 
 ## Configuration Overview
 All configuration uses Spring Boot properties (application.properties). The most important groups:
