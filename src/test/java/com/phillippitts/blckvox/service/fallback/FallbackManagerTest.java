@@ -52,7 +52,8 @@ class FallbackManagerTest {
         FakeTypingService typingService = new FakeTypingService();
         FallbackManager manager = new FallbackManager(typingService);
 
-        TranscriptionResult result = new TranscriptionResult("line1\nline2\r\nline3", 0.85, Instant.now(), "vosk", null);
+        TranscriptionResult result = new TranscriptionResult(
+                "line1\nline2\r\nline3", 0.85, Instant.now(), "vosk", null);
         TranscriptionCompletedEvent event = new TranscriptionCompletedEvent(result, Instant.now(), "vosk");
 
         manager.onTranscription(event);

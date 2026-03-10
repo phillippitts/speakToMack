@@ -135,51 +135,51 @@ class AudioSilenceDetectorTest {
     // --- Max-window RMS: Guard clauses ---
 
     @Test
-    void maxWindowRms_shouldReturnZeroForNull() {
+    void maxWindowRmsShouldReturnZeroForNull() {
         assertThat(AudioSilenceDetector.calculateMaxWindowRMS(null)).isEqualTo(0);
     }
 
     @Test
-    void maxWindowRms_shouldReturnZeroForEmpty() {
+    void maxWindowRmsShouldReturnZeroForEmpty() {
         assertThat(AudioSilenceDetector.calculateMaxWindowRMS(new byte[0])).isEqualTo(0);
     }
 
     @Test
-    void maxWindowRms_shouldReturnZeroForSingleByte() {
+    void maxWindowRmsShouldReturnZeroForSingleByte() {
         assertThat(AudioSilenceDetector.calculateMaxWindowRMS(new byte[1])).isEqualTo(0);
     }
 
     @Test
-    void isSilentMaxWindow_shouldReturnTrueForNull() {
+    void isSilentMaxWindowShouldReturnTrueForNull() {
         assertThat(AudioSilenceDetector.isSilentMaxWindow(null, 200)).isTrue();
     }
 
     @Test
-    void isSilentMaxWindow_shouldReturnTrueForEmpty() {
+    void isSilentMaxWindowShouldReturnTrueForEmpty() {
         assertThat(AudioSilenceDetector.isSilentMaxWindow(new byte[0], 200)).isTrue();
     }
 
     @Test
-    void isSilentMaxWindow_shouldReturnTrueForSingleByte() {
+    void isSilentMaxWindowShouldReturnTrueForSingleByte() {
         assertThat(AudioSilenceDetector.isSilentMaxWindow(new byte[1], 200)).isTrue();
     }
 
     // --- Max-window RMS: Core detection ---
 
     @Test
-    void maxWindowRms_shouldBeZeroForPureSilence() {
+    void maxWindowRmsShouldBeZeroForPureSilence() {
         byte[] pcm = generateSilence(durationToSamples(500));
         assertThat(AudioSilenceDetector.calculateMaxWindowRMS(pcm)).isEqualTo(0);
     }
 
     @Test
-    void maxWindowRms_shouldBeHighForPureLoudAudio() {
+    void maxWindowRmsShouldBeHighForPureLoudAudio() {
         byte[] pcm = generateLoud(durationToSamples(500));
         assertThat(AudioSilenceDetector.calculateMaxWindowRMS(pcm)).isGreaterThan(9000);
     }
 
     @Test
-    void maxWindowRms_shouldDetectSpeechSurroundedBySilence() {
+    void maxWindowRmsShouldDetectSpeechSurroundedBySilence() {
         // Core regression test: 800ms silence + 200ms moderate speech + 800ms silence
         // Moderate speech (amplitude ~500) has per-window RMS ~500, well above threshold 200.
         // But overall-buffer RMS is diluted by surrounding silence to ~167, below threshold 200.
@@ -196,7 +196,7 @@ class AudioSilenceDetectorTest {
     }
 
     @Test
-    void maxWindowRms_shouldDetectSpeechInLongRecordingWithDilution() {
+    void maxWindowRmsShouldDetectSpeechInLongRecordingWithDilution() {
         // 2s silence + 0.5s moderate speech + 2s silence
         // Max-window detects speech, overall RMS does not
         byte[] silence1 = generateSilence(durationToSamples(2000));
@@ -211,7 +211,7 @@ class AudioSilenceDetectorTest {
     }
 
     @Test
-    void isSilentMaxWindow_shouldRespectCustomThreshold() {
+    void isSilentMaxWindowShouldRespectCustomThreshold() {
         // Moderate audio (RMS ~500): not silent at threshold 200, silent at threshold 800
         byte[] pcm = generateModerate(durationToSamples(500));
 
@@ -220,7 +220,7 @@ class AudioSilenceDetectorTest {
     }
 
     @Test
-    void maxWindowRms_shouldHandleBufferSmallerThanOneWindow() {
+    void maxWindowRmsShouldHandleBufferSmallerThanOneWindow() {
         // Buffer smaller than 20ms (320 samples = 640 bytes) → graceful fallback to full-buffer RMS
         int samplesFor10ms = durationToSamples(10); // 160 samples = 320 bytes
         byte[] pcm = generateLoud(samplesFor10ms);
@@ -233,7 +233,7 @@ class AudioSilenceDetectorTest {
     }
 
     @Test
-    void isSilentMaxWindow_shouldReturnTrueForPureSilence() {
+    void isSilentMaxWindowShouldReturnTrueForPureSilence() {
         byte[] pcm = generateSilence(durationToSamples(1000));
         assertThat(AudioSilenceDetector.isSilentMaxWindow(pcm, 200)).isTrue();
     }
@@ -277,7 +277,9 @@ class AudioSilenceDetectorTest {
 
     private byte[] concat(byte[]... arrays) {
         int total = 0;
-        for (byte[] a : arrays) total += a.length;
+        for (byte[] a : arrays) {
+            total += a.length;
+        }
         byte[] result = new byte[total];
         int pos = 0;
         for (byte[] a : arrays) {

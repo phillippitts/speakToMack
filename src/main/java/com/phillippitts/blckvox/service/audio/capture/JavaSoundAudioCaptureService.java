@@ -220,28 +220,13 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             byte[] buf = new byte[bytesPerChunk];
             final long hardStopBytes = ((long) props.getMaxDurationMs() * REQUIRED_BYTE_RATE) / 1000L;
             long written = 0;
-            boolean silenceWarningLogged = false;
+            boolean[] silenceWarningLogged = {false};
             while (s.active.get()) {
                 int n = line.read(buf, 0, buf.length);
                 if (n <= 0) {
                     continue;
                 }
-                // Compute signal level for diagnostics
-                long sum = 0;
-                boolean allZero = true;
-                for (int i = 0; i < n; i++) {
-                    if (buf[i] != 0) {
-                        allZero = false;
-                    }
-                    sum += Math.abs(buf[i]);
-                }
-                double avgLevel = (double) sum / n;
-                if (allZero && !silenceWarningLogged) {
-                    LOG.warn("Audio capture: mic returning ALL ZEROS — macOS may be blocking "
-                            + "microphone access for this process");
-                    silenceWarningLogged = true;
-                }
-
+                double avgLevel = computeAndLogSignalLevel(buf, n, silenceWarningLogged);
                 s.buffer.write(buf, 0, n);
                 byte[] chunk = new byte[n];
                 System.arraycopy(buf, 0, chunk, 0, n);
@@ -269,6 +254,34 @@ public class JavaSoundAudioCaptureService implements AudioCaptureService {
             s.active.set(false);
             closeAudioLine(line, s.id);
         }
+    }
+
+    /**
+     * Computes the average signal level of the captured audio chunk and logs a warning
+     * if the microphone is returning all zeros (indicating a possible permission issue).
+     *
+     * @param buf                  the audio data buffer
+     * @param n                    the number of valid bytes in the buffer
+     * @param silenceWarningLogged single-element array used as a mutable flag to ensure the
+     *                             silence warning is logged at most once per capture session
+     * @return the average absolute signal level across the chunk
+     */
+    private double computeAndLogSignalLevel(byte[] buf, int n, boolean[] silenceWarningLogged) {
+        long sum = 0;
+        boolean allZero = true;
+        for (int i = 0; i < n; i++) {
+            if (buf[i] != 0) {
+                allZero = false;
+            }
+            sum += Math.abs(buf[i]);
+        }
+        double avgLevel = (double) sum / n;
+        if (allZero && !silenceWarningLogged[0]) {
+            LOG.warn("Audio capture: mic returning ALL ZEROS — macOS may be blocking "
+                    + "microphone access for this process");
+            silenceWarningLogged[0] = true;
+        }
+        return avgLevel;
     }
 
     private void closeAudioLine(TargetDataLine line, UUID sessionId) {

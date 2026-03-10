@@ -294,7 +294,8 @@ class HotkeyRecordingAdapterReconciledTest {
         final boolean whisperEnabled;
         FakeWatchdog(boolean voskEnabled, boolean whisperEnabled) {
             super(java.util.List.of(),
-                    new com.phillippitts.blckvox.config.properties.SttWatchdogProperties(true, 60, 3, 10, false, 60_000L, 0.3, 10, 5),
+                    new com.phillippitts.blckvox.config.properties.SttWatchdogProperties(
+                            true, 60, 3, 10, false, 60_000L, 0.3, 10, 5),
                     e -> { });
             this.voskEnabled = voskEnabled;
             this.whisperEnabled = whisperEnabled;
