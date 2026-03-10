@@ -22,12 +22,11 @@ public class StrategyChainTypingService implements TypingService {
     private static final Logger LOG = LogManager.getLogger(StrategyChainTypingService.class);
 
     private final List<TypingAdapter> chain;
-    private final TypingProperties props;
     private final ApplicationEventPublisher publisher;
 
     public StrategyChainTypingService(List<TypingAdapter> adapters, TypingProperties props,
                                       ApplicationEventPublisher publisher) {
-        this.props = Objects.requireNonNull(props);
+        Objects.requireNonNull(props);
         this.publisher = Objects.requireNonNull(publisher);
         // Order adapters: Robot (if present) -> Clipboard -> Notify
         List<TypingAdapter> ordered = new ArrayList<>();

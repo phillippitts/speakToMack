@@ -77,18 +77,6 @@ public interface ReconciliationService {
     TranscriptionResult reconcile(byte[] pcm);
 
     /**
-     * Returns the confidence threshold for smart reconciliation upgrades.
-     *
-     * <p>When running in single-engine mode with Vosk, if the confidence score
-     * falls below this threshold, the orchestrator can upgrade to dual-engine
-     * reconciliation for improved accuracy.
-     *
-     * @return confidence threshold (0.0-1.0)
-     * @throws IllegalStateException if reconciliation is not enabled
-     */
-    double getConfidenceThreshold();
-
-    /**
      * Returns the reconciliation strategy name for metrics/logging.
      *
      * @return strategy name (e.g., "SIMPLE", "CONFIDENCE", "OVERLAP")

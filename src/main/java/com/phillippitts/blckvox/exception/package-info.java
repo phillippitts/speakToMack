@@ -22,11 +22,10 @@
  *   <li>Extend {@code BlckvoxException} for unified handling</li>
  *   <li>Support exception chaining via {@code cause} parameter</li>
  *   <li>Include context fields (e.g., {@code engineName} in {@code TranscriptionException})</li>
- *   <li>Map to appropriate HTTP status codes via {@code GlobalExceptionHandler}</li>
+ *   <li>Map to appropriate HTTP status codes via a global exception handler</li>
  * </ul>
  *
  * @see com.phillippitts.blckvox.exception.BlckvoxException
- * @see com.phillippitts.blckvox.presentation.exception.GlobalExceptionHandler
  * @since 1.0
  */
 package com.phillippitts.blckvox.exception;

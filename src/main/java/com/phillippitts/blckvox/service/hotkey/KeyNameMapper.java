@@ -73,16 +73,6 @@ public final class KeyNameMapper {
         return m;
     }
 
-    /** Normalize a list of modifiers. */
-    public static Set<String> normalizeModifiers(List<String> mods) {
-        if (mods == null) {
-            return Set.of();
-        }
-        return mods.stream()
-                .map(KeyNameMapper::normalizeModifier)
-                .collect(Collectors.toUnmodifiableSet());
-    }
-
     public static boolean isValidKey(String key) {
         return ALLOWED_KEYS.contains(normalizeKey(key));
     }

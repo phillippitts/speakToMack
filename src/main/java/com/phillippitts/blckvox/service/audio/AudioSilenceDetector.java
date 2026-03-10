@@ -45,20 +45,6 @@ public final class AudioSilenceDetector {
     private static final int DEFAULT_WINDOW_MS = 20;
 
     /**
-     * Checks if the entire PCM audio buffer is effectively silent.
-     *
-     * <p>Computes the RMS amplitude across the full buffer and compares against
-     * the default silence threshold. Use this to skip transcription of silence
-     * and avoid STT engine hallucinations (e.g., Vosk producing "the" from zeros).
-     *
-     * @param pcmData PCM16LE mono audio buffer (16-bit signed little-endian)
-     * @return {@code true} if the audio is below the silence threshold
-     */
-    public static boolean isSilent(byte[] pcmData) {
-        return isSilent(pcmData, DEFAULT_SILENCE_THRESHOLD);
-    }
-
-    /**
      * Checks if the entire PCM audio buffer is effectively silent using a custom threshold.
      *
      * @param pcmData PCM16LE mono audio buffer (16-bit signed little-endian)
@@ -138,13 +124,6 @@ public final class AudioSilenceDetector {
             return true;
         }
         return calculateMaxWindowRMS(pcmData) < silenceThreshold;
-    }
-
-    /**
-     * Returns the default silence threshold for diagnostic logging.
-     */
-    public static int getDefaultSilenceThreshold() {
-        return DEFAULT_SILENCE_THRESHOLD;
     }
 
     /**

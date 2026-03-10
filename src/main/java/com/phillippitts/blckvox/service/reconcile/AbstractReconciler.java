@@ -26,7 +26,7 @@ import com.phillippitts.blckvox.service.stt.SttEngineNames;
  *     protected TranscriptionResult doReconcile(EngineResult vosk, EngineResult whisper) {
  *         // Both vosk and whisper are guaranteed to be non-null here
  *         String text = vosk.confidence() > whisper.confidence() ? vosk.text() : whisper.text();
- *         return toResult(text, Math.max(vosk.confidence(), whisper.confidence()));
+ *         return toResult(vosk.confidence() > whisper.confidence() ? vosk : whisper);
  *     }
  * }
  * }</pre>
@@ -88,19 +88,6 @@ public abstract class AbstractReconciler implements TranscriptReconciler {
                 result == null ? 0.0 : result.confidence(),
                 SttEngineNames.RECONCILED
         );
-    }
-
-    /**
-     * Creates a transcription result from text and confidence.
-     *
-     * <p>Protected helper method for subclasses to use when creating results.
-     *
-     * @param text transcribed text
-     * @param confidence confidence score (0.0 to 1.0)
-     * @return transcription result with {@link SttEngineNames#RECONCILED} engine name
-     */
-    protected final TranscriptionResult toResult(String text, double confidence) {
-        return TranscriptionResult.of(text, confidence, SttEngineNames.RECONCILED);
     }
 
     /**

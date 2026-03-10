@@ -66,14 +66,6 @@ public final class DefaultReconciliationService implements ReconciliationService
     }
 
     @Override
-    public double getConfidenceThreshold() {
-        if (!isEnabled()) {
-            throw new IllegalStateException("Reconciliation is not enabled");
-        }
-        return props.getConfidenceThreshold();
-    }
-
-    @Override
     public String getStrategy() {
         if (!isEnabled()) {
             throw new IllegalStateException("Reconciliation is not enabled");
@@ -112,11 +104,6 @@ public final class DefaultReconciliationService implements ReconciliationService
 
         @Override
         public TranscriptionResult reconcile(byte[] pcm) {
-            throw new IllegalStateException("Reconciliation is not enabled");
-        }
-
-        @Override
-        public double getConfidenceThreshold() {
             throw new IllegalStateException("Reconciliation is not enabled");
         }
 

@@ -13,8 +13,4 @@ public class BlckvoxException extends RuntimeException {
     public BlckvoxException(String message, Throwable cause) {
         super(message, cause);
     }
-
-    public BlckvoxException(Throwable cause) {
-        super(cause);
-    }
 }

@@ -49,18 +49,4 @@ public final class EngineEventPublisher {
         }
     }
 
-    /**
-     * Publishes an engine failure event with no additional context.
-     *
-     * @param publisher the Spring event publisher (may be null)
-     * @param engineName the name of the engine experiencing the failure
-     * @param message a human-readable description of the failure
-     * @param cause the exception that caused the failure (may be null)
-     */
-    public static void publishFailure(ApplicationEventPublisher publisher,
-                                       String engineName,
-                                       String message,
-                                       Throwable cause) {
-        publishFailure(publisher, engineName, message, cause, null);
-    }
 }

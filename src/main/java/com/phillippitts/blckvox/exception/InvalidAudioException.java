@@ -21,10 +21,6 @@ public class InvalidAudioException extends BlckvoxException {
         this.reason = reason;
     }
 
-    public int getAudioSize() {
-        return audioSize;
-    }
-
     public String getReason() {
         return reason;
     }
