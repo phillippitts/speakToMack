@@ -23,7 +23,7 @@ jobs:
         include:
           - os: macos-14
             java: '21'
-          - os: macos-13
+          - os: macos-15
             java: '21'
           - os: ubuntu-latest
             java: '21'
