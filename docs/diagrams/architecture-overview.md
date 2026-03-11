@@ -5,19 +5,20 @@
 ```mermaid
 graph TB
     User[User] -->|Press Hotkey| HM[HotkeyManager]
-    HM -->|HotkeyPressedEvent| Orch[DictationOrchestrator]
-    Orch -->|Start| AC[AudioCaptureService]
-    AC -->|Audio Buffer| Orch
-    Orch -->|Release Hotkey| PSS[ParallelSttService]
+    HM -->|HotkeyPressedEvent| Adapter[HotkeyRecordingAdapter]
+    Adapter -->|Start| RS[RecordingService]
+    RS -->|Capture| AC[AudioCaptureService]
+    AC -->|Audio Buffer| RS
+    RS -->|Release Hotkey| TO[TranscriptionOrchestrator]
     
-    PSS -->|Thread 1| Vosk[VoskSttEngine<br/>~100ms]
-    PSS -->|Thread 2| Whisper[WhisperSttEngine<br/>~1-2s]
-    
+    TO -->|Thread 1| Vosk[VoskSttEngine<br/>~100ms]
+    TO -->|Thread 2| Whisper[WhisperSttEngine<br/>~1-2s]
+
     Vosk -->|SttResult| Rec[TranscriptReconciler<br/>Strategy Pattern]
     Whisper -->|SttResult| Rec
-    
-    Rec -->|TranscriptionResult| Orch
-    Orch -->|Text| FM[FallbackManager]
+
+    Rec -->|TranscriptionResult| TO
+    TO -->|TranscriptionCompletedEvent| FM[FallbackManager]
     FM -->|Paste/Clipboard/Notify| TS[TypingService]
     TS -->|Cmd+V| User
     
@@ -30,26 +31,26 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph Presentation["Presentation Layer (Tier 1)"]
-        Controllers[REST Controllers<br/>DTOs<br/>Exception Handlers<br/>Actuator Endpoints]
+    subgraph EventDriven["Event-Driven Layer (Tier 1)"]
+        Tray[SystemTrayManager<br/>LiveCaptionWindow]
+        HotkeyMgr[HotkeyManager<br/>Global Key Hook]
     end
 
     subgraph Service["Service Layer (Tier 2)"]
-        Orchestrator[DictationOrchestrator]
+        Orchestrator[HotkeyRecordingAdapter<br/>RecordingService]
         STT[STT Engines]
         Audio[Audio Capture]
-        Hotkey[Hotkey Manager]
         Reconcile[Reconciliation]
         Typing[Typing/Fallback]
     end
 
-    Presentation -->|Uses| Service
+    EventDriven -->|Spring Events| Service
 
-    style Presentation fill:#e1f5ff
+    style EventDriven fill:#e1f5ff
     style Service fill:#fff4e1
 ```
 
-**Note:** Database persistence is planned for Phase 6 but not yet implemented. Current architecture is in-memory only.
+**Note:** No HTTP/REST layer exists (`spring.main.web-application-type=none`). The application is entirely event-driven with hotkey input and system tray UI. Database persistence is planned for Phase 6.
 
 ## Design Patterns Applied
 
@@ -57,7 +58,7 @@ graph LR
 graph TD
     subgraph Patterns["Design Patterns in blckvox"]
         Strategy[Strategy Pattern<br/>TranscriptReconciler<br/>3 implementations]
-        Factory[Factory Pattern<br/>HotkeyTriggerFactory<br/>SttEngineFactory]
+        Factory[Factory Pattern<br/>HotkeyTriggerFactory]
         Adapter[Adapter Pattern<br/>VoskSttEngine wraps JNI<br/>WhisperSttEngine wraps binary]
         Observer[Observer Pattern<br/>Hotkey events<br/>Spring ApplicationEvent]
     end
@@ -110,7 +111,7 @@ The live caption overlay is conditionally loaded via `live-caption.enabled=true`
 | **Resilience** | Critical | Dual-engine fallback, 3-tier typing fallback |
 | **Performance** | High | Parallel execution (latency = max, not sum) |
 | **Extensibility** | High | Strategy pattern for reconciliation/hotkeys |
-| **Observability** | High | Log4j 2 with MDC, Prometheus metrics |
+| **Observability** | High | Log4j 2 with MDC, structured logging |
 | **Maintainability** | High | Clean Code principles, Checkstyle enforcement |
 
 ## Additional Architecture Diagrams

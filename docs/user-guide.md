@@ -88,5 +88,5 @@ stt.whisper.output=json   # default is text
   - See logs for `CaptureErrorEvent` with reason.
 
 ## Support
-- Metrics available at `/actuator/metrics` (dev). In production profile, only `health` and `info` are exposed.
 - Logs are privacy-safe at INFO level (no full transcript).
+- Check `logs/blckvox.log` for diagnostics and engine health events.

@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Manages a macOS system tray icon with Start/Stop Recording and Quit controls.
  *
  * <p>Reacts to {@link ApplicationStateChangedEvent} to update menu text, tooltip,
- * and icon color (gray=idle, green=recording, yellow=transcribing).
+ * and icon color (black=idle, dark orange=recording, gray=transcribing).
  *
  * @since 1.2
  */
@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SystemTrayManager implements SmartLifecycle {
 
     private static final Logger LOG = LogManager.getLogger(SystemTrayManager.class);
+    private static final Color DARK_ORANGE = new Color(204, 102, 0);
 
     private final RecordingService recordingService;
     private final ApplicationContext applicationContext;
@@ -99,7 +100,7 @@ public class SystemTrayManager implements SmartLifecycle {
             quitItem.addActionListener(e -> onQuitClicked());
             popup.add(quitItem);
 
-            Image icon = createIcon(Color.GRAY);
+            Image icon = createIcon(Color.BLACK);
             trayIcon = new TrayIcon(icon, "Blckvox - Idle", popup);
             trayIcon.setImageAutoSize(true);
 
@@ -159,19 +160,19 @@ public class SystemTrayManager implements SmartLifecycle {
     private void updateTrayForState(ApplicationState state) {
         switch (state) {
             case IDLE -> {
-                trayIcon.setImage(createIcon(Color.GRAY));
+                trayIcon.setImage(createIcon(Color.BLACK));
                 trayIcon.setToolTip("Blckvox - Idle");
                 startItem.setEnabled(true);
                 stopItem.setEnabled(false);
             }
             case RECORDING -> {
-                trayIcon.setImage(createIcon(Color.GREEN));
+                trayIcon.setImage(createIcon(DARK_ORANGE));
                 trayIcon.setToolTip("Blckvox - Recording...");
                 startItem.setEnabled(false);
                 stopItem.setEnabled(true);
             }
             case TRANSCRIBING -> {
-                trayIcon.setImage(createIcon(Color.YELLOW));
+                trayIcon.setImage(createIcon(Color.GRAY));
                 trayIcon.setToolTip("Blckvox - Transcribing...");
                 startItem.setEnabled(false);
                 stopItem.setEnabled(false);
@@ -180,14 +181,13 @@ public class SystemTrayManager implements SmartLifecycle {
     }
 
     /**
-     * Creates a simple 16x16 filled circle icon with the given color.
+     * Creates a simple 16x16 filled square icon with the given color.
      */
     static Image createIcon(Color color) {
         BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = img.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(color);
-        g2.fillOval(1, 1, 14, 14);
+        g2.fillRect(1, 1, 14, 14);
         g2.dispose();
         return img;
     }

@@ -19,7 +19,7 @@ See diagrams: `docs/diagrams/architecture-overview.md`.
 - Engines: `service.stt.*` (vosk/whisper)
 - Parallel execution: `service.stt.parallel.*`
 - Reconciliation: `service.reconcile.*`
-- Orchestrator: `service.orchestration.DualEngineOrchestrator`
+- Orchestrator: `service.orchestration.HotkeyRecordingAdapter` → `RecordingService` → `CaptureOrchestrator` + `TranscriptionOrchestrator`
 - Fallback typing: `service.fallback.*`
 - Watchdog: `service.stt.watchdog.*`
 - Live caption: `service.livecaption.*` (JavaFX overlay with oscilloscope + streaming Vosk captions)
@@ -46,29 +46,26 @@ The application uses Spring's event-driven architecture to keep the UI responsiv
 
 **Implementation:**
 ```java
-@Component
-public class DualEngineOrchestrator {
+public class HotkeyRecordingAdapter {
 
     @EventListener
-    public void onHotkeyPressed(HotkeyPressedEvent event) {
-        // Synchronous: immediate response to start audio capture
-        captureService.startSession();
+    @Async("eventExecutor")
+    public void onHotkeyPressed(HotkeyPressedEvent evt) {
+        // Toggle mode or push-to-talk start
+        recordingService.startRecording();
     }
 
     @EventListener
-    @Async("sttExecutor")  // Offload to background thread pool
-    public void onHotkeyReleased(HotkeyReleasedEvent event) {
-        // Asynchronous: transcription can take 1-5 seconds
-        // Runs on sttExecutor thread pool, not hotkey listener thread
-        byte[] audio = captureService.stopAndRead();
-        TranscriptionResult result = sttEngine.transcribe(audio);
-        eventPublisher.publishEvent(new TranscriptionCompletedEvent(result));
+    @Async("eventExecutor")
+    public void onHotkeyReleased(HotkeyReleasedEvent evt) {
+        // Stop recording → triggers transcription + paste
+        recordingService.stopRecording();
     }
 }
 ```
 
 **Thread Pool Configuration:**
-- `sttExecutor` thread pool is configured in `AppConfig`
+- `sttExecutor` and `eventExecutor` thread pools are configured in `ThreadPoolConfig`
 - Pool size matches STT engine concurrency limits to prevent resource exhaustion
 - Callers should never block event listener threads with long-running STT operations
 
@@ -143,7 +140,7 @@ stt.orchestration.silence-gap-ms=1000
   - `HotkeyTriggerTests`, `HotkeyManagerTest`
   - `JavaSoundAudioCaptureServiceTest`, `PcmRingBufferTest`
   - `DefaultParallelSttServiceTest`, `DefaultParallelSttServiceTimeoutTest`
-  - `ReconcilerStrategiesTest`, `DualEngineOrchestratorReconciledTest`
+  - `ReconcilerStrategiesTest`, `HotkeyRecordingAdapterReconciledTest`
   - `WhisperJsonParserTest`, `WhisperProcessManagerJsonTest`, `WhisperSttEngineJsonModeTest`
   - Fallback: `StrategyChainTypingService*`, `ClipboardTypingAdapterTest`
 
@@ -198,8 +195,8 @@ The project uses the following key dependencies:
 ```bash
 ./gradlew bootRun
 ```
-- Dev metrics at `/actuator/metrics`; production profile restricts Actuator to health/info
 - Application runs with `-Djava.awt.headless=false` for Robot/Clipboard API support
+- Observability via structured Log4j 2 logging with MDC correlation
 
 ## Contribution Flow
 1. Create a small, independently testable task (feature or doc).

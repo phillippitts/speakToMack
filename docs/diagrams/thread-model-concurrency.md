@@ -6,7 +6,6 @@
 graph TB
     subgraph MainThread["Main Thread"]
         Spring[Spring Boot Main]
-        Controllers[REST Controllers]
         EventBus[ApplicationEventPublisher]
     end
 
@@ -39,8 +38,7 @@ graph TB
     end
 
     HotkeyThread -->|HotkeyPressed Event| EventBus
-    EventBus -->|Async| Controllers
-    Controllers -->|Submit Tasks| SttExecutor
+    EventBus -->|@Async eventExecutor| SttExecutor
     AudioThread -->|Write PCM| RingBuffer
     MainThread -->|Read PCM| RingBuffer
     AudioThread -->|Publish| PcmEvent
@@ -102,10 +100,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    Request[HTTP Request<br/>requestId: abc123] --> Filter[MDCFilter]
-    Filter -->|Set MDC| Controller[Controller Thread<br/>MDC: requestId=abc123]
+    Event[Spring Event<br/>e.g. HotkeyPressedEvent] --> Listener[Event Listener Thread<br/>MDC: requestId=abc123]
 
-    Controller -->|Submit to Executor| Decorator[TaskDecorator]
+    Listener -->|Submit to Executor| Decorator[TaskDecorator<br/>in ThreadPoolConfig]
     Decorator -->|Copy MDC| Task[Runnable Task]
 
     Task -->|Execute in| Worker1[Worker Thread 1<br/>MDC: requestId=abc123]
@@ -114,9 +111,10 @@ flowchart TB
     Worker1 -->|Log with MDC| Logger1[Log: requestId=abc123]
     Worker2 -->|Log with MDC| Logger2[Log: requestId=abc123]
 
-    Controller -->|Finally| Clear[MDC.clear]
+    Worker1 -->|Finally| Clear1[MDC.clear]
+    Worker2 -->|Finally| Clear2[MDC.clear]
 
-    style Filter fill:#e1f5ff
+    style Event fill:#e1f5ff
     style Decorator fill:#fff4e1
     style Worker1 fill:#c8e6c9
     style Worker2 fill:#c8e6c9
@@ -308,10 +306,10 @@ graph LR
     end
 
     subgraph Pool["Thread Pool Properties"]
-        Core[corePoolSize: 2<br/>Vosk + Whisper]
-        Max[maxPoolSize: 4<br/>Burst capacity]
-        Queue[queueCapacity: 100<br/>Bounded queue]
-        Prefix[threadNamePrefix: stt-]
+        Core[corePoolSize: 4<br/>Vosk + Whisper]
+        Max[maxPoolSize: 8<br/>Burst capacity]
+        Queue[queueCapacity: 50<br/>Bounded queue]
+        Prefix[threadNamePrefix: stt-pool-]
     end
 
     subgraph Decorator["TaskDecorator"]
@@ -463,7 +461,7 @@ flowchart TB
 | Mechanism | Usage | Visibility Guarantee |
 |-----------|-------|---------------------|
 | `synchronized` | AbstractSttEngine, CaptureStateMachine | Happens-before relationship established |
-| `volatile` | Not used (locks sufficient) | N/A |
+| `volatile` | ApplicationStateTracker.state, HotkeyManager.running, LiveCaptionManager.window, SystemTrayManager fields, JavaSoundAudioCaptureService.CaptureSession fields | Safe publication and visibility across threads |
 | `final` fields | All immutable records, AbstractSttEngine.lock | Safe publication guaranteed |
 | `CopyOnWriteArrayList` | HotkeyManager.listeners | Atomic snapshot reads |
 | `CompletableFuture` | ParallelSttService | Result visibility via ForkJoinPool |

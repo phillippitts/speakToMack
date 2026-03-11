@@ -19,7 +19,7 @@ Complete reference for all configuration properties in blckvox.
 - [Hotkey Configuration](#hotkey-configuration)
 - [Typing Configuration](#typing-configuration)
 - [Live Caption Configuration](#live-caption-configuration)
-- [Spring Boot Actuator](#spring-boot-actuator)
+- [Thread Pool Configuration](#thread-pool-configuration)
 
 ---
 
@@ -416,40 +416,37 @@ When enabled, the "Live Caption" checkbox in the system tray menu allows togglin
 
 ---
 
-## Spring Boot Actuator
+## Thread Pool Configuration
 
-Production monitoring and health check endpoints.
+Controls thread pool sizing for STT processing and event handling.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `management.endpoints.web.exposure.include` | String | `health,info,metrics,prometheus` | Comma-separated list of exposed actuator endpoints. |
-| `management.endpoints.web.base-path` | String | `/actuator` | Base path for actuator endpoints. |
-| `management.endpoint.health.show-details` | String | `when-authorized` | Health endpoint detail level. Options: `always`, `when-authorized`, `never`. |
-| `management.health.defaults.enabled` | boolean | `true` | Enable default health indicators (disk space, etc.). Note: This application does not use a database; database health indicators are not applicable. |
-| `server.shutdown` | String | `graceful` | Shutdown mode. `graceful` waits for requests to complete before shutdown. |
-| `spring.lifecycle.timeout-per-shutdown-phase` | String | `30s` | Maximum time to wait per shutdown phase (e.g., "30s", "1m"). |
+| `threadpool.stt.core-pool-size` | int | `4` | Core threads for STT engine execution. |
+| `threadpool.stt.max-pool-size` | int | `8` | Maximum threads for burst STT capacity. |
+| `threadpool.stt.queue-capacity` | int | `50` | Bounded queue size for STT tasks. |
+| `threadpool.stt.keep-alive-seconds` | int | `60` | Idle thread timeout before termination. |
+| `threadpool.stt.thread-name-prefix` | String | `stt-pool-` | Thread name prefix for debugging. |
+| `threadpool.event.core-pool-size` | int | `2` | Core threads for async event handling. |
+| `threadpool.event.max-pool-size` | int | `4` | Maximum threads for event processing. |
+| `threadpool.event.queue-capacity` | int | `10` | Bounded queue size for event tasks. |
+| `threadpool.event.keep-alive-seconds` | int | `60` | Idle thread timeout before termination. |
+| `threadpool.event.thread-name-prefix` | String | `event-pool-` | Thread name prefix for debugging. |
 
 **Example:**
 ```properties
-management.endpoints.web.exposure.include=health,info,metrics,prometheus
-management.endpoints.web.base-path=/actuator
-management.endpoint.health.show-details=when-authorized
-management.health.defaults.enabled=true
-server.shutdown=graceful
-spring.lifecycle.timeout-per-shutdown-phase=30s
+threadpool.stt.core-pool-size=4
+threadpool.stt.max-pool-size=8
+threadpool.stt.queue-capacity=50
+threadpool.event.core-pool-size=2
+threadpool.event.max-pool-size=4
+threadpool.event.queue-capacity=10
 ```
 
-**Actuator Endpoints:**
-- `GET /actuator/health` - Application health status
-- `GET /actuator/info` - Application information
-- `GET /actuator/metrics` - Application metrics
-- `GET /actuator/prometheus` - Prometheus-formatted metrics
-
-**Disable for Development:**
-```properties
-management.endpoints.web.exposure.include=health
-management.endpoint.health.show-details=always
-```
+**Tuning Guide:**
+- **Low-end CPU (2-4 cores):** `stt.core-pool-size=2`, `stt.max-pool-size=4`
+- **Mid-range CPU (4-8 cores):** Default values (stt core=4, max=8)
+- **High-end CPU (8+ cores):** `stt.core-pool-size=8`, `stt.max-pool-size=16`
 
 ---
 
@@ -472,15 +469,8 @@ stt.watchdog.enabled=true
 stt.concurrency.vosk-max=4
 stt.concurrency.whisper-max=2
 
-# Enable actuator for monitoring
-management.endpoints.web.exposure.include=health,metrics,prometheus
-
 # Live caption overlay
 live-caption.enabled=true
-
-# Graceful shutdown
-server.shutdown=graceful
-spring.lifecycle.timeout-per-shutdown-phase=30s
 ```
 
 ---
@@ -501,9 +491,6 @@ stt.watchdog.enabled=false
 # Lower concurrency for resource-constrained dev machines
 stt.concurrency.vosk-max=2
 stt.concurrency.whisper-max=1
-
-# Detailed health info
-management.endpoint.health.show-details=always
 ```
 
 ---
@@ -515,14 +502,13 @@ Use Spring profiles to override properties per environment:
 **application-dev.properties:**
 ```properties
 stt.watchdog.enabled=false
-management.endpoint.health.show-details=always
+stt.reconciliation.enabled=false
 ```
 
 **application-prod.properties:**
 ```properties
 stt.watchdog.enabled=true
 stt.reconciliation.enabled=true
-management.endpoint.health.show-details=when-authorized
 ```
 
 **Run with profile:**

@@ -82,7 +82,7 @@ classDiagram
         #selectBestResult(EngineResult, EngineResult, String) TranscriptionResult
     }
 
-    class SimpleReconciler {
+    class SimplePreferenceReconciler {
         +reconcile() TranscriptionResult
     }
 
@@ -96,21 +96,10 @@ classDiagram
         -calculateOverlap() double
     }
 
-    class LongerTextReconciler {
-        +reconcile() TranscriptionResult
-    }
-
-    class DiffBasedReconciler {
-        +reconcile() TranscriptionResult
-        -calculateEditDistance() int
-    }
-
     TranscriptReconciler <|.. AbstractReconciler
-    AbstractReconciler <|-- SimpleReconciler
+    AbstractReconciler <|-- SimplePreferenceReconciler
     AbstractReconciler <|-- ConfidenceReconciler
     AbstractReconciler <|-- WordOverlapReconciler
-    AbstractReconciler <|-- LongerTextReconciler
-    AbstractReconciler <|-- DiffBasedReconciler
 ```
 
 ## Hotkey Trigger Strategy Pattern
@@ -163,31 +152,32 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class DualEngineOrchestrator {
-        -CaptureOrchestrator captureOrch
-        -TranscriptionOrchestrator transcriptionOrch
-        -HotkeyManager hotkeyManager
-        -ApplicationEventPublisher publisher
+    class HotkeyRecordingAdapter {
+        -RecordingService recordingService
+        -HotkeyProperties hotkeyProps
         +onHotkeyPressed(HotkeyPressedEvent)
         +onHotkeyReleased(HotkeyReleasedEvent)
-        +shutdown()
+        +onCaptureError(CaptureErrorEvent)
+    }
+
+    class RecordingService {
+        <<interface>>
+        +startRecording() boolean
+        +stopRecording()
+        +cancelRecording()
+        +toggleRecording() boolean
     }
 
     class CaptureOrchestrator {
-        -AudioCaptureService captureService
-        -CaptureStateMachine stateMachine
-        -ApplicationEventPublisher publisher
+        <<interface>>
         +startCapture() UUID
         +stopCapture(UUID) byte[]
         +cancelCapture()
     }
 
     class TranscriptionOrchestrator {
-        -ParallelSttService parallelStt
-        -TranscriptReconciler reconciler
-        -FallbackManager fallbackManager
-        -ReconciliationDependencies deps
-        +transcribeAndType(byte[], UUID)
+        <<interface>>
+        +transcribe(byte[]) TranscriptionResult
     }
 
     class CaptureStateMachine {
@@ -200,13 +190,13 @@ classDiagram
         +isActive() boolean
     }
 
-    DualEngineOrchestrator --> CaptureOrchestrator : delegates
-    DualEngineOrchestrator --> TranscriptionOrchestrator : delegates
+    HotkeyRecordingAdapter --> RecordingService : delegates
+    RecordingService --> CaptureOrchestrator : uses
+    RecordingService --> TranscriptionOrchestrator : uses
     CaptureOrchestrator --> CaptureStateMachine : uses
     CaptureOrchestrator --> AudioCaptureService : uses
     TranscriptionOrchestrator --> ParallelSttService : uses
     TranscriptionOrchestrator --> TranscriptReconciler : uses
-    TranscriptionOrchestrator --> FallbackManager : uses
 ```
 
 ## Live Caption Package
@@ -268,10 +258,6 @@ classDiagram
 
 ```mermaid
 graph TB
-    subgraph presentation["com.phillippitts.blckvox.presentation"]
-        Controller[Controllers<br/>DTOs<br/>ExceptionHandlers]
-    end
-
     subgraph service["com.phillippitts.blckvox.service"]
         Orch[orchestration]
         STT[stt + stt.parallel]
@@ -279,7 +265,6 @@ graph TB
         Hotkey[hotkey]
         Reconcile[reconcile]
         Fallback[fallback]
-        Typing[typing]
         LiveCaption[livecaption]
         Tray[tray]
     end
@@ -300,13 +285,11 @@ graph TB
         Utils[TimeUtils<br/>ProcessTimeouts]
     end
 
-    Controller --> Orch
     Orch --> Audio
     Orch --> STT
     Orch --> Hotkey
     Orch --> Reconcile
     Orch --> Fallback
-    Fallback --> Typing
     STT --> domain
     Reconcile --> domain
     Audio --> domain
@@ -315,7 +298,6 @@ graph TB
     LiveCaption --> config
     Tray --> LiveCaption
 
-    Controller --> exception
     STT --> exception
     Audio --> exception
 
@@ -327,7 +309,6 @@ graph TB
     STT --> util
     Audio --> util
 
-    style presentation fill:#e1f5ff
     style service fill:#fff4e1
     style domain fill:#c8e6c9
     style config fill:#f3e5f5
@@ -341,22 +322,19 @@ graph TB
 
 ```mermaid
 flowchart LR
-    Pres[Presentation] --> Svc[Service]
-    Svc --> Domain[Domain]
-    Pres --> Domain
+    Svc[Service] --> Domain[Domain]
     Svc --> Config[Config]
-    Pres --> Config
     Svc --> Exception[Exception]
-    Pres --> Exception
     Svc --> Util[Util]
 
-    style Pres fill:#e1f5ff
     style Svc fill:#fff4e1
     style Domain fill:#c8e6c9
     style Config fill:#f3e5f5
     style Exception fill:#ffcdd2
     style Util fill:#fff9c4
 ```
+
+**Note:** There is no presentation/REST layer (`spring.main.web-application-type=none`). The application uses event-driven input via hotkeys and system tray.
 
 ### Forbidden Dependencies
 
@@ -373,10 +351,10 @@ flowchart LR
 | Package | Pattern | Implementation |
 |---------|---------|----------------|
 | `service.stt` | Template Method | AbstractSttEngine (doInitialize/doClose) |
-| `service.reconcile` | Strategy | TranscriptReconciler interface + 5 implementations |
+| `service.reconcile` | Strategy | TranscriptReconciler interface + 3 implementations |
 | `service.hotkey` | Strategy + Factory | HotkeyTrigger + HotkeyTriggerFactory |
 | `service.stt` | Adapter | VoskSttEngine wraps JNI, WhisperSttEngine wraps binary |
-| `service.orchestration` | Facade | DualEngineOrchestrator coordinates subsystems |
+| `service.orchestration` | Facade | RecordingService coordinates subsystems |
 | `service.*` | Observer | ApplicationEventPublisher for loose coupling |
 | `service.stt` | Object Pool | ConcurrencyGuard with Semaphore |
 | `service.livecaption` | Bridge | LiveCaptionManager bridges Spring events to JavaFX thread |

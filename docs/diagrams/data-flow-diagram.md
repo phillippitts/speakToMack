@@ -6,7 +6,7 @@
 sequenceDiagram
     actor User
     participant HK as HotkeyManager
-    participant Orch as DictationOrchestrator
+    participant Orch as RecordingService
     participant Audio as AudioCaptureService
     participant Buffer as AudioBuffer
     participant PSS as ParallelSttService
@@ -44,7 +44,7 @@ sequenceDiagram
     end
     
     PSS->>Rec: reconcile(voskResult, whisperResult)
-    Note over Rec: Strategy: Simple/Overlap/Diff
+    Note over Rec: Strategy: Simple/Confidence/Overlap
     Rec-->>PSS: TranscriptionResult(text, engine, reason)
     PSS-->>Orch: TranscriptionResult
     
@@ -69,28 +69,20 @@ stateDiagram-v2
     
     Idle --> Recording : Hotkey Down
     Recording --> Transcribing : Hotkey Up
-    Transcribing --> Typing : Transcription Complete
-    Typing --> Idle : Paste Complete
-    
+    Transcribing --> Idle : Transcription Complete + Paste
+
     Recording --> Idle : Error/Cancel
     Transcribing --> Idle : Timeout/Error
-    Typing --> Idle : Fallback Failed
-    
+
     note right of Recording
         Audio captured to buffer
         Visual feedback active
     end note
-    
+
     note right of Transcribing
         Dual-engine processing
-        Max 5s timeout
-    end note
-    
-    note right of Typing
-        3-tier fallback:
-        1. Paste
-        2. Clipboard
-        3. Notification
+        Result pasted via 3-tier fallback
+        (Robot → Clipboard → Notification)
     end note
 ```
 

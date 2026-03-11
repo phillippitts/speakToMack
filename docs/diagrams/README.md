@@ -119,6 +119,107 @@ This directory contains comprehensive visual documentation for the blckvox proje
 
 ---
 
+### [Event Flow & Listener Map](event-flow-map.md)
+**Purpose:** Trace every Spring ApplicationEvent through its publishers and listeners
+
+**Contains:**
+- Complete event wiring map (all 14 event types)
+- Happy path event chain (hotkey → transcription → typing)
+- Error path event chains (engine failure, capture error, typing fallback)
+- Event payload reference table
+- Live caption event sub-flow
+
+**Best for:** Debugging event chains, understanding publisher/listener relationships, adding new events
+
+---
+
+### [Bean Configuration Graph](bean-configuration-graph.md)
+**Purpose:** Visualize how Spring beans are wired and configured
+
+**Contains:**
+- Bean factory graph (all config classes and their beans)
+- Conditional bean branching
+- Component scan vs explicit bean registration table
+- Dependency injection graph
+
+**Best for:** Understanding Spring wiring, debugging bean loading, configuration changes
+
+---
+
+### [Feature Toggle Matrix](feature-toggle-matrix.md)
+**Purpose:** Map all feature toggles and their behavioral effects
+
+**Contains:**
+- Feature toggle decision flowchart
+- Configuration scenarios table (5 profiles)
+- Toggle dependency graph
+- Runtime behavior matrix
+- Secondary toggles reference
+
+**Best for:** Configuration planning, understanding feature interdependencies, testing profiles
+
+---
+
+### [Startup & Shutdown Lifecycle](startup-lifecycle.md)
+**Purpose:** Understand application initialization and teardown ordering
+
+**Contains:**
+- Full startup sequence diagram
+- Startup validation chain
+- SmartLifecycle phase ordering
+- Shutdown sequence
+- Fail-fast decision tree
+
+**Best for:** Debugging startup failures, understanding initialization order, lifecycle management
+
+---
+
+### [Exception Flow & Recovery](exception-flow.md)
+**Purpose:** Map every exception type through its throw, catch, and recovery paths
+
+**Contains:**
+- Exception hierarchy tree
+- Throw & catch map
+- Engine failure recovery sequence (watchdog)
+- Typing fallback cascade
+- Capture error flows
+- Invalid state transition recovery
+- Error recovery summary table
+
+**Best for:** Error handling, debugging failures, understanding recovery mechanisms
+
+---
+
+### [Async Threading Model](async-threading-model.md)
+**Purpose:** Deep dive into thread handoffs, pool configuration, and MDC propagation
+
+**Contains:**
+- Thread architecture overview (7 thread types, all handoff mechanisms)
+- @Async vs sync listener classification
+- Thread pool configuration diagrams
+- MDC propagation flow (capture → restore → cleanup)
+- Rejection policy scenarios (CallerRunsPolicy vs DiscardOldestPolicy)
+- Complete dictation threading sequence (8 participants, 6 phases)
+
+**Best for:** Performance tuning, debugging threading issues, understanding async behavior
+
+---
+
+### [Conditional Bean Loading](conditional-bean-loading.md)
+**Purpose:** Visualize how @ConditionalOnProperty controls bean instantiation
+
+**Contains:**
+- Conditional bean loading flowchart (all 10 conditional beans)
+- Bean presence matrix across 5 configuration profiles
+- Optional injection pattern (SystemTrayManager, OrchestrationConfig)
+- Live caption bean cluster
+- Reconciliation bean branching (mutual exclusivity)
+- Default vs minimal runtime comparison
+
+**Best for:** Understanding feature flags, configuration profiles, optional dependency injection
+
+---
+
 ## High-Level Overview
 
 ### [Architecture Overview](architecture-overview.md)
@@ -164,6 +265,13 @@ mmdc -i architecture-overview.md -o architecture-overview.svg
 | **Developer** | Threading | [thread-model-concurrency.md](thread-model-concurrency.md) |
 | **Developer** | Data Flow | [data-flow-diagram.md](data-flow-diagram.md) |
 | **Developer** | Live Caption | [live-caption-system.md](live-caption-system.md) |
+| **Developer** | Event Flow | [event-flow-map.md](event-flow-map.md) |
+| **Developer** | Bean Wiring | [bean-configuration-graph.md](bean-configuration-graph.md) |
+| **Developer** | Feature Toggles | [feature-toggle-matrix.md](feature-toggle-matrix.md) |
+| **Developer** | Startup/Shutdown | [startup-lifecycle.md](startup-lifecycle.md) |
+| **Developer** | Error Handling | [exception-flow.md](exception-flow.md) |
+| **Developer** | Async Threading | [async-threading-model.md](async-threading-model.md) |
+| **Developer** | Conditional Beans | [conditional-bean-loading.md](conditional-bean-loading.md) |
 | **User** | Onboarding | [user-journey.md](user-journey.md) |
 | **User** | Troubleshooting | [troubleshooting-guide.md](troubleshooting-guide.md) |
 | **All** | Overview | [architecture-overview.md](architecture-overview.md) |
@@ -176,18 +284,32 @@ mmdc -i architecture-overview.md -o architecture-overview.svg
 - **6 diagrams** in data-flow-diagram.md
 - **12 diagrams** in user-journey.md
 - **6 diagrams** in troubleshooting-guide.md
-- **8 diagrams** in live-caption-system.md (new)
+- **8 diagrams** in live-caption-system.md
+- **5 diagrams** in event-flow-map.md
+- **4 diagrams** in bean-configuration-graph.md
+- **5 diagrams** in feature-toggle-matrix.md
+- **5 diagrams** in startup-lifecycle.md
+- **7 diagrams** in exception-flow.md
+- **6 diagrams** in async-threading-model.md
+- **6 diagrams** in conditional-bean-loading.md
 
-**Total: 74 diagrams** across 7 documentation files
+**Total: ~112 diagrams** across 14 documentation files
 
 ## Recommended Reading Order
 
 ### For New Developers
 1. [Architecture Overview](architecture-overview.md) - Start here
-2. [Data Flow Diagram](data-flow-diagram.md) - Understand the happy path
-3. [Class Dependencies](class-dependencies.md) - Dive into code structure
-4. [Live Caption System](live-caption-system.md) - Real-time UI overlay
-5. [Thread Model & Concurrency](thread-model-concurrency.md) - Master threading (advanced)
+2. [Event Flow & Listener Map](event-flow-map.md) - Understand event-driven wiring
+3. [Data Flow Diagram](data-flow-diagram.md) - Understand the happy path
+4. [Class Dependencies](class-dependencies.md) - Dive into code structure
+5. [Bean Configuration Graph](bean-configuration-graph.md) - Spring wiring
+6. [Feature Toggle Matrix](feature-toggle-matrix.md) - Configuration profiles
+7. [Startup & Shutdown Lifecycle](startup-lifecycle.md) - Initialization order
+8. [Live Caption System](live-caption-system.md) - Real-time UI overlay
+9. [Exception Flow & Recovery](exception-flow.md) - Error handling paths
+10. [Async Threading Model](async-threading-model.md) - Deep threading dive
+11. [Conditional Bean Loading](conditional-bean-loading.md) - Feature flag beans
+12. [Thread Model & Concurrency](thread-model-concurrency.md) - Master threading (advanced)
 
 ### For New Users
 1. [User Journey Map](user-journey.md) - What to expect

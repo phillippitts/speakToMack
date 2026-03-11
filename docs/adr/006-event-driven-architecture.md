@@ -8,7 +8,7 @@ Accepted (2025-01-14)
 Desktop application (hotkey-triggered) with:
 - No database persistence (removed PostgreSQL, JPA in cleanup)
 - Event-driven coordination between services
-- Minimal REST layer (Actuator monitoring only)
+- No REST/HTTP layer (`spring.main.web-application-type=none`)
 - Spring ApplicationEvents for decoupled communication
 
 ## Decision
@@ -18,7 +18,7 @@ Follow **2-tier event-driven architecture**:
 src/main/java/com/phillippitts/blckvox/
 ├── service/           # Tier 1: Business logic (event publishers & listeners)
 │   ├── hotkey/        # HotkeyTrigger → publishes HotkeyPressedEvent
-│   ├── orchestration/ # DualEngineOrchestrator → publishes TranscriptionCompletedEvent
+│   ├── orchestration/ # HotkeyRecordingAdapter → RecordingService → publishes TranscriptionCompletedEvent
 │   ├── fallback/      # FallbackManager → listens to TranscriptionCompletedEvent
 │   ├── stt/           # Speech-to-text engines (Vosk, Whisper)
 │   └── audio/         # Audio capture
@@ -27,14 +27,14 @@ src/main/java/com/phillippitts/blckvox/
 │   ├── orchestration/
 │   ├── stt/
 │   └── ...
-├── presentation/      # Minimal: PingController, GlobalExceptionHandler
+│   └── tray/          # SystemTrayManager (menu bar UI)
 ├── domain/            # Shared records (TranscriptionResult, etc.)
 └── exception/         # Custom exceptions
 ```
 
 **Event Flow:**
 1. `HotkeyTrigger` publishes `HotkeyPressedEvent` → triggers audio capture
-2. `DualEngineOrchestrator` transcribes audio → publishes `TranscriptionCompletedEvent`
+2. `RecordingService` transcribes audio → publishes `TranscriptionCompletedEvent`
 3. `FallbackManager` listens to `TranscriptionCompletedEvent` → types text via clipboard
 
 **Design Rules:**
@@ -42,7 +42,7 @@ src/main/java/com/phillippitts/blckvox/
 - Use `@EventListener` for consuming events
 - Constructor injection only (no `@Autowired` fields)
 - Services are stateless (event data carries context)
-- No HTTP layer for core workflow (REST is monitoring-only)
+- No HTTP layer (event-driven desktop application)
 
 ## Consequences
 
@@ -73,7 +73,7 @@ src/main/java/com/phillippitts/blckvox/
 ### Direct Service Calls (No Events)
 - **Rejected**: Tight coupling between services
 - **Advantage**: Simpler control flow, easier debugging
-- **Disadvantage**: FallbackManager would depend on DualEngineOrchestrator, HotkeyTrigger would depend on AudioCaptureService
+- **Disadvantage**: FallbackManager would depend on RecordingService, HotkeyManager would depend on AudioCaptureService
 
 ### Message Queue (RabbitMQ, Kafka)
 - **Rejected**: Over-engineering for single-JVM desktop app
@@ -82,11 +82,12 @@ src/main/java/com/phillippitts/blckvox/
 
 ## Implementation Evidence
 **Event Publishers:**
-- `DualEngineOrchestrator:300` → `publisher.publishEvent(new TranscriptionCompletedEvent(...))`
-- `HotkeyTrigger` → publishes `HotkeyPressedEvent`, `HotkeyReleasedEvent`
+- `DefaultTranscriptionOrchestrator` → `publisher.publishEvent(new TranscriptionCompletedEvent(...))`
+- `HotkeyManager` → publishes `HotkeyPressedEvent`, `HotkeyReleasedEvent`
 
 **Event Listeners:**
-- `FallbackManager:66` → `@EventListener onTranscription(TranscriptionCompletedEvent evt)`
+- `HotkeyRecordingAdapter` → `@EventListener onHotkeyPressed/onHotkeyReleased`
+- `TypingEventsListener` → `@EventListener` for TranscriptionCompletedEvent
 
 **Test Verification:**
 - `ReconciliationE2ETest` → Verifies full event chain with EventCapturingPublisher

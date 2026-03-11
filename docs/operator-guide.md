@@ -94,30 +94,30 @@ typing.enable-robot=true
 # typing.paste-shortcut=os-default    # os-default | META+V | CONTROL+V
 ```
 
-## Metrics (Micrometer)
-Metrics are PII-safe. Key meters:
+## Observability
 
-- Engine metrics
-  - `stt.engine.latency.ms{engine=vosk|whisper}` (timer)
-  - `stt.engine.success_total{engine=}` (counter)
-  - `stt.engine.failure_total{engine=,reason=timeout|error}` (counter)
+**Note:** Micrometer/Prometheus metrics are planned for Phase 6. Current observability is via structured logging.
 
-- Reconciliation metrics (when enabled)
-  - `stt.reconcile.strategy_total{strategy=simple|confidence|overlap}` (counter)
-  - `stt.reconcile.selected_total{engine=vosk|whisper|unknown}` (counter)
+Key log events to monitor:
+- `TranscriptionCompletedEvent` - engine used, confidence, duration, text length
+- `EngineFailureEvent` / `EngineRecoveredEvent` - watchdog health transitions
+- `AllTypingFallbacksFailedEvent` - text output failures
+- `CaptureErrorEvent` - audio capture issues
 
-Access in dev at `/actuator/metrics`. In production profile, only `health` and `info` are exposed.
+All logs are PII-safe: INFO level never includes full transcripts, only durations and character counts.
 
 ## Logging
 - INFO logs never include full transcripts; only durations and character counts.
 - DEBUG logs may include truncated previews via LogSanitizer.
 - Error events are centralized and throttled (Hotkey permission/ conflict; capture errors).
+- Audit log: `logs/audit.log` (separate appender, daily rollover, 365-day retention).
 
 ## Production profile
-`src/main/resources/application-production.properties` reduces Actuator exposure:
+Use Spring profiles to adjust configuration per environment:
 ```properties
-management.endpoints.web.exposure.include=health,info
-management.endpoint.health.show-details=never
+# application-production.properties
+stt.watchdog.enabled=true
+stt.reconciliation.enabled=true
 ```
 Run with: `--spring.profiles.active=production`.
 

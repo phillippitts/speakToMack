@@ -561,25 +561,21 @@ stt.whisper.output=json
 
 ### How do I monitor engine health?
 
-**Actuator endpoints:**
-```bash
-curl http://localhost:8080/actuator/health
+**Watchdog logging:**
+The `SttEngineWatchdog` monitors engine health automatically and logs status changes:
+```
+INFO  SttEngineWatchdog - Engine vosk: HEALTHY
+WARN  SttEngineWatchdog - Engine whisper: DEGRADED (2 failures in window)
 ```
 
-**Response:**
-```json
-{
-  "status": "UP",
-  "components": {
-    "sttEngineHealth": {
-      "status": "UP",
-      "details": {
-        "vosk": "HEALTHY",
-        "whisper": "HEALTHY"
-      }
-    }
-  }
-}
+**Application logs:**
+Check `logs/blckvox.log` for engine health events (`EngineFailureEvent`, `EngineRecoveredEvent`).
+
+**Configuration:**
+```properties
+stt.watchdog.enabled=true
+stt.watchdog.max-restarts-per-window=3
+stt.watchdog.cooldown-minutes=10
 ```
 
 ### How do I disable an engine?
@@ -608,17 +604,9 @@ Create profile-specific config:
 - `application-dev.properties`
 - `application-prod.properties`
 
-### How do I export Prometheus metrics?
+### Will Prometheus/Micrometer metrics be available?
 
-Metrics are exposed at `/actuator/prometheus`:
-```bash
-curl http://localhost:8080/actuator/prometheus
-```
-
-Example metrics:
-- `stt_transcription_duration_seconds` - Transcription latency
-- `stt_engine_failures_total` - Engine failure count
-- `jvm_memory_used_bytes` - Memory usage
+Prometheus metrics and Micrometer integration are planned for Phase 6 (Production Hardening). Currently, observability is provided through structured Log4j 2 logging with MDC correlation IDs. See `docs/IMPLEMENTATION_PLAN.md` Phase 6 for details.
 
 ### Can I run blckvox as a background service?
 
