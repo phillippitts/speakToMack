@@ -22,8 +22,19 @@ class SystemTrayManagerTest {
         assertThat(img).isNotNull();
         assertThat(img).isInstanceOf(BufferedImage.class);
         BufferedImage bi = (BufferedImage) img;
-        assertThat(bi.getWidth()).isEqualTo(16);
-        assertThat(bi.getHeight()).isEqualTo(16);
+        assertThat(bi.getWidth()).isEqualTo(32);
+        assertThat(bi.getHeight()).isEqualTo(32);
+    }
+
+    @Test
+    void createIconDrawsCircleShape() {
+        BufferedImage img = (BufferedImage) SystemTrayManager.createIcon(Color.RED);
+        // Center pixel should be opaque (part of the filled circle)
+        int centerArgb = img.getRGB(16, 16);
+        assertThat((centerArgb >> 24) & 0xFF).as("center pixel alpha").isEqualTo(255);
+        // Corner pixel (0,0) should be transparent (outside the circle)
+        int cornerArgb = img.getRGB(0, 0);
+        assertThat((cornerArgb >> 24) & 0xFF).as("corner pixel alpha").isEqualTo(0);
     }
 
     @Test

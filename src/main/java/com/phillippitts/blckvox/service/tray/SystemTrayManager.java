@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Manages a macOS system tray icon with Start/Stop Recording and Quit controls.
  *
  * <p>Reacts to {@link ApplicationStateChangedEvent} to update menu text, tooltip,
- * and icon color (black=idle, dark orange=recording, gray=transcribing).
+ * and icon color (gray=idle, red=recording, gray=transcribing).
  *
  * @since 1.2
  */
@@ -43,7 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SystemTrayManager implements SmartLifecycle {
 
     private static final Logger LOG = LogManager.getLogger(SystemTrayManager.class);
-    private static final Color DARK_ORANGE = new Color(204, 102, 0);
+    private static final Color RECORD_RED = new Color(255, 59, 48);
+    private static final Color IDLE_GRAY = new Color(140, 140, 140);
 
     private final RecordingService recordingService;
     private final ApplicationContext applicationContext;
@@ -51,8 +52,8 @@ public class SystemTrayManager implements SmartLifecycle {
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     private volatile TrayIcon trayIcon;
-    private volatile MenuItem startItem;
-    private volatile MenuItem stopItem;
+    private volatile MenuItem statusItem;
+    private volatile MenuItem toggleItem;
 
     public SystemTrayManager(RecordingService recordingService,
                              ApplicationContext applicationContext,
@@ -76,14 +77,15 @@ public class SystemTrayManager implements SmartLifecycle {
         try {
             PopupMenu popup = new PopupMenu();
 
-            startItem = new MenuItem("Start Recording");
-            startItem.addActionListener(e -> onStartClicked());
-            popup.add(startItem);
+            statusItem = new MenuItem("Idle");
+            statusItem.setEnabled(false);
+            popup.add(statusItem);
 
-            stopItem = new MenuItem("Stop Recording");
-            stopItem.setEnabled(false);
-            stopItem.addActionListener(e -> onStopClicked());
-            popup.add(stopItem);
+            popup.addSeparator();
+
+            toggleItem = new MenuItem("Start Recording");
+            toggleItem.addActionListener(e -> onToggleClicked());
+            popup.add(toggleItem);
 
             liveCaptionManager.ifPresent(manager -> {
                 popup.addSeparator();
@@ -100,7 +102,7 @@ public class SystemTrayManager implements SmartLifecycle {
             quitItem.addActionListener(e -> onQuitClicked());
             popup.add(quitItem);
 
-            Image icon = createIcon(Color.BLACK);
+            Image icon = createIcon(IDLE_GRAY);
             trayIcon = new TrayIcon(icon, "Blckvox - Idle", popup);
             trayIcon.setImageAutoSize(true);
 
@@ -111,24 +113,22 @@ public class SystemTrayManager implements SmartLifecycle {
         }
     }
 
-    private void onStartClicked() {
-        LOG.info("Start Recording clicked from system tray menu");
+    private void onToggleClicked() {
         Thread.ofVirtual().start(() -> {
-            if (recordingService.startRecording()) {
-                LOG.info("Recording started successfully via tray menu");
+            if (recordingService.isRecording()) {
+                LOG.info("Stop Recording clicked from system tray menu");
+                if (recordingService.stopRecording()) {
+                    LOG.info("Recording stopped successfully via tray menu");
+                } else {
+                    LOG.warn("Stop recording rejected via tray menu (not recording)");
+                }
             } else {
-                LOG.warn("Start recording rejected via tray menu (already recording or error)");
-            }
-        });
-    }
-
-    private void onStopClicked() {
-        LOG.info("Stop Recording clicked from system tray menu");
-        Thread.ofVirtual().start(() -> {
-            if (recordingService.stopRecording()) {
-                LOG.info("Recording stopped successfully via tray menu");
-            } else {
-                LOG.warn("Stop recording rejected via tray menu (not recording)");
+                LOG.info("Start Recording clicked from system tray menu");
+                if (recordingService.startRecording()) {
+                    LOG.info("Recording started successfully via tray menu");
+                } else {
+                    LOG.warn("Start recording rejected via tray menu (already recording or error)");
+                }
             }
         });
     }
@@ -143,10 +143,14 @@ public class SystemTrayManager implements SmartLifecycle {
         if (trayIcon == null) {
             return;
         }
-        SwingUtilities.invokeLater(() ->
-                trayIcon.displayMessage("Audio Dropped",
-                        "Recording exceeds capacity. Try shorter dictations.",
-                        TrayIcon.MessageType.WARNING));
+        SwingUtilities.invokeLater(() -> {
+            if (trayIcon == null) {
+                return;
+            }
+            trayIcon.displayMessage("Audio Dropped",
+                    "Recording exceeds capacity. Try shorter dictations.",
+                    TrayIcon.MessageType.WARNING);
+        });
     }
 
     @EventListener
@@ -154,40 +158,52 @@ public class SystemTrayManager implements SmartLifecycle {
         if (trayIcon == null) {
             return;
         }
-        SwingUtilities.invokeLater(() -> updateTrayForState(event.current()));
+        SwingUtilities.invokeLater(() -> {
+            if (trayIcon == null) {
+                return;
+            }
+            updateTrayForState(event.current());
+        });
     }
 
     private void updateTrayForState(ApplicationState state) {
+        if (trayIcon == null) {
+            return;
+        }
         switch (state) {
             case IDLE -> {
-                trayIcon.setImage(createIcon(Color.BLACK));
+                trayIcon.setImage(createIcon(IDLE_GRAY));
                 trayIcon.setToolTip("Blckvox - Idle");
-                startItem.setEnabled(true);
-                stopItem.setEnabled(false);
+                statusItem.setLabel("Idle");
+                toggleItem.setLabel("Start Recording");
+                toggleItem.setEnabled(true);
             }
             case RECORDING -> {
-                trayIcon.setImage(createIcon(DARK_ORANGE));
+                trayIcon.setImage(createIcon(RECORD_RED));
                 trayIcon.setToolTip("Blckvox - Recording...");
-                startItem.setEnabled(false);
-                stopItem.setEnabled(true);
+                statusItem.setLabel("\u25CF Recording...");
+                toggleItem.setLabel("Stop Recording");
+                toggleItem.setEnabled(true);
             }
             case TRANSCRIBING -> {
                 trayIcon.setImage(createIcon(Color.GRAY));
                 trayIcon.setToolTip("Blckvox - Transcribing...");
-                startItem.setEnabled(false);
-                stopItem.setEnabled(false);
+                statusItem.setLabel("\u231B Transcribing...");
+                toggleItem.setLabel("Stop Recording");
+                toggleItem.setEnabled(false);
             }
         }
     }
 
     /**
-     * Creates a simple 16x16 filled square icon with the given color.
+     * Creates a 32x32 anti-aliased filled circle icon with the given color.
      */
     static Image createIcon(Color color) {
-        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = img.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setColor(color);
-        g2.fillRect(1, 1, 14, 14);
+        g2.fillOval(2, 2, 28, 28);
         g2.dispose();
         return img;
     }
