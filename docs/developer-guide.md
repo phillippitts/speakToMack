@@ -26,14 +26,17 @@ See diagrams: `docs/diagrams/architecture-overview.md`.
 - System tray: `service.tray.SystemTrayManager`
 
 ## Configuration Properties (typed)
-- `config.audio.AudioCaptureProperties`
-- `config.validation.AudioValidationProperties`
-- `config.hotkey.HotkeyProperties` (+ `TriggerType`)
-- `config.typing.TypingProperties`
-- `config.stt.{VoskConfig, WhisperConfig, SttConcurrencyProperties, SttWatchdogProperties}`
-- `config.orchestration.OrchestrationProperties`
-- `config.reconcile.ReconciliationProperties`
+- `config.properties.AudioCaptureProperties`
+- `config.properties.AudioValidationProperties`
+- `config.properties.HotkeyProperties` (+ `TriggerType`)
+- `config.properties.TypingProperties`
+- `config.properties.SttConcurrencyProperties`
+- `config.properties.SttWatchdogProperties`
+- `config.properties.OrchestrationProperties`
+- `config.properties.ReconciliationProperties`
 - `config.properties.LiveCaptionProperties` (live-caption.enabled, window dimensions, opacity)
+- `config.properties.ThreadPoolProperties`
+- `config.properties.TrayProperties`
 
 ## Event Threading & Responsiveness
 
@@ -216,7 +219,7 @@ The following features are planned but not yet implemented:
 
 **Phase 6 - Production Hardening:**
 - **Database persistence:** PostgreSQL integration for transcription history (currently no database)
-- **Security hardening:** Actuator authentication, TLS, OWASP scans, PII redaction
+- **Security hardening:** Structured observability metrics, TLS, OWASP scans, PII redaction
 - **GDPR compliance:** Data retention policies, automated deletion, backup/restore procedures
 - **Modulith architecture:** Refactor to Spring Modulith for better bounded contexts
 - **Advanced monitoring:** Distributed tracing with OpenTelemetry/Jaeger

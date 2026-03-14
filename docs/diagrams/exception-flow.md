@@ -28,7 +28,9 @@ classDiagram
 
     class InvalidAudioException {
         <<exception/InvalidAudioException.java>>
-        +String message
+        -int audioSize
+        -String reason
+        +getReason() String
     }
 
     class ModelNotFoundException {
@@ -76,7 +78,7 @@ flowchart TB
     subgraph CAUGHT_BY["Exception Handlers"]
         direction TB
         Orch["DefaultTranscriptionOrchestrator<br/>&#8594; publishes TranscriptionCompletedEvent<br/>with failure flag"]
-        EngPub["EngineEventPublisher<br/>&#8594; publishes EngineFailureEvent<br/>&#8594; watchdog evaluates restart"]
+        EngPub["EngineEventPublisher<br/>(static utility, not a Spring bean)<br/>&#8594; publishes EngineFailureEvent<br/>&#8594; watchdog evaluates restart"]
         Recon["DefaultReconciliationService<br/>&#8594; falls back to single<br/>engine result"]
         CapOrch["DefaultCaptureOrchestrator<br/>&#8594; logs warning,<br/>returns empty result,<br/>state &#8594; IDLE"]
         Spring["Spring Context<br/>&#8594; FAIL-FAST,<br/>application will not start"]
@@ -105,7 +107,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant Engine as SttEngine<br/>(Vosk / Whisper)
-    participant Publisher as EngineEventPublisher
+    participant Publisher as EngineEventPublisher<br/>(static utility class)
     participant Bus as Spring Event Bus
     participant Watchdog as SttEngineWatchdog
     participant Window as Sliding Window<br/>(3 per 60 min)

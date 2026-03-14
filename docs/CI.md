@@ -9,13 +9,13 @@ The CI pipeline runs on every push to `main` and on all pull requests.
 ### What It Does
 
 **Single Job: Build & Test**
-- Runs on: Ubuntu (latest), macOS 14 (Apple Silicon), and macOS 13 (Intel)
+- Runs on: Ubuntu (latest), macOS 14 (Apple Silicon), and macOS 15
 - Duration: ~3-4 minutes per platform
 - Executes: `./gradlew clean build -x integrationTest`
 
 **What's tested:**
-- ✅ Code compiles on Linux and macOS (Intel + Apple Silicon)
-- ✅ All 271 unit tests pass
+- ✅ Code compiles on Linux and macOS (Apple Silicon)
+- ✅ All 438 unit tests pass
 - ✅ Checkstyle validates code style
 - ✅ JAR builds successfully (55 MB)
 
@@ -52,7 +52,7 @@ Running these in CI would:
 ```yaml
 jobs:
   test:
-    runs-on: [ubuntu-latest, macos-14, macos-13]
+    runs-on: [ubuntu-latest, macos-14, macos-15]
     steps:
       - Checkout code
       - Setup Java 21
@@ -64,7 +64,7 @@ jobs:
 
 **Key flags**:
 - `-x integrationTest` - Skip integration tests
-- This still runs 271 unit tests
+- This still runs 438 unit tests
 - This still runs checkstyle
 
 **Design decisions**:
@@ -152,7 +152,7 @@ It's from the global hotkey library shutting down during test cleanup. If tests 
 |----------|----------|-------|
 | Ubuntu | 3-4 min | Faster platform |
 | macOS-14 | 4-5 min | Apple Silicon (ARM64) |
-| macOS-13 | 4-5 min | Intel (x86_64) |
+| macOS-15 | 4-5 min | Apple Silicon |
 
 All three run in parallel, so total wall time is ~4-5 minutes.
 
@@ -160,7 +160,7 @@ All three run in parallel, so total wall time is ~4-5 minutes.
 
 1. **Download dependencies** (first run): ~30s
 2. **Compile Java**: ~10s
-3. **Run 271 unit tests**: ~2-3 min
+3. **Run 438 unit tests**: ~2-3 min
 4. **Checkstyle**: ~5s
 5. **Build JAR**: ~5s
 
@@ -200,7 +200,7 @@ Recommended GitHub settings for `main` branch:
 - ✅ Require status checks before merging
 - ✅ Require "Build & Test (ubuntu-latest)" to pass
 - ✅ Require "Build & Test (macos-14)" to pass
-- ✅ Require "Build & Test (macos-13)" to pass
+- ✅ Require "Build & Test (macos-15)" to pass
 - ✅ Require branches to be up to date
 
 **Additional**:

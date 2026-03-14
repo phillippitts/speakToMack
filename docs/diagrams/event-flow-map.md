@@ -1,6 +1,6 @@
 # Event Flow Map
 
-This document is the definitive reference for the Spring event wiring in the blckvox application. It covers all 15 event types, their publishers, listeners, record fields, and threading models. Blckvox is a Spring Boot event-driven desktop application with no HTTP layer; all inter-component communication flows through `ApplicationEventPublisher`. The diagrams below use Mermaid syntax and are organized from a complete wiring overview down to focused sub-flows and error paths.
+This document is the definitive reference for the Spring event wiring in the blckvox application. It covers all 14 event types, their publishers, listeners, record fields, and threading models. Blckvox is a Spring Boot event-driven desktop application with no HTTP layer; all inter-component communication flows through `ApplicationEventPublisher`. The diagrams below use Mermaid syntax and are organized from a complete wiring overview down to focused sub-flows and error paths.
 
 ---
 

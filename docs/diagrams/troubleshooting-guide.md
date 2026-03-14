@@ -34,7 +34,6 @@ flowchart TD
 
     Logs -->|Model not found| Models[Models Issue]
     Logs -->|Binary not found| Binary[Whisper Binary Issue]
-    Logs -->|Port in use| Port[Port Conflict]
     Logs -->|Other error| Generic[Generic Error]
 
     Models --> VoskMissing{Vosk model<br/>exists?}
@@ -51,9 +50,6 @@ flowchart TD
     BinWorks -->|No| Rebuild[Rebuild whisper.cpp<br/>Check compiler errors]
     BinWorks -->|Yes| VerifyProps[Verify binary path<br/>in application.properties]
 
-    Port --> CheckPort[Check port 8080<br/>with: lsof -i :8080]
-    CheckPort --> KillOther[Kill other process<br/>or change port]
-
     Generic --> ViewFull[View full stack trace<br/>in logs]
     ViewFull --> Search[Search error in<br/>GitHub issues]
 
@@ -64,7 +60,6 @@ flowchart TD
     FixPerms --> Retry1
     Rebuild --> Retry1
     VerifyProps --> Retry1
-    KillOther --> Retry1
 
     Retry1 --> Success{App starts?}
     Success -->|Yes| Fixed([✅ Fixed])
@@ -161,7 +156,7 @@ flowchart TD
     VoskOOM -->|Yes| CloseApps[Close other apps<br/>Free memory]
 
     WhisperLog --> Timeout{Timeout error?}
-    Timeout -->|Yes| IncTimeout[Increase timeout:<br/>stt.whisper.timeout-seconds=20]
+    Timeout -->|Yes| IncTimeout[Increase timeout:<br/>stt.whisper.timeout-seconds=120]
     Timeout -->|No| WhisperBin{Binary found<br/>and executable?}
     WhisperBin -->|No| RebuildWhisper[./build-whisper.sh]
 
@@ -231,14 +226,14 @@ flowchart TD
     WhisperCheck -->|Yes| Enabled{Both engines<br/>enabled?}
     Enabled -->|No| EnableBoth[Set stt.enabled-engines=<br/>vosk,whisper]
     Enabled -->|Yes| ReconcileCheck{Reconciliation<br/>using Whisper?}
-    ReconcileCheck -->|No| ConfStrat[Use confidence or<br/>word-overlap strategy]
+    ReconcileCheck -->|No| ConfStrat[Use confidence or<br/>overlap strategy]
 
     Lang --> SetLang[Set language in config:<br/>stt.whisper.language=en]
 
-    Engine1 --> TryConf1[Try: confidence<br/>stt.reconcile.strategy=confidence]
-    Engine2 --> TryConf2[Try: confidence<br/>stt.reconcile.strategy=confidence]
-    TryConf1 --> TryOverlap1[Or try: word-overlap<br/>stt.reconcile.strategy=word-overlap]
-    TryConf2 --> TryOverlap2[Or try: word-overlap<br/>stt.reconcile.strategy=word-overlap]
+    Engine1 --> TryConf1[Try: confidence<br/>stt.reconciliation.strategy=confidence]
+    Engine2 --> TryConf2[Try: confidence<br/>stt.reconciliation.strategy=confidence]
+    TryConf1 --> TryOverlap1[Or try: overlap<br/>stt.reconciliation.strategy=overlap]
+    TryConf2 --> TryOverlap2[Or try: overlap<br/>stt.reconciliation.strategy=overlap]
 
     SpeakLonger --> Test
     QuietPlace --> Test
@@ -275,15 +270,15 @@ flowchart TD
     VerySlow --> WhisperTimeout{Whisper<br/>timing out?}
     WhisperTimeout -->|Yes| LongAudio{Audio >30s?}
     LongAudio -->|Yes| ShorterClips[Speak in shorter clips<br/>Max recommended: 30s]
-    LongAudio -->|No| IncTO[Increase timeout:<br/>stt.whisper.timeout-seconds=20]
+    LongAudio -->|No| IncTO[Increase timeout:<br/>stt.whisper.timeout-seconds=120]
     WhisperTimeout -->|No| BothRun{Both engines<br/>running?}
 
     MedSlow --> BothRun
 
     BothRun -->|Yes| Conditional{Conditional mode<br/>enabled?}
-    Conditional -->|No| EnableCond[Enable conditional:<br/>stt.reconcile.enabled=true<br/>stt.reconcile.vosk-threshold=0.7]
+    Conditional -->|No| EnableCond[Enable conditional:<br/>stt.reconciliation.enabled=true<br/>stt.reconciliation.vosk-threshold=0.7]
     Conditional -->|Yes| Threshold{Threshold<br/>too low?}
-    Threshold -->|<0.6| RaiseThresh[Raise threshold:<br/>stt.reconcile.vosk-threshold=0.8<br/>More Vosk-only, less Whisper]
+    Threshold -->|<0.6| RaiseThresh[Raise threshold:<br/>stt.reconciliation.vosk-threshold=0.8<br/>More Vosk-only, less Whisper]
     Threshold -->|0.6-0.9| CheckCPU[Check CPU usage]
 
     CheckCPU --> HighCPU{CPU >80%?}
@@ -327,8 +322,8 @@ flowchart TD
 | No text pasted | Accessibility permission | Grant permission, restart app |
 | Wrong transcription | Background noise | Move to quiet environment |
 | Missing punctuation | Vosk-only mode | Enable Whisper: `stt.enabled-engines=vosk,whisper` |
-| 5+ second transcription | Both engines always run | `stt.reconcile.enabled=true` |
-| Whisper timeout | Long audio or slow CPU | `stt.whisper.timeout-seconds=20` |
+| 5+ second transcription | Both engines always run | `stt.reconciliation.enabled=true` |
+| Whisper timeout | Long audio or slow CPU | `stt.whisper.timeout-seconds=120` |
 
 ## Diagnostic Commands
 
@@ -349,9 +344,6 @@ xattr tools/whisper.cpp/main  # Should be empty (no quarantine)
 # Test whisper binary manually
 tools/whisper.cpp/main -m models/ggml-base.en.bin -f test-audio.wav
 
-# Check port availability
-lsof -i :8080
-
 # Monitor app logs in real-time
 tail -f logs/blckvox.log | grep -E "(ERROR|WARN|Vosk|Whisper|Hotkey)"
 
@@ -364,8 +356,8 @@ system_profiler SPAudioDataType | grep -A 10 "Input"
 Add to `application.properties`:
 
 ```properties
-logging.level.com.phillippitts.blckvox=DEBUG
-logging.level.com.phillippitts.blckvox.service.hotkey=TRACE
+logging.level.com.boombapcompile.blckvox=DEBUG
+logging.level.com.boombapcompile.blckvox.service.hotkey=TRACE
 ```
 
 ## When to Seek Help

@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file. The format 
   - Only runs expensive Whisper verification when Vosk is uncertain (typically 20-30% of dictations)
 
 ### Changed
-- `DualEngineOrchestrator` now implements smart reconciliation logic in single-engine path
+- `DefaultTranscriptionOrchestrator` now implements smart reconciliation logic in single-engine path
 - Updated reconciliation documentation to explain confidence-based mode selection
 
 ### Performance
@@ -43,11 +43,11 @@ For existing installations:
 - Parallel STT execution service (Vosk + Whisper) with timeout and graceful partial results.
 - Transcript reconciler strategies: `simple`, `confidence`, `overlap` (Jaccard). Configurable via `stt.reconciliation.strategy` and `stt.reconciliation.overlap-threshold`.
 - Whisper JSON output toggle (`stt.whisper.output=json`) with safe JSON parsing and token extraction for improved overlap‑based reconciliation. Default remains `text`.
-- PII‑safe metrics (Micrometer):
-  - `stt.engine.latency.ms{engine=}` timer
-  - `stt.engine.success_total{engine=}`, `stt.engine.failure_total{engine=,reason=}` counters
-  - `stt.reconcile.strategy_total{strategy=}`, `stt.reconcile.selected_total{engine=}` counters
-- Production profile limiting Actuator exposure to `health,info` only.
+- PII‑safe metrics (Planned for Phase 6 -- currently no-op stubs):
+  - `stt.engine.latency.ms{engine=}` timer (stub)
+  - `stt.engine.success_total{engine=}`, `stt.engine.failure_total{engine=,reason=}` counters (stub)
+  - `stt.reconciliation.strategy_total{strategy=}`, `stt.reconciliation.selected_total{engine=}` counters (stub)
+- ~~Production profile limiting Actuator exposure to `health,info` only.~~ (Deferred -- no web server or actuator in current build)
 - Phase 5 documentation set (initial): User, Operator, Developer, Reconciliation guides; runbooks for engine failures and permissions/hotkeys.
 
 ### Changed

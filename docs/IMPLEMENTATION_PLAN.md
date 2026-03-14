@@ -1,5 +1,7 @@
 # blckvox Implementation Plan
 
+> **Note:** This is a historical planning document. Some details may not match the current implementation. Phase 6 items (database, Prometheus, K8s) are deferred and not actively planned.
+
 **Status:** Phases 0–4 complete; Phase 5 (Documentation) in progress; Phase 6 planned
 **Timeline:** 6.5 days (~51.5 hours)
 **Grade:** 98/100 → 99.5/100 (Production-Ready with Dual-Engine Reconciliation)
@@ -75,9 +77,9 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 - **Goal:** Configure optimized thread pools for parallel STT processing
 - **Deliverable:** `@Bean` configuration for `sttExecutor` with tuning
 - **Details:**
-  - Core pool size: `Runtime.availableProcessors()` (typically 8-16 threads)
-  - Max pool size: `availableProcessors() * 2` for burst capacity
-  - Queue capacity: 50 (reject further requests during overload)
+  - Core pool size: 2 threads
+  - Max pool size: 4 for burst capacity
+  - Queue capacity: 10 (reject further requests during overload)
   - Named threads: `stt-pool-%d` for debugging
   - Rejection policy: `CallerRunsPolicy` (backpressure, not fail-fast)
   - Idle timeout: 60 seconds (release resources when idle)
@@ -327,12 +329,12 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 
 #### Task 3.1: Audio Capture Service (1.5 hours) ⭐ ENHANCED — Completed (✓)
 - **Goal:** Explicit, testable capture contract that always returns validated PCM16LE mono @ 16kHz
-- **Deliverable:** `AudioCaptureService` + ring-buffered `AudioBuffer`
+- **Deliverable:** `AudioCaptureService` + ring-buffered `PcmRingBuffer`
 - **Details:**
   - API: `startSession()` → `stopSession()`/`cancelSession()` → `readAll(sessionId)` (single active session)
   - Ring buffer with 20–40ms chunks to avoid realloc/GC spikes; cap by `audio.validation.max-duration-ms`
   - **NEW: Integrate AudioValidator.validate() before returning audio**
-  - **NEW: Throw AudioValidationException on invalid format (sample rate, bit depth, channels)**
+  - **NEW: Throw InvalidAudioException on invalid format (sample rate, bit depth, channels)**
   - **NEW: Publish CaptureErrorEvent when microphone permission denied or device unavailable**
   - Permission/device handling: log OS/arch + mixer name at INFO once
 - **Test (Hermetic):**
@@ -394,21 +396,21 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 - **Commit:** `feat(fallback): add 3-tier typing fallback with chunked paste`
 
 #### Task 3.5: STT Orchestration Layer (45 min) ⭐ NEW
-- **Goal:** Formalize DualEngineOrchestrator implementation and configuration
-- **Deliverable:** DualEngineOrchestrator + orchestration configuration
+- **Goal:** Formalize DefaultTranscriptionOrchestrator implementation and configuration
+- **Deliverable:** DefaultTranscriptionOrchestrator + orchestration configuration
 - **Details:**
   - Add `stt.orchestration.primary-engine` config property (vosk/whisper, default: vosk)
   - Document routing logic: primary (healthy) → fallback (watchdog-aware) → exception (both disabled)
   - Document not using @Component annotation (manual instantiation to avoid bean ambiguity)
-  - Add `OrchestrationConfig` class for DualEngineOrchestrator bean creation
+  - Add `OrchestrationConfig` class for DefaultTranscriptionOrchestrator bean creation
   - Inject SttEngineWatchdog for health-aware routing
 - **Test:**
   - Both engines healthy → uses primary
   - Primary degraded/disabled → uses fallback
   - Both disabled → throws TranscriptionException
   - Health check reflects at least one engine available
-- **Commit:** `feat(orchestration): formalize DualEngineOrchestrator with config`
-- **Rationale:** DualEngineOrchestrator already implemented in Phase 2 but needs formalization as a configured component
+- **Commit:** `feat(orchestration): formalize DefaultTranscriptionOrchestrator with config`
+- **Rationale:** DefaultTranscriptionOrchestrator already implemented in Phase 2 but needs formalization as a configured component
 
 #### Task 3.6: Error Handling & Events (30 min) ⭐ NEW
 - **Goal:** Unified error event strategy for user feedback
@@ -439,7 +441,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 - **NEW: Dynamic reload clarified as Phase 6 feature**
 - Fallback manager selects highest-available tier and degrades gracefully
 - **NEW: Chunked paste verified (splits at 500-1000 char boundary)**
-- **NEW: DualEngineOrchestrator configured with primary-engine property**
+- **NEW: DefaultTranscriptionOrchestrator configured with primary-engine property**
 - **NEW: Orchestrator routes based on watchdog state**
 - **NEW: Error events defined and integrated**
 - All tests are hermetic by default; any device/OS tests are tagged and skipped in CI
@@ -496,7 +498,7 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 - **Details:**
   - Inject both engines + sttExecutor from Task 1.5
   - Run engines concurrently with `CompletableFuture.supplyAsync()`
-  - Configurable timeout via `stt.parallel.timeout-ms` (default: 10 seconds)
+  - Configurable timeout via `stt.parallel.timeout-ms` (default: 120 seconds)
   - Cancel futures on timeout to prevent resource leaks
   - Return partial results if one engine fails (graceful degradation)
   - Throw exception only if both fail
@@ -581,15 +583,15 @@ This plan follows an **MVP-first approach**: build and validate core functionali
 - **Deliverable:** ReconciliationProperties, ReconciliationConfig
 - **Details:**
   - **ReconciliationProperties:**
-    - `enabled` (boolean, default: false) - toggle reconciliation on/off
-    - `strategy` (enum: SIMPLE, CONFIDENCE, OVERLAP, default: SIMPLE)
+    - `enabled` (boolean, default: false) - toggle reconciliation on/off (Java default: false; shipped application.properties: true)
+    - `strategy` (enum: SIMPLE, CONFIDENCE, OVERLAP, default: SIMPLE) (Java default: SIMPLE; shipped application.properties: overlap)
     - `overlapThreshold` (double, 0.0-1.0, default: 0.6) - for WordOverlapReconciler
   - **ReconciliationConfig:**
     - Bean factory based on `strategy` property
     - Inject primary engine preference for SimplePreferenceReconciler
     - `@ConditionalOnProperty("stt.reconciliation.enabled")` - only create beans when enabled
     - `@EnableConfigurationProperties(ReconciliationProperties.class)`
-  - **DualEngineOrchestrator integration:**
+  - **DefaultTranscriptionOrchestrator integration:**
     - When reconciliation enabled → use ParallelSttService + reconciler
     - When disabled → use primary engine with fallback (existing behavior)
 - **Test:** Spring Boot integration test - correct reconciler bean injected per config
@@ -677,16 +679,18 @@ FAIL → Debug before production hardening
 
 ---
 
-## Production Track: Phase 6 (13 tasks, ~20.75 hours)
+## Production Track: Phase 6 (13 tasks, ~20.75 hours) -- DEFERRED
+
+> **Status:** Phase 6 items are deferred and not actively planned. The items below represent aspirational production hardening goals.
 
 ### Operations & Reliability (7 tasks, ~12.5 hours)
 
-#### Task 6.1: Monitoring & Alerting
+#### Task 6.1: Monitoring & Alerting -- DEFERRED
 - **Time:** 3 hours
 - **Deliverable:** Prometheus + Grafana setup, SLO definitions, alert thresholds
 - **Validation:** Dashboards show metrics, alerts trigger on thresholds
 
-#### Task 6.2: Resource Limits & Database Tuning ⭐ ENHANCED
+#### Task 6.2: Resource Limits & Database Tuning ⭐ ENHANCED -- DEFERRED
 - **Time:** 1.5 hours (increased from 1 hour)
 - **Deliverable:** Kubernetes resource requests/limits, HPA, cost projection, HikariCP tuning
 - **Enhanced Details:**
@@ -886,7 +890,7 @@ FAIL → Debug before production hardening
 ### MVP Complete (Gate 1: After Phase 5)
 - [ ] All 36 MVP tasks completed with passing tests (enhanced from 29 with Phase 4 reconciliation)
 - [ ] Can transcribe 5-sentence speech accurately with both Vosk and Whisper
-- [ ] DualEngineOrchestrator routes based on watchdog state (primary → fallback)
+- [ ] DefaultTranscriptionOrchestrator routes based on watchdog state (primary → fallback)
 - [ ] **Parallel execution:** Both engines run concurrently with < 2x single-engine latency
 - [ ] **Reconciliation:** 3 strategies (SIMPLE, CONFIDENCE, OVERLAP) selectable via config
 - [ ] **Word overlap reconciler:** Correctly computes Jaccard similarity with configurable threshold
@@ -1096,7 +1100,7 @@ This enhancement adds final polish to an already excellent implementation, bring
 
 **Task 3.1: Audio Capture Service** (Enhanced)
 - **Added:** AudioValidator.validate() integration before returning audio
-- **Added:** AudioValidationException on invalid format (sample rate, bit depth, channels)
+- **Added:** InvalidAudioException on invalid format (sample rate, bit depth, channels)
 - **Added:** CaptureErrorEvent publishing when microphone permission denied or device unavailable
 - **Rationale:** Prevent invalid audio from reaching STT engines; fail-fast on permission errors
 
@@ -1124,14 +1128,14 @@ This enhancement adds final polish to an already excellent implementation, bring
 #### New Tasks (3.5, 3.6)
 
 **Task 3.5: STT Orchestration Layer** (NEW - 45 min)
-- **Goal:** Formalize DualEngineOrchestrator implementation and configuration
+- **Goal:** Formalize DefaultTranscriptionOrchestrator implementation and configuration
 - **Deliverable:** OrchestrationConfig class + primary-engine property
 - **Details:**
   - Add `stt.orchestration.primary-engine` config property (vosk/whisper)
   - Document routing logic and bean creation
   - Health-aware routing via SttEngineWatchdog integration
 - **Tests:** Primary/fallback routing, both disabled exception, health check
-- **Rationale:** DualEngineOrchestrator already implemented in Phase 2 but needs formalization as a configured component
+- **Rationale:** DefaultTranscriptionOrchestrator already implemented in Phase 2 but needs formalization as a configured component
 
 **Task 3.6: Error Handling & Events** (NEW - 30 min)
 - **Goal:** Unified error event strategy for user feedback
@@ -1157,7 +1161,7 @@ This enhancement adds final polish to an already excellent implementation, bring
 
 #### Success Criteria Additions
 **MVP Gate (After Phase 5):**
-- DualEngineOrchestrator routes based on watchdog state
+- DefaultTranscriptionOrchestrator routes based on watchdog state
 - Error events published for capture/hotkey failures
 - AudioValidator integration rejects invalid formats before STT
 - Platform-specific error handling for hotkeys
@@ -1168,7 +1172,7 @@ This enhancement adds final polish to an already excellent implementation, bring
 These enhancements address gaps identified during Phase 3 plan review:
 
 1. **Missing STT orchestration formalization** → Task 3.5 added
-   - DualEngineOrchestrator exists but wasn't in the plan
+   - DefaultTranscriptionOrchestrator exists but wasn't in the plan
    - Needs configuration and bean setup
 
 2. **No error event strategy** → Task 3.6 added
@@ -1536,7 +1540,7 @@ Rationale for reordering:
 
 ### 3.5 STT Orchestration Layer — Do this next
 - Deliverables:
-  - DualEngineOrchestrator (service) subscribing to HotkeyPressedEvent/HotkeyReleasedEvent.
+  - DefaultTranscriptionOrchestrator (service) subscribing to HotkeyPressedEvent/HotkeyReleasedEvent.
   - On press → AudioCaptureService.startSession(); on release → stop → readAll (validated PCM) → route to engine(s).
   - Health-aware routing using SttEngineWatchdog and property `stt.orchestration.primary-engine` (default: `vosk`).
   - Publish TranscriptionCompletedEvent with TranscriptionResult for downstream consumers.
@@ -1626,7 +1630,7 @@ Task 4.7: End-to-End Integration Test (45 min) ⏳ PENDING
 **2. Parallel Execution Infrastructure**
 - `ParallelSttService` interface for dual-engine execution
 - `DefaultParallelSttService` implementation using CompletableFuture
-- Configurable timeout (default: 10 seconds)
+- Configurable timeout (default: 120 seconds)
 - Graceful degradation: partial results when one engine fails
 - Exception only when both engines fail
 
@@ -1651,12 +1655,12 @@ Task 4.7: End-to-End Integration Test (45 min) ⏳ PENDING
 
 ```properties
 # STT Reconciliation (Phase 4)
-stt.reconciliation.enabled=false               # Toggle on/off
-stt.reconciliation.strategy=simple             # SIMPLE|CONFIDENCE|OVERLAP
+stt.reconciliation.enabled=true                # Toggle on/off
+stt.reconciliation.strategy=overlap            # SIMPLE|CONFIDENCE|OVERLAP
 stt.reconciliation.overlap-threshold=0.6       # For WordOverlapReconciler
 
 # Parallel Execution
-stt.parallel.timeout-ms=10000                  # Timeout for both engines
+stt.parallel.timeout-ms=120000                 # Timeout for both engines
 ```
 
 ### Rationale for Changes

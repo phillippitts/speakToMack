@@ -1,5 +1,7 @@
 # Session Context & Recovery Guide
 
+> **Note:** This is historical planning context from early project phases. Some details may not match the current implementation. For current architecture, see the [Architecture Overview](diagrams/architecture-overview.md).
+
 **Date:** 2025-10-17 (Updated)
 **Status:** Phases 0-2 Complete (Environment, Core Abstractions, STT Engine Integration)
 **Implementation Duration:** Phase 0-1 complete, Phase 2 complete (9 tasks, ~5.75 hours)
@@ -65,11 +67,10 @@ If session is lost, start here:
 **Trade-off:** 2x CPU usage acceptable for 2-5 seconds per transcription  
 **Wall-clock latency:** max(vosk, whisper) not sum (~1-2s vs 3s sequential)
 
-### 2. PostgreSQL for MVP (ADR-002)
-**Decision:** PostgreSQL with JSONB for flexible engine results  
-**Rationale:** ACID for audit logs (GDPR), JSONB flexibility, Spring Data JPA simplicity  
-**Alternative:** MongoDB documented for >10K writes/sec scale  
-**Migration Path:** PostgreSQL → Read replicas → Partitioning → Clickhouse (analytics)
+### 2. PostgreSQL (ADR-002) -- DEFERRED (Phase 6 / Future)
+**Decision:** PostgreSQL with JSONB for flexible engine results (not yet implemented)
+**Rationale:** ACID for audit logs, JSONB flexibility, Spring Data JPA simplicity
+**Status:** Deferred. The current MVP has no database; all processing is ephemeral.
 
 ### 3. Manual Model Setup (ADR-003)
 **Decision:** `./setup-models.sh` with SHA256 checksums  
@@ -77,7 +78,7 @@ If session is lost, start here:
 **Rejected:** Git LFS (slow clones, costs), auto-download (silent failures)
 
 ### 4. Properties-Based Hotkeys (ADR-004)
-**Decision:** Externalize via `application.yml` with factory pattern  
+**Decision:** Externalize via `application.properties` with factory pattern  
 **Rationale:** User customization without recompilation, validated at startup  
 **Extensibility:** Supports single-key, double-tap, modifier combinations
 
@@ -86,20 +87,20 @@ If session is lost, start here:
 **Rationale:** 2-10x faster, lambda support, hot reload config  
 **Trade-off:** Non-standard for Spring, CVE vigilance required (OWASP scanning)
 
-### 6. 3-Tier Architecture (ADR-006)
-**Decision:** Presentation → Service → Data Access  
-**Rationale:** Clear boundaries, testability, Spring best practice  
+### 6. 2-Tier Event-Driven Architecture (ADR-006)
+**Decision:** Presentation → Service (event-driven, no data layer)
+**Rationale:** Clear boundaries, testability, Spring best practice; Data layer deferred to Phase 6
 **Package Structure:**
-  - `presentation/` - Controllers, DTOs, exception handlers
+  - `service/tray/` - System tray
+  - `service/livecaption/` - Live caption UI
   - `service/` - Business logic, STT engines, orchestration
-  - `repository/` - JPA repositories, entities
 
 ---
 
 ## Critical Design Patterns
 
-1. **Strategy Pattern**: Reconciliation strategies (Simple, Overlap, Diff, Confidence, Weighted)
-2. **Factory Pattern**: HotkeyTriggerFactory, SttEngineFactory
+1. **Strategy Pattern**: Reconciliation strategies (Simple, Confidence, Overlap)
+2. **Factory Pattern**: HotkeyTriggerFactory
 3. **Adapter Pattern**: VoskSttEngine (wraps JNI), WhisperSttEngine (wraps binary)
 4. **Observer Pattern**: Hotkey events via Spring ApplicationEvent
 5. **Template Method**: STT engine lifecycle (future)
@@ -163,7 +164,7 @@ If session is lost, start here:
 - Monitoring & alerting (Prometheus, Grafana, SLOs)
 - Circuit breakers (Resilience4j for cascading failure prevention)
 - Distributed tracing (OpenTelemetry + Jaeger)
-- Database connection pool tuning (HikariCP)
+- Database connection pool tuning (HikariCP, if database added)
 - Security hardening (OWASP, PII redaction)
 - Load testing (100 TPS sustained, memory leak detection)
 - Cost monitoring & right-sizing
@@ -198,7 +199,7 @@ If session is lost, start here:
 - Gradle 8.x
 
 ### STT Engines
-- Vosk 0.3.45 (Java API via JNA 5.13.0)
+- Vosk 0.3.38 (com.alphacephei:vosk:0.3.38, Java API via JNI; runtime dependency: net.java.dev.jna:jna:5.13.0)
 - Whisper (whisper.cpp native binary)
 
 ### Audio & Hotkeys
@@ -207,26 +208,21 @@ If session is lost, start here:
 - java.awt.Robot (keystroke injection)
 
 ### Database
-- PostgreSQL (production)
-- H2 (development)
-- Flyway (migrations)
-- Spring Data JPA
+- None (current MVP is ephemeral; database planned for Phase 6)
 
 ### Logging
 - Log4j 2 (spring-boot-starter-log4j2)
 - Disruptor 3.4.4 (async appenders)
 
 ### Security
-- Bucket4j 8.7.0 (rate limiting)
-- OWASP Dependency Check (SCA)
-- Trivy (container scanning, Phase 6)
+- OWASP Dependency Check (SCA, planned for Phase 6)
+- Trivy (container scanning, planned for Phase 6)
 
 ### Testing
 - JUnit 5 (Jupiter)
 - Mockito (mocking)
 - AssertJ (fluent assertions)
 - Awaitility 4.2.0 (async testing)
-- Testcontainers (integration)
 
 ---
 
@@ -235,36 +231,23 @@ If session is lost, start here:
 ```gradle
 dependencies {
     // Spring Boot
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
-    
+
     // STT
     implementation 'net.java.dev.jna:jna:5.13.0'
-    implementation 'org.vosk:vosk:0.3.45'
-    
+    implementation 'com.alphacephei:vosk:0.3.38'
+
     // Hotkeys
     implementation 'com.github.kwhat:jnativehook:2.2.2'
-    
-    // Database
-    implementation 'org.flywaydb:flyway-core'
-    runtimeOnly 'org.postgresql:postgresql'
-    runtimeOnly 'com.h2database:h2'
-    
-    // Security
-    implementation 'com.bucket4j:bucket4j-core:8.7.0'
-    
+
     // Utilities
     implementation 'org.json:json:20231013'
     implementation 'com.lmax:disruptor:3.4.4'
-    
+
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.awaitility:awaitility:4.2.0'
-    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 ```
@@ -273,55 +256,29 @@ dependencies {
 
 ## Configuration Template
 
-### application.yml (Starter)
+### application.properties (Starter)
 
-```yaml
-spring:
-  application:
-    name: blckvox
-  datasource:
-    url: jdbc:postgresql://localhost:5432/blckvox
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
+```properties
+spring.application.name=blckvox
+spring.main.web-application-type=none
 
-stt:
-  engines: vosk,whisper
-  default-engine: vosk
-  parallel:
-    enabled: true
-    timeout-ms: 5000
-  reconciliation:
-    strategy: overlap
-  vosk:
-    model-path: ./models/vosk-model-en-us-0.22
-    sample-rate: 16000
-  whisper:
-    binary-path: ./bin/whisper.cpp/main
-    model-path: ./models/ggml-base.en.bin
+stt.enabled-engines=vosk,whisper
+stt.parallel.timeout-ms=120000
+stt.reconciliation.enabled=true
+stt.reconciliation.strategy=overlap
+stt.vosk.model-path=models/vosk-model-en-us-0.22
+stt.vosk.sample-rate=16000
+stt.whisper.binary-path=tools/whisper.cpp/main
+stt.whisper.model-path=models/ggml-base.en.bin
+stt.whisper.output=json
+stt.whisper.timeout-seconds=120
 
-hotkey:
-  trigger:
-    type: single-key
-    key: RIGHT_META
-    modifiers: []
+hotkey.type=double-tap
+hotkey.key=RIGHT_META
+hotkey.toggle-mode=true
 
-logging:
-  level:
-    com.phillippitts.blckvox: DEBUG
-    org.springframework: INFO
-
-privacy:
-  audio-retention: none
-  transcription-retention-days: 90
-  anonymize-ip: true
-  gdpr-mode: true
+logging.level.com.boombapcompile.blckvox=DEBUG
+logging.level.org.springframework=INFO
 ```
 
 ---
@@ -465,8 +422,7 @@ ls -lh "$MODELS_DIR"
 - Naming: `shouldDoSomethingWhenCondition()`
 
 ### Integration Tests
-- `@SpringBootTest` with Testcontainers
-- Real models loaded
+- `@SpringBootTest` with real models loaded
 - End-to-end flows validated
 
 ### Async Tests
@@ -492,10 +448,6 @@ ls -lh "$MODELS_DIR"
 - Audio format: 16kHz, 16-bit, mono (explicit validation)
 - WAV header validation (RIFF, WAVE)
 
-### Rate Limiting
-- Bucket4j token bucket algorithm
-- 10 requests/minute per user
-
 ### Audit Logging
 - Synchronous appender (never async)
 - 365-day retention for compliance
@@ -508,16 +460,11 @@ ls -lh "$MODELS_DIR"
 
 ---
 
-## Privacy & GDPR
+## Privacy & GDPR (Future / Phase 6)
 
 ### Data Minimization
-- Audio: ephemeral (not persisted by default)
-- Transcriptions: 90-day retention
-- IP addresses: anonymized
+- Audio: ephemeral (not persisted)
+- Transcriptions: not persisted (no database in current MVP)
 
-### Right to Erasure
-```java
-@EventListener
-public void handleUserDeletion(UserDeletionEvent event) {
-    transcriptionRepository.deleteByUserId(event.userId());
-    auditRepository.deleteByUserId(event.userId());
+### Right to Erasure (Planned)
+Not yet implemented. There is no database in the current MVP; all data is ephemeral.

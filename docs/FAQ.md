@@ -41,7 +41,7 @@ blckvox is an offline voice dictation application for macOS that converts speech
 
 ### Is it free?
 
-Yes, blckvox is completely free and open source under the MIT license.
+Yes, blckvox is completely free and open source (license to be determined).
 
 ### What platforms are supported?
 
@@ -53,10 +53,10 @@ Currently macOS only (requires macOS 13+). Linux and Windows support may be adde
 
 ### How do I install blckvox?
 
-See the [Setup Guide](../README.md#setup-guide) for step-by-step instructions. Quick summary:
+See the [Setup Guide](../README.md#getting-started) for step-by-step instructions. Quick summary:
 
 ```bash
-git clone https://github.com/phillippitts/blckvox.git
+git clone https://github.com/your-org/blckvox.git
 cd blckvox
 ./setup-models.sh
 ./gradlew bootRun
@@ -429,15 +429,6 @@ Unsupported class file major version 65
 brew install openjdk@21
 ```
 
-**Error: `Port 8080 already in use`**
-```
-Web server failed to start. Port 8080 was already in use.
-```
-**Fix:** Kill the process using port 8080 or change the port:
-```properties
-server.port=8081
-```
-
 ### Transcription fails
 
 **Error: `Both engines failed or timed out`**
@@ -446,7 +437,7 @@ TranscriptionException: Both engines failed or timed out
 ```
 **Fix:** Check logs for underlying error. Common causes:
 - Model files corrupted → Re-download with `./setup-models.sh`
-- Whisper binary missing → Run `./setup-whisper.sh`
+- Whisper binary missing → Run `./build-whisper.sh`
 
 **Error: `Whisper transcription failed: timeout`**
 ```
@@ -481,7 +472,7 @@ audio.validation.min-duration-ms=100
 
 **Error: `Failed to register global hotkey`**
 ```
-HotkeyException: Native hook registration failed
+ERROR: Native hook registration failed
 ```
 **Fix:** Grant Accessibility permission (see [macOS-Specific](#how-do-i-grant-accessibility-permission))
 
@@ -612,14 +603,14 @@ Prometheus metrics and Micrometer integration are planned for Phase 6 (Productio
 
 Yes, use macOS Launch Agents:
 
-1. Create `~/Library/LaunchAgents/com.phillippitts.blckvox.plist`:
+1. Create `~/Library/LaunchAgents/com.boombapcompile.blckvox.plist`:
    ```xml
    <?xml version="1.0" encoding="UTF-8"?>
    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
    <plist version="1.0">
    <dict>
        <key>Label</key>
-       <string>com.phillippitts.blckvox</string>
+       <string>com.boombapcompile.blckvox</string>
        <key>ProgramArguments</key>
        <array>
            <string>/path/to/blckvox/gradlew</string>
@@ -635,7 +626,7 @@ Yes, use macOS Launch Agents:
 
 2. Load the agent:
    ```bash
-   launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+   launchctl load ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
    ```
 
 ---
@@ -649,15 +640,15 @@ tail -f logs/blckvox.log
 
 **Increase log verbosity:**
 ```properties
-logging.level.com.phillippitts.blckvox=DEBUG
+logging.level.com.boombapcompile.blckvox=DEBUG
 ```
 
 **File a bug report:**
-- GitHub Issues: https://github.com/phillippitts/blckvox/issues
+- GitHub Issues: https://github.com/your-org/blckvox/issues
 - Include: OS version, Java version, error logs, `application.properties`
 
 **Community support:**
-- Discussions: https://github.com/phillippitts/blckvox/discussions
+- Discussions: https://github.com/your-org/blckvox/discussions
 - Discord: https://discord.gg/blckvox (coming soon)
 
 ---

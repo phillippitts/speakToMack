@@ -20,7 +20,7 @@ classDiagram
 
     class AbstractSttEngine {
         <<abstract>>
-        #Object lock
+        #ReentrantLock lock
         #boolean initialized
         #boolean closed
         +initialize() final
@@ -74,12 +74,10 @@ classDiagram
     class TranscriptReconciler {
         <<interface>>
         +reconcile(EngineResult, EngineResult) TranscriptionResult
-        +getStrategyName() String
     }
 
     class AbstractReconciler {
         <<abstract>>
-        #selectBestResult(EngineResult, EngineResult, String) TranscriptionResult
     }
 
     class SimplePreferenceReconciler {
@@ -258,7 +256,7 @@ classDiagram
 
 ```mermaid
 graph TB
-    subgraph service["com.phillippitts.blckvox.service"]
+    subgraph service["com.boombapcompile.blckvox.service"]
         Orch[orchestration]
         STT[stt + stt.parallel]
         Audio[audio.capture]
@@ -269,19 +267,19 @@ graph TB
         Tray[tray]
     end
 
-    subgraph domain["com.phillippitts.blckvox.domain"]
+    subgraph domain["com.boombapcompile.blckvox.domain"]
         Entities[TranscriptionResult<br/>AudioFormat]
     end
 
-    subgraph config["com.phillippitts.blckvox.config"]
+    subgraph config["com.boombapcompile.blckvox.config"]
         Props[Properties<br/>Beans]
     end
 
-    subgraph exception["com.phillippitts.blckvox.exception"]
+    subgraph exception["com.boombapcompile.blckvox.exception"]
         Exceptions[TranscriptionException<br/>InvalidAudioException]
     end
 
-    subgraph util["com.phillippitts.blckvox.util"]
+    subgraph util["com.boombapcompile.blckvox.util"]
         Utils[TimeUtils<br/>ProcessTimeouts]
     end
 
@@ -388,7 +386,9 @@ classDiagram
         <<record>>
         +String text
         +double confidence
-        +String engineUsed
+        +Instant timestamp
+        +String engineName
+        +String failureReason
     }
 
     class EngineResult {
@@ -423,6 +423,7 @@ classDiagram
         +int timeoutSeconds
         +String language
         +int threads
+        +int maxStdoutBytes
     }
 ```
 

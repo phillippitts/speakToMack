@@ -21,7 +21,7 @@ flowchart TB
     %% ── ThreadPoolConfig ──────────────────────────────────────────────
     subgraph ThreadPoolConfig["ThreadPoolConfig"]
         direction TB
-        sttExecutor["<b>sttExecutor()</b><br/>ThreadPoolTaskExecutor<br/>core=4, max=8, queue=50<br/>prefix: stt-pool-<br/>rejection: CallerRunsPolicy<br/>MDC TaskDecorator"]
+        sttExecutor["<b>sttExecutor()</b><br/>ThreadPoolTaskExecutor<br/>core=2, max=4, queue=10<br/>prefix: stt-pool-<br/>rejection: CallerRunsPolicy<br/>MDC TaskDecorator"]
         eventExecutor["<b>eventExecutor()</b><br/>ThreadPoolTaskExecutor<br/>core=2, max=4, queue=10<br/>prefix: event-pool-<br/>rejection: DiscardOldestPolicy<br/>MDC TaskDecorator"]
     end
 
@@ -48,11 +48,11 @@ flowchart TB
         direction TB
         voskSttEngine["VoskSttEngine<br/>@Component"]
         whisperSttEngine["WhisperSttEngine<br/>@Component"]
-        hotkeyManager["HotkeyManager<br/>@Component / SmartLifecycle"]
+        hotkeyManager["HotkeyManager<br/>@Service / SmartLifecycle"]
         applicationStateTracker["ApplicationStateTracker<br/>@Service"]
         javaSoundAudioCaptureService["JavaSoundAudioCaptureService<br/>@Service"]
         audioValidator["AudioValidator<br/>@Component"]
-        fallbackManager["FallbackManager<br/>@Component"]
+        fallbackManager["FallbackManager<br/>@Service"]
         strategyChainTypingService["StrategyChainTypingService<br/>@Service"]
         robotTypingAdapter["RobotTypingAdapter<br/>@Component"]
         clipboardTypingAdapter["ClipboardTypingAdapter<br/>@Component"]
@@ -61,6 +61,7 @@ flowchart TB
         typingEventsListener["TypingEventsListener<br/>@Component"]
         transcriptionMetricsPublisher["TranscriptionMetricsPublisher<br/>@Component (no-op stub)"]
         reconciliationDependencies["ReconciliationDependencies<br/>@Component<br/><i>conditional: reconciliation.enabled=true</i>"]
+        defaultParallelSttService["DefaultParallelSttService<br/>@Service"]
     end
 
     %% ── Conditional Beans ─────────────────────────────────────────────
@@ -78,7 +79,7 @@ flowchart TB
     %% ── Injection edges ───────────────────────────────────────────────
     voskSttEngine --> engineSelectionStrategy
     whisperSttEngine --> engineSelectionStrategy
-    sttEngineWatchdog -.->|Optional| engineSelectionStrategy
+    sttEngineWatchdog --> engineSelectionStrategy
 
     javaSoundAudioCaptureService --> captureOrchestrator
     captureStateMachine --> captureOrchestrator
@@ -119,7 +120,7 @@ flowchart TD
     Start([Application Startup])
     Start --> PropCheck{"stt.reconciliation.enabled"}
 
-    PropCheck -->|"false (default)"| SingleEngine
+    PropCheck -->|"true (shipped default; Java class default: false)"| SingleEngine
     PropCheck -->|"true"| DualEngine
 
     %% ── Single-engine path ────────────────────────────────────────────
@@ -187,11 +188,11 @@ singleton scope (Spring default) unless noted otherwise.
 | `transcriptReconciler` | `SimplePreferenceReconciler` / `ConfidenceReconciler` / `WordOverlapReconciler` | `@Bean` | `ReconciliationConfig` | singleton | `stt.reconciliation.enabled=true` |
 | `VoskSttEngine` | `VoskSttEngine` | `@Component` | (scan) | singleton | none |
 | `WhisperSttEngine` | `WhisperSttEngine` | `@Component` | (scan) | singleton | none |
-| `HotkeyManager` | `HotkeyManager` | `@Component` | (scan) | singleton | none (SmartLifecycle) |
+| `HotkeyManager` | `HotkeyManager` | `@Service` | (scan) | singleton | none (SmartLifecycle) |
 | `ApplicationStateTracker` | `ApplicationStateTracker` | `@Service` | (scan) | singleton | none |
 | `JavaSoundAudioCaptureService` | `JavaSoundAudioCaptureService` | `@Service` | (scan) | singleton | none |
 | `AudioValidator` | `AudioValidator` | `@Component` | (scan) | singleton | none |
-| `FallbackManager` | `FallbackManager` | `@Component` | (scan) | singleton | none |
+| `FallbackManager` | `FallbackManager` | `@Service` | (scan) | singleton | none |
 | `StrategyChainTypingService` | `StrategyChainTypingService` | `@Service` | (scan) | singleton | none |
 | `RobotTypingAdapter` | `RobotTypingAdapter` | `@Component` | (scan) | singleton | none |
 | `ClipboardTypingAdapter` | `ClipboardTypingAdapter` | `@Component` | (scan) | singleton | none |
@@ -200,10 +201,11 @@ singleton scope (Spring default) unless noted otherwise.
 | `TypingEventsListener` | `TypingEventsListener` | `@Component` | (scan) | singleton | none |
 | `TranscriptionMetricsPublisher` | `TranscriptionMetricsPublisher` | `@Component` | (scan) | singleton | none (no-op stub) |
 | `ReconciliationDependencies` | `ReconciliationDependencies` | `@Component` | (scan) | singleton | `stt.reconciliation.enabled=true` |
-| `SystemTrayManager` | `SystemTrayManager` | `@Component` | (scan) | singleton | `tray.enabled` (matchIfMissing=true) |
-| `LiveCaptionManager` | `LiveCaptionManager` | `@Component` | (scan) | singleton | `live-caption.enabled=true` |
-| `VoskStreamingService` | `VoskStreamingService` | `@Component` | (scan) | singleton | `live-caption.enabled=true` |
-| `JavaFxLifecycle` | `JavaFxLifecycle` | `@Component` | (scan) | singleton | `live-caption.enabled=true` |
+| `DefaultParallelSttService` | `DefaultParallelSttService` | `@Service` | (scan) | singleton | none |
+| `SystemTrayManager` | `SystemTrayManager` | `@Service` | (scan) | singleton | `tray.enabled` (matchIfMissing=true) |
+| `LiveCaptionManager` | `LiveCaptionManager` | `@Service` | (scan) | singleton | `live-caption.enabled=true` |
+| `VoskStreamingService` | `VoskStreamingService` | `@Service` | (scan) | singleton | `live-caption.enabled=true` |
+| `JavaFxLifecycle` | `JavaFxLifecycle` | `@Service` | (scan) | singleton | `live-caption.enabled=true` |
 | `SttEngineWatchdog` | `SttEngineWatchdog` | `@Component` | (scan) | singleton | `stt.watchdog.enabled=true` (matchIfMissing=true) |
 | `ModelValidationService` | `ModelValidationService` | `@Component` | (scan) | singleton | `stt.validation.enabled=true` (matchIfMissing=true) |
 | `ConcurrencyScaler` | `ConcurrencyScaler` | `@Component` | (scan) | singleton | `stt.concurrency.dynamic-scaling-enabled=true` |

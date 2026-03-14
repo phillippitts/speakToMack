@@ -13,7 +13,7 @@ audio.validation.max-duration-ms=300000
 
 # Capture (push-to-talk)
 audio.capture.chunk-millis=40
-audio.capture.max-duration-ms=60000
+audio.capture.max-duration-ms=600000
 # audio.capture.device-name=
 ```
 
@@ -27,12 +27,12 @@ stt.vosk.max-alternatives=1
 # Whisper
 stt.whisper.binary-path=tools/whisper.cpp/main
 stt.whisper.model-path=models/ggml-base.en.bin
-stt.whisper.timeout-seconds=10
+stt.whisper.timeout-seconds=120
 stt.whisper.language=en
 stt.whisper.threads=4
 stt.whisper.max-stdout-bytes=1048576
-# Output mode: text | json  (default text)
-stt.whisper.output=text
+# Output mode: text | json  (default json)
+stt.whisper.output=json
 ```
 
 ### Orchestration & Parallel
@@ -41,7 +41,7 @@ stt.whisper.output=text
 stt.enabled-engines=vosk,whisper
 
 # Parallel run timeout (ms)
-stt.parallel.timeout-ms=10000
+stt.parallel.timeout-ms=120000
 
 # Primary engine for single-engine routing
 stt.orchestration.primary-engine=vosk  # vosk | whisper
@@ -50,10 +50,10 @@ stt.orchestration.primary-engine=vosk  # vosk | whisper
 ### Reconciliation (Phase 4)
 ```properties
 # Enable reconciled path in orchestrator
-stt.reconciliation.enabled=false
+stt.reconciliation.enabled=true
 # Strategy: simple | confidence | overlap
-stt.reconciliation.strategy=simple
-# Jaccard overlap threshold for word-overlap strategy
+stt.reconciliation.strategy=overlap
+# Jaccard overlap threshold for overlap strategy
 stt.reconciliation.overlap-threshold=0.6
 ```
 
@@ -73,11 +73,11 @@ stt.watchdog.cooldown-minutes=10
 
 ### Hotkeys
 ```properties
-hotkey.type=single-key               # single-key | double-tap | modifier-combo
+hotkey.type=double-tap               # single-key | double-tap | modifier-combo
 hotkey.key=RIGHT_META
 # hotkey.modifiers=META,SHIFT        # required for modifier-combo
 # hotkey.threshold-ms=300            # for double-tap (100-1000ms)
-# hotkey.toggle-mode=false           # true for click-to-toggle
+# hotkey.toggle-mode=true            # true for click-to-toggle (default)
 # hotkey.reserved=META+TAB,META+L    # OS-reserved examples
 ```
 
@@ -123,8 +123,8 @@ Run with: `--spring.profiles.active=production`.
 
 ## Operations Quick Tips
 - Reconciliation rollout
-  - Start with `stt.reconciliation.enabled=true` + `strategy=simple`
-  - Collect engine/reconcile metrics, then try `confidence`/`overlap`
+  - Default is `stt.reconciliation.enabled=true` + `strategy=overlap`
+  - Alternative strategies: `simple` (prefer primary engine) or `confidence` (highest confidence wins)
   - Optional: enable `stt.whisper.output=json` for better overlap tokens
 - High CPU / slow Whisper
   - Reduce `stt.whisper.threads`

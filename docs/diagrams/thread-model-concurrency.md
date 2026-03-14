@@ -84,10 +84,7 @@ sequenceDiagram
         WhisperWorker->>WhisperWorker: acquire semaphore (max 2)
         WhisperWorker->>WhisperWorker: create temp WAV
         WhisperWorker->>WhisperWorker: spawn process (1-2s)
-        WhisperWorker->>Lock: synchronized(cachedDataLock)
-        Lock-->>WhisperWorker: grant lock
-        WhisperWorker->>WhisperWorker: cache tokens/json
-        WhisperWorker->>Lock: release lock
+        WhisperWorker->>WhisperWorker: parse stdout result
         WhisperWorker->>WhisperWorker: release semaphore
         WhisperWorker-->>Main: EngineResult (Whisper)
     end
@@ -177,17 +174,13 @@ flowchart TB
     Proc1 --> Parse1[Parse stdout]
     Proc2 --> Parse2[Parse stdout]
 
-    Parse1 -->|synchronized| Cache[cachedDataLock]
-    Parse2 -->|synchronized| Cache
+    Parse1 --> Result1[Build EngineResult]
+    Parse2 --> Result2[Build EngineResult]
 
-    Cache -->|Store| TokenCache1[lastTokens<br/>lastRawJson]
-    Cache -->|Store| TokenCache2[lastTokens<br/>lastRawJson]
-
-    TokenCache1 --> Release1[Release permit 1]
-    TokenCache2 --> Release2[Release permit 2]
+    Result1 --> Release1[Release permit 1]
+    Result2 --> Release2[Release permit 2]
 
     style Sem fill:#fff4e1
-    style Cache fill:#ffcdd2
 ```
 
 ### 3. CaptureStateMachine Thread Safety
@@ -306,9 +299,9 @@ graph LR
     end
 
     subgraph Pool["Thread Pool Properties"]
-        Core[corePoolSize: 4<br/>Vosk + Whisper]
-        Max[maxPoolSize: 8<br/>Burst capacity]
-        Queue[queueCapacity: 50<br/>Bounded queue]
+        Core[corePoolSize: 2<br/>Vosk + Whisper]
+        Max[maxPoolSize: 4<br/>Burst capacity]
+        Queue[queueCapacity: 10<br/>Bounded queue]
         Prefix[threadNamePrefix: stt-pool-]
     end
 
@@ -392,15 +385,12 @@ flowchart TB
 graph TB
     Level1[Level 1: CaptureStateMachine.lock]
     Level2[Level 2: AbstractSttEngine.lock]
-    Level3[Level 3: WhisperSttEngine.cachedDataLock]
-    Level3b[Level 3b: VoskStreamingService.recognizerLock]
+    Level3[Level 3: VoskStreamingService.recognizerLock]
     Level4[Level 4: PcmRingBuffer methods]
 
     Level1 --> Level2
     Level2 --> Level3
-    Level2 --> Level3b
     Level3 --> Level4
-    Level3b --> Level4
 
     Note1[Always acquire in order:<br/>1 → 2 → 3 → 4]
     Note2[Never hold multiple locks<br/>from different levels]
@@ -419,7 +409,7 @@ graph LR
         Reconcilers[All TranscriptReconciler<br/>implementations]
         Fallback[FallbackManager]
         Typing[TypingService]
-        Validators[AudioValidator<br/>WavHeaderValidator]
+        Validators[AudioValidator<br/>WavFormat]
     end
 
     subgraph Reason["Why Lock-Free?"]

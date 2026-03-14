@@ -26,9 +26,8 @@ Before deploying to production, verify:
 - [ ] Application properties configured with **absolute paths**
 - [ ] Production profile enabled (`spring.profiles.active=production`)
 - [ ] Log rotation configured
-- [ ] Health check endpoint accessible (`/actuator/health`)
-- [ ] Prometheus metrics endpoint exposed (`/actuator/prometheus`)
-- [ ] Firewall rules configured (if remote monitoring needed)
+- [ ] Process monitoring configured (`ps aux | grep blckvox`)
+- [ ] Log file monitoring configured (`tail -f logs/blckvox.log`)
 
 ---
 
@@ -74,19 +73,13 @@ stt.whisper.binary-path=/opt/blckvox/bin/whisper
 # Logging (production location)
 logging.file.path=/var/log/blckvox
 
-# Server configuration
-server.port=8080
-server.shutdown=graceful
+# Graceful shutdown
 spring.lifecycle.timeout-per-shutdown-phase=30s
-
-# Actuator endpoints (expose prometheus for monitoring)
-management.endpoints.web.exposure.include=health,info,prometheus
-management.endpoint.health.show-details=never
 
 # Performance tuning
 stt.concurrency.vosk-max=4
 stt.concurrency.whisper-max=2
-stt.parallel.timeout-ms=10000
+stt.parallel.timeout-ms=120000
 
 # Watchdog configuration
 stt.watchdog.enabled=true
@@ -102,26 +95,9 @@ java -jar blckvox.jar \
   --spring.config.additional-location=/etc/blckvox/application-production.properties
 ```
 
-### Production Profile Settings
-
-The `application-production.properties` (in `src/main/resources/`) **currently has a critical issue**:
-
-**Problem**: Hides prometheus endpoint needed for monitoring:
-```properties
-# CURRENT (BROKEN for monitoring)
-management.endpoints.web.exposure.include=health,info
-```
-
-**Fix Required**: Update before deploying:
-```properties
-# CORRECTED (exposes metrics for Prometheus scraping)
-management.endpoints.web.exposure.include=health,info,prometheus
-management.endpoint.health.show-details=never
-```
-
 ### Logging Configuration
 
-**Critical Issue**: Default `log4j2-spring.xml` uses **DEBUG level** which will flood production logs.
+**Critical Issue**: Default `log4j2-spring.xml` uses **INFO level** which is appropriate for most environments but may be too verbose for high-throughput production.
 
 **Fix Required**: Create `log4j2-production.xml` in `/etc/blckvox/`:
 
@@ -131,7 +107,7 @@ management.endpoint.health.show-details=never
     <Properties>
         <Property name="APP_NAME">blckvox</Property>
         <Property name="LOG_PATTERN">
-            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{requestId}] %-5level %logger{36} - %msg%n
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{requestId}] [%X{userId}] %-5level %logger{36} - %msg%n
         </Property>
     </Properties>
 
@@ -158,7 +134,7 @@ management.endpoint.health.show-details=never
 
     <Loggers>
         <!-- PRODUCTION: Use INFO level (not DEBUG) -->
-        <Logger name="com.phillippitts.blckvox" level="info" additivity="false">
+        <Logger name="com.boombapcompile.blckvox" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
@@ -248,9 +224,9 @@ sudo journalctl -u blckvox -n 100
 
 ### Option 2: macOS LaunchDaemon (System-Wide)
 
-**File**: `/Library/LaunchDaemons/com.phillippitts.blckvox.plist`
+**File**: `/Library/LaunchDaemons/com.boombapcompile.blckvox.plist`
 
-See [deployment/macos/com.phillippitts.blckvox.plist](deployment/macos/com.phillippitts.blckvox.plist) for complete configuration.
+See [deployment/macos/com.boombapcompile.blckvox.plist](deployment/macos/com.boombapcompile.blckvox.plist) for complete configuration.
 
 Quick setup:
 ```bash
@@ -267,10 +243,10 @@ sudo chmod +x /opt/blckvox/bin/whisper
 sudo xattr -dr com.apple.quarantine /opt/blckvox/bin/whisper
 
 # Copy LaunchDaemon
-sudo cp deployment/macos/com.phillippitts.blckvox.plist /Library/LaunchDaemons/
+sudo cp deployment/macos/com.boombapcompile.blckvox.plist /Library/LaunchDaemons/
 
 # Load service
-sudo launchctl load /Library/LaunchDaemons/com.phillippitts.blckvox.plist
+sudo launchctl load /Library/LaunchDaemons/com.boombapcompile.blckvox.plist
 
 # Check if running
 ps aux | grep blckvox
@@ -279,16 +255,16 @@ ps aux | grep blckvox
 **Service management**:
 ```bash
 # Start
-sudo launchctl start com.phillippitts.blckvox
+sudo launchctl start com.boombapcompile.blckvox
 
 # Stop
-sudo launchctl stop com.phillippitts.blckvox
+sudo launchctl stop com.boombapcompile.blckvox
 
 # Unload (disable)
-sudo launchctl unload /Library/LaunchDaemons/com.phillippitts.blckvox.plist
+sudo launchctl unload /Library/LaunchDaemons/com.boombapcompile.blckvox.plist
 
 # Reload (enable)
-sudo launchctl load /Library/LaunchDaemons/com.phillippitts.blckvox.plist
+sudo launchctl load /Library/LaunchDaemons/com.boombapcompile.blckvox.plist
 
 # View logs
 tail -f /var/log/blckvox/blckvox.log
@@ -309,142 +285,37 @@ Recommendation: Use native systemd/LaunchDaemon for now.
 
 ## Monitoring & Health Checks
 
-### Health Check Endpoint
+blckvox is a headless desktop application (`spring.main.web-application-type=none`) with no web server or actuator endpoints. Use the following methods to monitor the application:
 
-**URL**: `http://localhost:8080/actuator/health`
+### Process-Based Monitoring
 
-**Expected response** (healthy):
-```json
-{
-  "status": "UP",
-  "components": {
-    "diskSpace": {"status": "UP"},
-    "models": {
-      "status": "UP",
-      "details": {
-        "status": "All models and binaries accessible",
-        "voskModel": "accessible at /opt/blckvox/models/vosk-model-en-us-0.22",
-        "whisperModel": "accessible at /opt/blckvox/models/ggml-base.en.bin",
-        "whisperBinary": "accessible and executable at /opt/blckvox/bin/whisper"
-      }
-    },
-    "sttEngines": {
-      "status": "UP",
-      "details": {
-        "status": "All engines operational",
-        "vosk": "UP (enabled)",
-        "whisper": "UP (enabled)"
-      }
-    }
-  }
-}
+```bash
+# Check if the application is running
+ps aux | grep blckvox | grep -v grep
+
+# Check process uptime (macOS)
+ps -o etime= -p $(pgrep -f blckvox)
 ```
 
-**Degraded state** (one engine down):
-```json
-{
-  "status": "DEGRADED",
-  "components": {
-    "sttEngines": {
-      "status": "DEGRADED",
-      "details": {
-        "status": "Partial engine availability",
-        "vosk": "UP (enabled)",
-        "whisper": "DOWN (disabled by watchdog)"
-      }
-    }
-  }
-}
+### Log Monitoring
+
+```bash
+# Tail live application logs
+tail -f logs/blckvox.log
+
+# Check for successful startup
+grep "Started BlckvoxApplication" logs/blckvox.log
+
+# Check for engine initialization
+grep "engine initialized" logs/blckvox.log
+
+# Check for errors
+grep ERROR logs/blckvox.log | tail -20
 ```
 
-### Metrics Endpoint (Prometheus)
+### System Tray Verification
 
-**URL**: `http://localhost:8080/actuator/prometheus`
-
-**Key metrics to monitor**:
-
-```
-# Transcription latency (milliseconds)
-blckvox_transcription_latency_seconds{engine="vosk",quantile="0.95"}
-blckvox_transcription_latency_seconds{engine="whisper",quantile="0.95"}
-
-# Success rate
-blckvox_transcription_success_total{engine="vosk"}
-blckvox_transcription_success_total{engine="whisper"}
-
-# Failure rate
-blckvox_transcription_failure_total{engine="vosk",reason="timeout"}
-blckvox_transcription_failure_total{engine="whisper",reason="transcription_error"}
-
-# Reconciliation
-blckvox_transcription_reconciliation_total{strategy="SIMPLE",selected="vosk"}
-
-# System metrics
-process_cpu_usage
-jvm_memory_used_bytes{area="heap"}
-```
-
-### Prometheus Configuration Example
-
-Add to `prometheus.yml`:
-
-```yaml
-scrape_configs:
-  - job_name: 'blckvox'
-    static_configs:
-      - targets: ['localhost:8080']
-    metrics_path: '/actuator/prometheus'
-    scrape_interval: 15s
-```
-
-### Alerting Rules (Example)
-
-```yaml
-groups:
-  - name: blckvox
-    rules:
-      # Alert if both engines down
-      - alert: BlckvoxDown
-        expr: up{job="blckvox"} == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "blckvox is down"
-
-      # Alert if failure rate > 10%
-      - alert: HighTranscriptionFailureRate
-        expr: |
-          (
-            rate(blckvox_transcription_failure_total[5m])
-            /
-            rate(blckvox_transcription_success_total[5m] + blckvox_transcription_failure_total[5m])
-          ) > 0.1
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High transcription failure rate"
-
-      # Alert if p95 latency > 3 seconds
-      - alert: HighTranscriptionLatency
-        expr: |
-          blckvox_transcription_latency_seconds{quantile="0.95"} > 3
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High transcription latency"
-
-      # Alert if watchdog cooldown triggered
-      - alert: EngineInCooldown
-        expr: |
-          increase(blckvox_transcription_failure_total{reason="watchdog_cooldown"}[10m]) > 0
-        labels:
-          severity: warning
-        annotations:
-          summary: "STT engine in watchdog cooldown"
-```
+When the application is running correctly, a system tray icon appears in the macOS menu bar. The tray menu provides status information and controls (start/stop recording, toggle live captions, quit).
 
 ---
 
@@ -553,21 +424,7 @@ sudo chmod 750 /var/log/blckvox
 
 ### Network Security
 
-**Default configuration**: Binds to `localhost:8080` (not accessible from network).
-
-**If remote monitoring needed**, use firewall rules:
-
-```bash
-# Linux (iptables) - Allow Prometheus server only
-sudo iptables -A INPUT -p tcp -s 10.0.1.100 --dport 8080 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 8080 -j DROP
-
-# macOS (pf) - Add to /etc/pf.conf
-pass in proto tcp from 10.0.1.100 to any port 8080
-block in proto tcp to any port 8080
-```
-
-**Recommendation**: Use TLS termination proxy (nginx, Caddy) if exposing externally.
+The application has no listening port (headless desktop app with `spring.main.web-application-type=none`). There are no HTTP endpoints, no actuator, and no network attack surface to protect.
 
 ### Dependency Scanning
 
@@ -680,7 +537,8 @@ sudo chmod +x /opt/blckvox/bin/whisper
 sudo systemctl start blckvox
 
 # 5. Verify health
-curl http://localhost:8080/actuator/health
+ps aux | grep blckvox | grep -v grep
+tail -20 /var/log/blckvox/blckvox.log | grep "Started BlckvoxApplication"
 ```
 
 ---
@@ -713,9 +571,6 @@ sudo chown -R blckvox:blckvox /opt/blckvox
 ### High Failure Rate
 
 ```bash
-# Check metrics
-curl http://localhost:8080/actuator/prometheus | grep failure
-
 # Check logs for patterns
 sudo grep FAIL /var/log/blckvox/blckvox.log | tail -20
 
@@ -728,8 +583,8 @@ sudo grep FAIL /var/log/blckvox/blckvox.log | tail -20
 ### Memory Issues
 
 ```bash
-# Check heap usage
-curl http://localhost:8080/actuator/metrics/jvm.memory.used | jq
+# Check process memory usage
+ps aux | grep blckvox | grep -v grep
 
 # Analyze heap dump (if OOM occurred)
 jhat /var/log/blckvox/heap-dump.hprof
@@ -737,22 +592,6 @@ jhat /var/log/blckvox/heap-dump.hprof
 # Fix: Increase heap
 # Edit service file, add: -Xmx4g
 ```
-
-### Metrics Not Appearing in Prometheus
-
-**Problem**: Prometheus endpoint hidden by production profile.
-
-**Fix**: Update `src/main/resources/application-production.properties`:
-
-```properties
-# OLD (BROKEN)
-management.endpoints.web.exposure.include=health,info
-
-# NEW (CORRECT)
-management.endpoints.web.exposure.include=health,info,prometheus
-```
-
-Rebuild JAR and redeploy.
 
 ---
 
@@ -787,7 +626,8 @@ sudo chmod +x /opt/blckvox/bin/whisper
 sudo systemctl start blckvox
 
 # 9. Verify health
-curl http://localhost:8080/actuator/health
+ps aux | grep blckvox | grep -v grep
+tail -20 /var/log/blckvox/blckvox.log | grep "Started BlckvoxApplication"
 
 # 10. Monitor for issues
 sudo journalctl -u blckvox -f
@@ -806,7 +646,8 @@ sudo tar -xzf /backup/blckvox/YYYYMMDD/app.tar.gz -C /
 sudo systemctl start blckvox
 
 # 4. Verify
-curl http://localhost:8080/actuator/health
+ps aux | grep blckvox | grep -v grep
+tail -20 /var/log/blckvox/blckvox.log | grep "Started BlckvoxApplication"
 ```
 
 ---
@@ -819,7 +660,6 @@ Before going live:
 - [ ] Absolute paths configured for models and binaries
 - [ ] Production profile enabled
 - [ ] Logging level set to INFO (not DEBUG)
-- [ ] Prometheus endpoint exposed
 - [ ] Appropriate concurrency limits set
 
 **Security**:
@@ -830,7 +670,6 @@ Before going live:
 
 **Monitoring**:
 - [ ] Health checks automated
-- [ ] Metrics scraped by Prometheus
 - [ ] Alerts configured (failure rate, latency, downtime)
 - [ ] Logs forwarded to centralized system (optional)
 

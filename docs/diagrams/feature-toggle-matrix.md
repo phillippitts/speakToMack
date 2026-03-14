@@ -96,7 +96,7 @@ intended use case.
 
 | Scenario | `live-caption` | `reconciliation` | `watchdog` | `tray` | `validation` | `dynamic-scaling` | Active Subsystems | Latency Profile | Use Case |
 |---|---|---|---|---|---|---|---|---|---|
-| **Default (Production)** | true | true (overlap) | true | true | true | false | All subsystems active. Dual-engine parallel STT with word-overlap reconciliation. Tray icon with live caption checkbox. Watchdog monitors health. Static concurrency. | Medium -- two engines run in parallel, reconciliation adds post-processing | Full-featured desktop deployment on macOS with all safety nets |
+| **Default (Production)** | true | true (overlap) | true | true | true | false | All subsystems active. Dual-engine parallel STT with overlap reconciliation. Tray icon with live caption checkbox. Watchdog monitors health. Static concurrency. | Medium -- two engines run in parallel, reconciliation adds post-processing | Full-featured desktop deployment on macOS with all safety nets |
 | **Fast Mode** | false | false | true | true | true | false | Single-engine STT via EngineSelectionStrategy. Tray icon without caption checkbox. Watchdog protects the single engine. | Low -- only one engine runs per transcription, no reconciliation overhead | When speed matters more than accuracy, or hardware is limited |
 | **Maximum Accuracy** | true | true (overlap) | true | true | true | true | Everything active plus dynamic scaling. ConcurrencyScaler adjusts permits under load. JSON whisper output for word-level tokens. | Higher -- dual-engine plus dynamic scaling overhead, but best accuracy | Transcription-critical workloads where accuracy is paramount |
 | **Headless / CI** | false | true (simple) | true | false | true | false | No UI components. No tray, no JavaFX. Dual-engine reconciliation still active. | Medium -- dual-engine without UI overhead | Server-side or CI/CD pipeline transcription, no display available |
@@ -261,7 +261,7 @@ flowchart TD
 
 | Property | Default | Type | Controlled By | Effect When True | Effect When False | Notes |
 |---|---|---|---|---|---|---|
-| `hotkey.toggle-mode` | `true` | boolean | `HotkeyConfig` | Toggle: first activation starts recording, second stops and triggers transcription | Push-to-talk: key-down starts, key-up stops and triggers transcription | Both modes use the same hotkey (`hotkey.key` + `hotkey.type`) |
+| `hotkey.toggle-mode` | `true` | boolean | `HotkeyProperties` | Toggle: first activation starts recording, second stops and triggers transcription | Push-to-talk: key-down starts, key-up stops and triggers transcription | Both modes use the same hotkey (`hotkey.key` + `hotkey.type`) |
 | `typing.enable-robot` | `true` | boolean | `TypingService` | Uses `java.awt.Robot` to simulate paste keystroke (Cmd+V on macOS) | Robot API is never instantiated; all output goes through clipboard | Requires macOS Accessibility permission for Robot |
 | `typing.clipboard-only-fallback` | `false` | boolean | `TypingService` | Skips Robot entirely; copies text to clipboard and expects user to paste | Attempts Robot first, falls back to clipboard on failure | Overrides `enable-robot` when true |
 | `typing.restore-clipboard` | `true` | boolean | `TypingService` | Saves current clipboard content before paste, restores it afterward | Clipboard retains the transcribed text after paste | Only relevant when clipboard is used (always for fallback, always for clipboard-only) |

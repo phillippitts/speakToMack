@@ -173,17 +173,17 @@ java -jar blckvox.jar --spring.config.additional-location=./application-local.pr
 
 You should see log output indicating the app started successfully:
 ```
-INFO  c.p.s.BlckvoxApplication - Started BlckvoxApplication in 3.3 seconds
-INFO  c.p.s.h.HotkeyManager - HotkeyManager started with trigger=...
+INFO  c.p.b.BlckvoxApplication - Started BlckvoxApplication in 3.3 seconds
+INFO  c.p.b.h.HotkeyManager - HotkeyManager started with trigger=...
 ```
 
 ### Step 8: Test Dictation
 
 1. Open any text editor (TextEdit, Notes, etc.)
 2. Click in the text field
-3. **Press and hold** the Right Command key (⌘)
+3. **Double-tap** the Right Command key (⌘) to start recording (default: `hotkey.type=double-tap`, `hotkey.toggle-mode=true`)
 4. **Speak** your text
-5. **Release** the Right Command key
+5. **Double-tap** the Right Command key again to stop recording
 6. Your text should appear!
 
 ---
@@ -199,13 +199,13 @@ For permanent installation that starts automatically when you log in.
 2. Create a LaunchAgent plist:
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cat > ~/Library/LaunchAgents/com.phillippitts.blckvox.plist << EOF
+cat > ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.phillippitts.blckvox</string>
+    <string>com.boombapcompile.blckvox</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -237,26 +237,26 @@ EOF
 
 3. Load the service:
 ```bash
-launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+launchctl load ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
 ```
 
 4. Verify it's running:
 ```bash
-# Check process is running
-ps aux | grep blckvox
+# Check if the application is running
+ps aux | grep blckvox | grep -v grep
 
-# Check health endpoint
-curl http://localhost:8080/actuator/health
+# Check logs for successful startup
+tail -20 logs/blckvox.log | grep "Started BlckvoxApplication"
 ```
 
 5. Service management:
 ```bash
 # Stop service
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+launchctl unload ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
 
 # Restart service
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
-launchctl load ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+launchctl unload ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
+launchctl load ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
 
 # View logs
 tail -f ~/Applications/blckvox/logs/blckvox.log
@@ -378,7 +378,7 @@ source ~/.zshrc
 **Diagnostic steps**:
 ```bash
 # 1. Check if app is running
-curl http://localhost:8080/actuator/health
+ps aux | grep blckvox | grep -v grep
 
 # 2. Check microphone permission
 # System Settings → Privacy & Security → Microphone
@@ -388,7 +388,7 @@ curl http://localhost:8080/actuator/health
 tail -50 ~/Applications/blckvox/logs/blckvox.log
 
 # 4. Test with verbose logging
-java -jar blckvox.jar --logging.level.com.phillippitts.blckvox=DEBUG
+java -jar blckvox.jar --logging.level.com.boombapcompile.blckvox=DEBUG
 ```
 
 **Common causes**:
@@ -453,8 +453,8 @@ xattr -dr com.apple.quarantine tools/whisper.cpp/main
 
 **Solution**:
 ```bash
-# Check metrics
-curl http://localhost:8080/actuator/metrics/process.cpu.usage
+# Check process CPU usage
+ps aux | grep blckvox | grep -v grep
 
 # Reduce concurrency in application-local.properties:
 echo "stt.concurrency.vosk-max=2" >> application-local.properties
@@ -472,11 +472,11 @@ echo "stt.orchestration.primary-engine=vosk" >> application-local.properties
 ### Remove Application
 ```bash
 # Stop service if running
-launchctl unload ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+launchctl unload ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
 
 # Remove files
 rm -rf ~/Applications/blckvox
-rm ~/Library/LaunchAgents/com.phillippitts.blckvox.plist
+rm ~/Library/LaunchAgents/com.boombapcompile.blckvox.plist
 ```
 
 ### Revoke Permissions

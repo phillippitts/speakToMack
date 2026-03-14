@@ -8,7 +8,7 @@ sequenceDiagram
     participant HK as HotkeyManager
     participant Orch as RecordingService
     participant Audio as AudioCaptureService
-    participant Buffer as AudioBuffer
+    participant Buffer as PcmRingBuffer
     participant PSS as ParallelSttService
     participant Vosk as VoskSttEngine
     participant Whisper as WhisperSttEngine
@@ -31,16 +31,16 @@ sequenceDiagram
     Orch->>Buffer: Get snapshot
     Buffer-->>Orch: Audio bytes
     
-    Orch->>PSS: transcribeDual(audio, 5000ms)
+    Orch->>PSS: transcribeBoth(audio, 5000ms)
     
     par Parallel Execution
         PSS->>Vosk: Thread 1: transcribe(audio)
         Note over Vosk: 100ms latency
-        Vosk-->>PSS: SttResult(text, 100ms)
+        Vosk-->>PSS: EngineResult(text, 100ms)
     and
         PSS->>Whisper: Thread 2: transcribe(audio)
         Note over Whisper: 1-2s latency
-        Whisper-->>PSS: SttResult(text, 1500ms)
+        Whisper-->>PSS: EngineResult(text, 1500ms)
     end
     
     PSS->>Rec: reconcile(voskResult, whisperResult)
@@ -48,13 +48,14 @@ sequenceDiagram
     Rec-->>PSS: TranscriptionResult(text, engine, reason)
     PSS-->>Orch: TranscriptionResult
     
-    Orch->>FB: pasteWithFallback(text)
-    
+    Orch-->>Orch: publish TranscriptionCompletedEvent
+    Note over FB: FallbackManager listens to<br/>TranscriptionCompletedEvent
+
     alt Accessibility Permission Granted
-        FB->>Type: Clipboard + Cmd+V
+        FB->>Type: Robot → Cmd+V
         Type-->>User: Text pasted
-    else Permission Denied
-        FB->>Type: Clipboard only
+    else Robot Failed
+        FB->>Type: Clipboard fallback
         FB-->>User: Notification: Manual paste required
     else Clipboard Failed
         FB-->>User: Toast notification with text

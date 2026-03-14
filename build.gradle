@@ -4,6 +4,7 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.openjfx.javafxplugin' version '0.1.0'
     id 'checkstyle'  // Clean code enforcement
+    id 'jacoco'      // Test coverage reporting
 }
 
 group = 'com.phillippitts'
@@ -115,6 +116,46 @@ checkstyle {
     configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
     // Fail build on violations
     maxWarnings = 0
+}
+
+jacocoTestReport {
+    dependsOn test
+    mustRunAfter integrationTest
+    executionData.from(
+        fileTree(layout.buildDirectory).include("jacoco/*.exec")
+    )
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, excludes: [
+                // Spring Boot entry point
+                '**/BlckvoxApplication.class',
+                // JavaFX (requires FX thread / Platform.startup)
+                '**/livecaption/LiveCaptionWindow.class',
+                '**/livecaption/JavaFxLifecycle.class',
+                '**/livecaption/LiveCaptionManager.class',
+                // JNI-dependent (Vosk native lib / model loading)
+                '**/vosk/VoskSttEngine.class',
+                '**/vosk/VoskSttEngine$SegmentAggregation.class',
+                '**/vosk/VoskStreamingService.class',
+                '**/vosk/VoskModelProvider.class',
+                // JNI smoke test in validateVosk() requires real Vosk model
+                '**/config/stt/ModelValidationService.class',
+                // OS accessibility permissions required
+                '**/hotkey/impl/JNativeHookGlobalKeyHook.class',
+                // AWT SystemTray (headless CI incompatible)
+                '**/tray/SystemTrayManager.class',
+                // OS process creation (requires real binary)
+                '**/whisper/DefaultProcessFactory.class',
+                // AWT Robot/Clipboard facades (headless CI incompatible)
+                '**/fallback/ClipboardTypingAdapter$AwtClipboardFacade.class',
+                '**/fallback/RobotTypingAdapter$AwtRobotFacade.class',
+            ])
+        }))
+    }
 }
 
 // Configure bootRun to disable headless mode (required for Robot/Clipboard APIs)

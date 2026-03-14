@@ -39,7 +39,7 @@ flowchart TD
     %% ── Live Caption cluster ─────────────────────────────────
     START --> LC_CHECK
     subgraph livecaption ["Live Caption Feature (3 beans, 1 toggle)"]
-        LC_CHECK{{"live-caption.enabled\n(default: true)"}}
+        LC_CHECK{{"live-caption.enabled\n(shipped default: true; no matchIfMissing)"}}
         LC_YES_1["LiveCaptionManager\n@Service"]:::created
         LC_YES_2["VoskStreamingService\n@Service"]:::created
         LC_YES_3["JavaFxLifecycle\n@Service, SmartLifecycle"]:::created

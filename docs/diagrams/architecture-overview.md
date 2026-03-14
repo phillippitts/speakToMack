@@ -14,15 +14,14 @@ graph TB
     TO -->|Thread 1| Vosk[VoskSttEngine<br/>~100ms]
     TO -->|Thread 2| Whisper[WhisperSttEngine<br/>~1-2s]
 
-    Vosk -->|SttResult| Rec[TranscriptReconciler<br/>Strategy Pattern]
-    Whisper -->|SttResult| Rec
+    Vosk -->|EngineResult| Rec[TranscriptReconciler<br/>Strategy Pattern]
+    Whisper -->|EngineResult| Rec
 
     Rec -->|TranscriptionResult| TO
     TO -->|TranscriptionCompletedEvent| FM[FallbackManager]
     FM -->|Paste/Clipboard/Notify| TS[TypingService]
     TS -->|Cmd+V| User
     
-    style PSS fill:#f9f,stroke:#333,stroke-width:2px
     style Rec fill:#bbf,stroke:#333,stroke-width:2px
     style FM fill:#bfb,stroke:#333,stroke-width:2px
 ```

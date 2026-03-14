@@ -36,11 +36,11 @@ WRITE_APP_PROPS=true ./build-whisper.sh
 
 Create or edit `application-local.properties` in your application directory:
 ```properties
-hotkey.type=single-key            # single-key | double-tap | modifier-combo
+hotkey.type=double-tap            # single-key | double-tap | modifier-combo (default: double-tap)
 hotkey.key=RIGHT_META             # e.g., RIGHT_META, F13, D
 # hotkey.modifiers=META,SHIFT     # for modifier-combo (required for this type)
 # hotkey.threshold-ms=300         # for double-tap (100-1000ms)
-hotkey.toggle-mode=false          # true for click-to-toggle, false for push-to-talk
+hotkey.toggle-mode=true           # true for click-to-toggle (default), false for push-to-talk
 # hotkey.reserved=META+TAB,META+L # flag conflicts (platform-aware)
 ```
 
@@ -62,7 +62,7 @@ Notes:
 Run both engines in parallel and reconcile the results:
 ```properties
 stt.reconciliation.enabled=true
-stt.reconciliation.strategy=simple    # simple | confidence | overlap
+stt.reconciliation.strategy=overlap    # simple | confidence | overlap (default: overlap)
 stt.reconciliation.overlap-threshold=0.6
 ```
 - The orchestrator publishes a reconciled `TranscriptionCompletedEvent`.
@@ -71,7 +71,7 @@ stt.reconciliation.overlap-threshold=0.6
 ## Enabling Whisper JSON Mode (optional)
 JSON mode provides richer tokens for better overlap reconciliation:
 ```properties
-stt.whisper.output=json   # default is text
+stt.whisper.output=json   # default
 ```
 - The manager adds `-oj` to the CLI and caps stdout to prevent memory spikes.
 - JSON is parsed safely; malformed JSON falls back gracefully.

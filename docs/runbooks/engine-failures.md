@@ -35,10 +35,12 @@ This runbook helps diagnose and resolve Vosk/Whisper failures in blckvox.
 - Orchestrator falls back to the other engine when available
 
 ## Metrics to Monitor
-- `stt.engine.failure_total{engine=,reason=}`
-- `stt.engine.success_total{engine=}`
-- `stt.engine.latency.ms{engine=}`
-- (Reconcile) `stt.reconcile.strategy_total`, `stt.reconcile.selected_total`
+
+> **Note:** Micrometer metrics are planned for Phase 6. Currently, the following are observable via INFO-level log events:
+
+- Engine failure/success counts (per engine)
+- Engine latency (per engine)
+- Reconciliation strategy used and selected engine
 
 ## Escalation
 - Enable DEBUG for whisper/vosk packages temporarily to capture more detail (avoid logging text at INFO)

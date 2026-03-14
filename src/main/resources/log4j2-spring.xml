@@ -39,21 +39,21 @@
     </Appenders>
 
     <Loggers>
-        <Logger name="com.phillippitts.blckvox" level="info" additivity="false">
+        <Logger name="com.boombapcompile.blckvox" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
 
-        <Logger name="com.phillippitts.blckvox.service.hotkey" level="info" additivity="false">
+        <Logger name="com.boombapcompile.blckvox.service.hotkey" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
-        <Logger name="com.phillippitts.blckvox.service.audio.capture" level="info" additivity="false">
+        <Logger name="com.boombapcompile.blckvox.service.audio.capture" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AsyncFile"/>
         </Logger>
 
-        <Logger name="com.phillippitts.blckvox.audit" level="info" additivity="false">
+        <Logger name="com.boombapcompile.blckvox.audit" level="info" additivity="false">
             <AppenderRef ref="AuditLog"/>
         </Logger>
 

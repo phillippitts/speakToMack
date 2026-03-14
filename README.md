@@ -16,7 +16,7 @@ Current capabilities (implemented):
 - ✅ Log4j2 structured logging with MDC propagation (async console/file + audit log)
 - ✅ Audio format validation (16kHz, 16-bit PCM, mono) with configurable min/max durations
 - ✅ Domain model: TranscriptionResult
-- ✅ Exception hierarchy and global REST exception handler
+- ✅ Exception hierarchy (BlckvoxException, TranscriptionException, InvalidAudioException, ModelNotFoundException)
 - ✅ SttEngine interface (Adapter pattern target)
 - ✅ Typed configuration properties (VoskConfig, WhisperConfig, Audio/Hotkey/Typing/Orchestration/Reconciliation, Concurrency, Watchdog)
 - ✅ Thread pool configuration with MDC task decoration
@@ -24,18 +24,18 @@ Current capabilities (implemented):
 - ✅ Whisper STT engine via whisper.cpp (temp WAV + robust process manager with timeouts and stdout caps)
 - ✅ Parallel execution (Vosk + Whisper) with reconciled path behind a flag
 - ✅ Smart reconciliation: conditional dual-engine based on Vosk confidence threshold (70-80% resource savings)
-- ✅ Reconciliation strategies: simple, confidence, word-overlap (configurable)
+- ✅ Reconciliation strategies: simple, confidence, overlap (configurable)
 - ✅ Whisper JSON mode (opt-in) with token extraction for better overlap
 - ✅ Audio Capture Service (Java Sound, PCM16LE mono @16kHz) with ring buffer, validation, and hermetic tests
 - ✅ Hotkey detection (single-key, double-tap, modifier-combo) with reserved-shortcut detection and permission events
 - ✅ Fallback typing chain (Robot → Clipboard → Notify), chunked paste, privacy-safe logging
 - ✅ Event-driven watchdog with bounded auto-restart and cooldown
-- ✅ Metrics (Micrometer): engine latency/success/failure; reconciliation strategy/selected (PII-safe)
+- ✅ Metrics: Planned for Phase 6. Currently observable via INFO-level log events (engine latency, success/failure, reconciliation strategy)
 - ✅ Live Caption overlay: real-time oscilloscope waveform + streaming Vosk captions (JavaFX, toggleable from tray menu)
 
 Planned (later phases):
 - ❌ Database persistence and search
-- ❌ Security hardening (auth for Actuator, TLS, OWASP scanning)
+- ❌ Security hardening (TLS, OWASP scanning)
 - ❌ GDPR compliance features (90‑day retention, right to erasure, IP anonymization)
 
 ## Key Features
@@ -43,7 +43,7 @@ Planned (later phases):
 - **Push-to-Talk Dictation:** Press/hold hotkey → speak → release → text appears
 - **Smart Dual-Engine Transcription:** Starts with Vosk (fast), automatically upgrades to Whisper verification when confidence is low - saves 70-80% resources while maintaining accuracy
 - **100% Local:** No cloud APIs, no internet required after setup
-- **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties or application.yml)
+- **Configurable Hotkeys:** Configurable via Spring Boot properties (application.properties)
 - **Live Caption Overlay:** Real-time oscilloscope waveform and streaming Vosk captions during recording
 - **Graceful Fallback:** Works even if Accessibility permission denied
 
@@ -93,7 +93,7 @@ Planned (later phases):
 ### blckvox Domain Terms
 - **Reconciliation** - Process of selecting final text when Vosk and Whisper disagree
 - **Fallback Manager** - System that gracefully degrades when Accessibility permission denied
-- **Audio Buffer** - Thread-safe storage for captured microphone audio
+- **PcmRingBuffer** - Thread-safe ring buffer for captured microphone audio
 - **Model Validation** - Startup check ensuring STT models are present and loadable
 
 ## Getting Started
@@ -237,7 +237,7 @@ Configuration (application.properties):
 ```properties
 # Audio capture defaults
 audio.capture.chunk-millis=40
-audio.capture.max-duration-ms=60000
+audio.capture.max-duration-ms=600000
 # audio.capture.device-name=
 ```
 
@@ -345,21 +345,17 @@ make -j$(nproc)  # or: make -j$(sysctl -n hw.ncpu) on macOS
 
 ## Verify Structured Logs
 
-After starting the app, you can verify that structured Log4j 2 logs (with MDC values) are emitted.
+After starting the app, check the console and `logs/blckvox.log` for structured Log4j 2 output:
 
-1. Start the app:
-   ```bash
-   ./gradlew bootRun
-   ```
-2. In another terminal, call the ping endpoint with headers to populate MDC:
-   ```bash
-   curl -H 'X-Request-ID: abc123' -H 'X-User-ID: demo' http://localhost:8080/ping
-   ```
-3. Observe console logs. You should see a line similar to:
-   ```
-   2025-10-14 16:45:12.345 [http-nio-8080-exec-1] [abc123] [demo] INFO  c.p.s.presentation.controller.PingController - Ping received — structured logging verification
-   ```
-   Note the requestId and userId appearing in square brackets.
+```bash
+./gradlew bootRun
+```
+
+You should see log lines like:
+```
+2025-10-14 16:45:12.345 [main] INFO  c.b.b.config.stt.ModelValidationService - Vosk model validated: models/vosk-model-en-us-0.22
+2025-10-14 16:45:13.456 [main] INFO  c.b.b.service.stt.VoskSttEngine - Vosk engine initialized
+```
 
 ## Architecture
 
@@ -393,13 +389,13 @@ stt.vosk.max-alternatives=1
 # Whisper (binary path set by ./build-whisper.sh with WRITE_APP_PROPS=true)
 stt.whisper.binary-path=/Users/.../blckvox/tools/whisper.cpp/main
 stt.whisper.model-path=models/ggml-base.en.bin
-stt.whisper.timeout-seconds=10
+stt.whisper.timeout-seconds=120
 stt.whisper.language=en
 stt.whisper.threads=4
 
 # Orchestration (placeholders for Phase 3)
 stt.enabled-engines=vosk,whisper
-stt.parallel.timeout-ms=10000
+stt.parallel.timeout-ms=120000
 ```
 
 ### Manual Configuration
@@ -426,7 +422,7 @@ Properties are bound to typed records for compile-time safety:
 - `AudioValidationProperties` → `audio.validation.*`
 - `LiveCaptionProperties` → `live-caption.*`
 
-See: `src/main/java/com/phillippitts/blckvox/config/`
+See: `src/main/java/com/boombapcompile/blckvox/config/`
 
 ---
 
@@ -531,9 +527,9 @@ GIT_REF=v1.8.0 ./build-whisper.sh
 ### Run Tests
 
 Where are the tests?
-- src/test/java/com/phillippitts/blckvox/BlckvoxApplicationTests.java (Spring context load test)
-- src/test/java/com/phillippitts/blckvox/TestBlckvoxApplication.java (test bootstrap example)
-- src/test/java/com/phillippitts/blckvox/TestcontainersConfiguration.java (test-only configuration)
+- src/test/java/com/boombapcompile/blckvox/BlckvoxApplicationTests.java (Spring context load test)
+- src/test/java/com/boombapcompile/blckvox/TestBlckvoxApplication.java (test bootstrap example)
+- src/test/java/com/boombapcompile/blckvox/config/IntegrationTestConfiguration.java (test-only configuration)
 
 How to run:
 ```bash
@@ -544,10 +540,10 @@ How to run:
 ./gradlew test --tests BlckvoxApplicationTests
 
 # Single class (fully-qualified)
-./gradlew test --tests com.phillippitts.blckvox.BlckvoxApplicationTests
+./gradlew test --tests com.boombapcompile.blckvox.BlckvoxApplicationTests
 
 # Single test method
-./gradlew test --tests com.phillippitts.blckvox.BlckvoxApplicationTests.contextLoads
+./gradlew test --tests com.boombapcompile.blckvox.BlckvoxApplicationTests.contextLoads
 ```
 
 Notes:
@@ -557,18 +553,23 @@ Notes:
 ### Project Structure
 
 ```
-src/main/java/com/phillippitts/blckvox/
-├── presentation/       # Controllers, DTOs, exception handlers
+src/main/java/com/boombapcompile/blckvox/
+├── config/            # Spring configuration and typed properties
+│   ├── properties/    # VoskConfig, WhisperConfig, AudioProperties, etc.
+│   └── orchestration/ # Thread pool, event, orchestration config
 ├── service/           # Business logic, STT engines, orchestration, audio capture
 │   ├── audio/         # Audio capture, PCM events
 │   ├── stt/           # STT engines (Vosk, Whisper), streaming
 │   ├── orchestration/ # State tracking, recording service
+│   ├── reconciliation/# Reconciliation strategies
+│   ├── typing/        # Typing adapters (Robot, Clipboard, Notify)
+│   ├── hotkey/        # Hotkey detection and triggers
 │   ├── livecaption/   # JavaFX overlay (oscilloscope + captions)
 │   └── tray/          # System tray icon and menu
-├── domain/           # Domain entities (TranscriptionResult, etc.)
-├── config/           # Spring configuration and typed properties
-├── exception/        # Custom exceptions and global handlers
-└── util/             # Utility classes (TimeUtils, ProcessTimeouts)
+├── domain/            # Domain records (TranscriptionResult, etc.)
+├── event/             # Spring ApplicationEvents
+├── exception/         # Custom exceptions
+└── util/              # Utility classes (TimeUtils, ProcessTimeouts)
 ```
 
 ## Contributing

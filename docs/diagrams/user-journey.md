@@ -417,7 +417,7 @@ mindmap
 | Hotkey not triggering | Double-tap too slow/fast | Adjust `hotkey.threshold-ms` (200-500ms range) |
 | Wrong transcription | Noisy environment | Move to quieter space, adjust mic input level |
 | Text doesn't paste | Accessibility permission denied | Grant permission in System Settings |
-| Slow transcription | Both engines running | Enable `stt.reconcile.enabled=true` (conditional dual-engine) |
+| Slow transcription | Both engines running | Enable `stt.reconciliation.enabled=true` (conditional dual-engine) |
 | App won't start | Models not downloaded | Run `./setup-models.sh` |
 | Whisper timeout | Complex audio processing | Increase `stt.whisper.timeout-seconds` to 15-20 |
 

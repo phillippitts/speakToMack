@@ -185,9 +185,9 @@ graph TB
     subgraph SttExecutorPool["sttExecutor (ThreadPoolTaskExecutor)"]
         direction TB
         SttBean["@Bean name = 'sttExecutor'<br/>ThreadPoolConfig.java:59"]
-        SttCore["corePoolSize: 4"]
-        SttMax["maxPoolSize: 8"]
-        SttQueue["queueCapacity: 50"]
+        SttCore["corePoolSize: 2"]
+        SttMax["maxPoolSize: 4"]
+        SttQueue["queueCapacity: 10"]
         SttPrefix["threadNamePrefix: 'stt-pool-'"]
         SttReject["rejectionPolicy:<br/>CallerRunsPolicy"]
         SttShutdown["waitForTasksToCompleteOnShutdown: true<br/>awaitTerminationSeconds: 30"]
@@ -239,9 +239,9 @@ Both pools are externally configurable via `ThreadPoolProperties`:
 
 | Property | sttExecutor | eventExecutor |
 |----------|-------------|---------------|
-| `threadpool.stt.core-pool-size` / `threadpool.event.core-pool-size` | 4 | 2 |
-| `threadpool.stt.max-pool-size` / `threadpool.event.max-pool-size` | 8 | 4 |
-| `threadpool.stt.queue-capacity` / `threadpool.event.queue-capacity` | 50 | 10 |
+| `threadpool.stt.core-pool-size` / `threadpool.event.core-pool-size` | 2 | 2 |
+| `threadpool.stt.max-pool-size` / `threadpool.event.max-pool-size` | 4 | 4 |
+| `threadpool.stt.queue-capacity` / `threadpool.event.queue-capacity` | 10 | 10 |
 | `threadpool.stt.thread-name-prefix` / `threadpool.event.thread-name-prefix` | `stt-pool-` | `event-pool-` |
 | Rejection Policy | `CallerRunsPolicy` | `DiscardOldestPolicy` (custom) |
 
@@ -288,12 +288,12 @@ sequenceDiagram
 
 ### MDC Fields Propagated
 
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `requestId` | Generated per dictation session | Correlates all log lines for one dictation |
-| `userId` | Application configuration | Identifies the user in multi-user scenarios |
-| `action` | Event type (hotkey, capture, transcribe) | Categorizes the operation |
-| `audioDurationMs` | Computed from PCM buffer size | Performance tracking |
+| Field | Source | Purpose | Log Pattern |
+|-------|--------|---------|-------------|
+| `requestId` | Generated per dictation session | Correlates all log lines for one dictation | Main LOG_PATTERN |
+| `userId` | Application configuration | Identifies the user in multi-user scenarios | Main LOG_PATTERN |
+| `action` | Event type (hotkey, capture, transcribe) | Categorizes the operation | AuditLog pattern only |
+| `audioDurationMs` | Computed from PCM buffer size | Performance tracking | Not in any pattern (application-level only) |
 
 ### Why Previous Context Is Preserved
 
@@ -318,17 +318,17 @@ Flowchart showing what happens when each pool reaches capacity.
 flowchart TB
     Submit["event-pool-1 calls:<br/>CompletableFuture.supplyAsync(<br/>task, sttExecutor)"]
 
-    Submit --> CheckCore{"Core threads<br/>busy?<br/>(4 threads)"}
+    Submit --> CheckCore{"Core threads<br/>busy?<br/>(2 threads)"}
 
     CheckCore -->|"No"| RunCore["Task runs on<br/>idle core thread"]
 
-    CheckCore -->|"Yes"| CheckQueue{"Queue full?<br/>(50 capacity)"}
+    CheckCore -->|"Yes"| CheckQueue{"Queue full?<br/>(10 capacity)"}
 
     CheckQueue -->|"No"| Enqueue["Task added to queue<br/>(waits for core thread)"]
 
-    CheckQueue -->|"Yes"| CheckMax{"Max threads<br/>reached?<br/>(8 threads)"}
+    CheckQueue -->|"Yes"| CheckMax{"Max threads<br/>reached?<br/>(4 threads)"}
 
-    CheckMax -->|"No"| SpawnThread["Spawn new thread<br/>(up to max 8)"]
+    CheckMax -->|"No"| SpawnThread["Spawn new thread<br/>(up to max 4)"]
 
     CheckMax -->|"Yes"| CallerRuns["CallerRunsPolicy:<br/>event-pool-1 runs<br/>the STT task itself"]
 
@@ -550,7 +550,7 @@ recent user action matters.
 | Main Thread | JVM / Spring Boot | Application lifetime | 1 |
 | JNativeHook Thread | `GlobalScreen.registerNativeHook()` | Application lifetime | 1 |
 | Audio Capture Thread | `JavaSoundAudioCaptureService` | Per recording session | 1 |
-| stt-pool-N | `ThreadPoolTaskExecutor` (sttExecutor) | Core: always alive; max: idle timeout | 4-8 |
+| stt-pool-N | `ThreadPoolTaskExecutor` (sttExecutor) | Core: always alive; max: idle timeout | 2-4 |
 | event-pool-N | `ThreadPoolTaskExecutor` (eventExecutor) | Core: always alive; max: idle timeout | 2-4 |
 | JavaFX Application Thread | `Platform.startup()` / JavaFX runtime | Application lifetime | 1 |
 | Log4j2 AsyncAppender | LMAX Disruptor | Application lifetime | 1-2 |

@@ -11,7 +11,7 @@ Voice dictation requires balancing speed (user experience) and accuracy (output 
 Users expect sub-3-second latency but also high-quality transcription for professional use.
 
 ## Decision
-Run Vosk and Whisper **in parallel** on separate threads, reconcile results using configurable strategy (default: prefer Whisper).
+Run Vosk and Whisper **in parallel** on separate threads, reconcile results using configurable strategy (default: prefer Vosk).
 
 **Architecture:**
 - `ParallelSttService` uses `ExecutorService` with 2 threads
@@ -22,9 +22,9 @@ Run Vosk and Whisper **in parallel** on separate threads, reconcile results usin
 **Configuration:**
 ```properties
 stt.reconciliation.enabled=true
-stt.reconciliation.strategy=word-overlap  # simple | confidence | word-overlap
+stt.reconciliation.strategy=overlap  # simple | confidence | overlap
 stt.reconciliation.overlap-threshold=0.6
-stt.parallel.timeout-ms=10000
+stt.parallel.timeout-ms=120000
 ```
 
 ## Consequences
@@ -43,7 +43,7 @@ stt.parallel.timeout-ms=10000
 ### Mitigation
 - Circuit breaker pattern to disable failing engine
 - Model caching (SoftReference) allows GC under memory pressure
-- Single-engine mode available via `stt.parallel.enabled=false`
+- Single-engine mode available via `stt.reconciliation.enabled=false`
 
 ## Alternatives Considered
 

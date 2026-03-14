@@ -3,18 +3,18 @@
 This guide explains how blckvox combines results from Vosk and Whisper into a single transcription using configurable strategies.
 
 ## Overview
-When reconciliation is enabled, the system intelligently decides whether to run both engines based on the confidence of the primary (Vosk) result. The reconciler then selects the final text using one of several strategies. Metrics record the chosen strategy and selected engine.
+When reconciliation is enabled, the system intelligently decides whether to run both engines based on the confidence of the primary (Vosk) result. The reconciler then selects the final text using one of several strategies. The chosen strategy and selected engine are logged at INFO level.
 
 Enable via properties:
 ```properties
 stt.reconciliation.enabled=true
-stt.reconciliation.strategy=simple      # simple | confidence | overlap
+stt.reconciliation.strategy=overlap     # simple | confidence | overlap (default: overlap)
 stt.reconciliation.overlap-threshold=0.6
 stt.reconciliation.confidence-threshold=0.7  # smart reconciliation threshold
 ```
 Optional Whisper JSON tokens for improved overlap:
 ```properties
-stt.whisper.output=json   # default is text mode
+stt.whisper.output=json   # default
 ```
 
 ## Smart Reconciliation (Conditional Dual-Engine)
@@ -93,10 +93,13 @@ Compared to always running both engines:
 - Default tokenizer: lower-cased alpha tokens via `TokenizerUtil`
 - JSON mode (Whisper): tokens derived from `segments[].words[].word`, falling back to segment text or top-level text; sanitized to alpha tokens
 
-## Metrics
-- `stt.reconcile.strategy_total{strategy=}`
-- `stt.reconcile.selected_total{engine=vosk|whisper|unknown}`
-- (Optional) disagreement counter when overlap < threshold
+### Observability
+
+Metrics are planned for Phase 6. Currently, reconciliation is observable via INFO-level logs:
+
+```
+INFO  c.p.b.service.reconciliation - Reconciliation complete: strategy=overlap, selectedEngine=whisper, charCount=45
+```
 
 ## Recommendations
 - Start with `simple` or `confidence`
@@ -106,4 +109,4 @@ Compared to always running both engines:
 ## Troubleshooting
 - Both results empty: expect empty reconciled text; review audio validation thresholds
 - Low overlap: verify tokenization and consider adjusting `stt.reconciliation.overlap-threshold`
-- JSON parsing issues: keep `stt.whisper.output=text` (default) or verify your whisper.cpp build supports `-oj`
+- JSON parsing issues: set `stt.whisper.output=text` to disable JSON mode, or verify your whisper.cpp build supports `-oj`

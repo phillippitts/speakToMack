@@ -13,26 +13,22 @@ Users have different keyboard layouts, accessibility needs, and workflow prefere
 - Extensible for future shortcuts (pause, cancel, voice commands)
 
 ## Decision
-Externalize hotkey configuration via `application.yml` with factory-based trigger creation.
+Externalize hotkey configuration via `application.properties` with factory-based trigger creation.
 
 **Architecture:**
-```yaml
-hotkey:
-  trigger:
-    type: single-key              # single-key|double-tap|modifier-combination
-    key: RIGHT_META               # JNativeHook key name
-    modifiers: []                 # SHIFT, CONTROL, ALT, META
-  
-  combination:
-    primary-key: D
-    modifiers: [META, SHIFT]      # Cmd+Shift+D example
+```properties
+hotkey.type=single-key            # single-key | double-tap | modifier-combination
+hotkey.key=RIGHT_META             # JNativeHook key name
+# hotkey.modifiers=SHIFT,CONTROL  # SHIFT, CONTROL, ALT, META
+# hotkey.primary-key=D            # For modifier-combination type
+# hotkey.combination-modifiers=META,SHIFT  # Cmd+Shift+D example
 ```
 
 **Implementation:**
-- `HotkeyProperties` class maps YAML to Java objects
+- `HotkeyProperties` class maps properties to Java objects
 - `HotkeyTriggerFactory` creates concrete trigger from config
 - `HotkeyManager` uses injected trigger (Strategy pattern)
-- `KeyCodeMapper` converts human-readable names to JNativeHook codes
+- `KeyNameMapper` converts human-readable names to JNativeHook codes
 
 ## Consequences
 
@@ -51,7 +47,7 @@ hotkey:
 ### Mitigation
 - Comprehensive key name documentation
 - Startup logs show active hotkey: "Configured hotkey: Cmd+Shift+D"
-- Future: REST endpoint to test hotkey before restart
+- Future: CLI command or tray menu option to test hotkey before restart (N/A -- headless app, no web server)
 
 ## Alternatives Considered
 
@@ -73,4 +69,4 @@ hotkey:
 ## References
 - Guidelines: Lines 275-389 (Hotkey Configuration)
 - Implementation: Task 3.3 (Hotkey Configuration Loading)
-- Key mappings: `KeyCodeMapper` class
+- Key mappings: `KeyNameMapper` class

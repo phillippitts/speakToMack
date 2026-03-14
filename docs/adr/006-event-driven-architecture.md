@@ -21,13 +21,13 @@ src/main/java/com/phillippitts/blckvox/
 │   ├── orchestration/ # HotkeyRecordingAdapter → RecordingService → publishes TranscriptionCompletedEvent
 │   ├── fallback/      # FallbackManager → listens to TranscriptionCompletedEvent
 │   ├── stt/           # Speech-to-text engines (Vosk, Whisper)
-│   └── audio/         # Audio capture
+│   ├── audio/         # Audio capture
+│   └── tray/          # SystemTrayManager (menu bar UI)
 ├── config/            # Tier 2: Infrastructure (Spring beans, properties)
 │   ├── hotkey/
 │   ├── orchestration/
 │   ├── stt/
 │   └── ...
-│   └── tray/          # SystemTrayManager (menu bar UI)
 ├── domain/            # Shared records (TranscriptionResult, etc.)
 └── exception/         # Custom exceptions
 ```
@@ -87,7 +87,7 @@ src/main/java/com/phillippitts/blckvox/
 
 **Event Listeners:**
 - `HotkeyRecordingAdapter` → `@EventListener onHotkeyPressed/onHotkeyReleased`
-- `TypingEventsListener` → `@EventListener` for TranscriptionCompletedEvent
+- `TypingEventsListener` → `@EventListener` for `TypingFallbackEvent` + `AllTypingFallbacksFailedEvent`
 
 **Test Verification:**
 - `ReconciliationE2ETest` → Verifies full event chain with EventCapturingPublisher

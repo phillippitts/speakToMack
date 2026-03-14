@@ -17,7 +17,7 @@
 **Current Architecture:**
 - Event-driven service layer (ApplicationEvents)
 - In-memory processing only
-- Actuator endpoints for monitoring (health, metrics, prometheus)
+- ~~Actuator endpoints for monitoring~~ (Planned -- not yet implemented; no web server or actuator in current build)
 - No persistence layer
 
 **Future Consideration:**
